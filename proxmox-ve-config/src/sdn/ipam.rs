@@ -8,7 +8,11 @@ use std::{
 use serde::Deserialize;
 
 use crate::{
-    firewall::types::Cidr,
+    common::Allowlist,
+    firewall::types::{
+        ipset::{IpsetEntry, IpsetScope},
+        Cidr, Ipset,
+    },
     guest::{types::Vmid, vm::MacAddress},
     sdn::{SdnNameError, SubnetName, ZoneName},
 };
@@ -306,6 +310,40 @@ impl Ipam {
         }
 
         Ok(())
+    }
+}
+
+impl Ipam {
+    /// Generates an [`Ipset`] for all guests with at least one entry in the IPAM.
+    ///
+    /// # Arguments
+    /// * `filter` - A [`Allowlist<Vmid>`] for which IPsets should get returned
+    ///
+    /// It contains all IPs in all VNets, that a guest has stored in IPAM.
+    /// Ipset name is of the form `guest-ipam-<vmid>`
+    pub fn ipsets(&self, filter: Option<&Allowlist<Vmid>>) -> impl Iterator<Item = Ipset> + '_ {
+        self.entries
+            .iter()
+            .flat_map(|(_, entries)| entries.iter())
+            .filter_map(|entry| {
+                if let IpamData::Vm(data) = &entry.data() {
+                    if filter.is_none_or(|list| list.is_allowed(&data.vmid)) {
+                        return Some(data);
+                    }
+                }
+
+                None
+            })
+            .fold(HashMap::<Vmid, Ipset>::new(), |mut acc, entry| {
+                acc.entry(entry.vmid)
+                    .or_insert_with(|| {
+                        Ipset::from_parts(IpsetScope::Sdn, format!("guest-ipam-{}", entry.vmid))
+                    })
+                    .push(IpsetEntry::from(entry.ip));
+
+                acc
+            })
+            .into_values()
     }
 }
 

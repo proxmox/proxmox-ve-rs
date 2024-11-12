@@ -108,6 +108,15 @@ impl From<Ipv6Cidr> for Cidr {
     }
 }
 
+impl From<IpAddr> for Cidr {
+    fn from(value: IpAddr) -> Self {
+        match value {
+            IpAddr::V4(addr) => Ipv4Cidr::from(addr).into(),
+            IpAddr::V6(addr) => Ipv6Cidr::from(addr).into(),
+        }
+    }
+}
+
 const IPV4_LENGTH: u8 = 32;
 
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
