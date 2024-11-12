@@ -5,11 +5,13 @@ use std::{
 
 use proxmox_ve_config::{
     firewall::types::{address::IpRange, Cidr},
+    guest::vm::MacAddress,
     sdn::{
         config::{
             RunningConfig, SdnConfig, SdnConfigError, SubnetConfig, VnetConfig, ZoneConfig,
             ZoneType,
         },
+        ipam::{Ipam, IpamDataVm, IpamEntry, IpamJson},
         SubnetName, VnetName, ZoneName,
     },
 };
@@ -140,5 +142,48 @@ fn sdn_config() {
     assert_eq!(
         sdn_config.add_vnet(&zone1_name, vnet0.clone()),
         Err(SdnConfigError::DuplicateVnetName),
+    )
+}
+
+#[test]
+fn parse_ipam() {
+    let ipam_json: IpamJson = serde_json::from_str(include_str!("resources/ipam.db")).unwrap();
+    let ipam = Ipam::try_from(ipam_json).unwrap();
+
+    let zone_name = ZoneName::new("zone0".to_string()).unwrap();
+
+    assert_eq!(
+        Ipam::from_entries([
+            IpamEntry::new(
+                SubnetName::new(
+                    zone_name.clone(),
+                    Cidr::new_v6([0xFD80, 0, 0, 0, 0, 0, 0, 0], 64).unwrap()
+                ),
+                IpamDataVm::new(
+                    Ipv6Addr::new(0xFD80, 0, 0, 0, 0, 0, 0, 0x1000),
+                    1000,
+                    MacAddress::new([0xBC, 0x24, 0x11, 0, 0, 0x01]),
+                    "test0".to_string()
+                )
+                .into()
+            )
+            .unwrap(),
+            IpamEntry::new(
+                SubnetName::new(
+                    zone_name.clone(),
+                    Cidr::new_v4([10, 101, 0, 0], 16).unwrap()
+                ),
+                IpamDataVm::new(
+                    Ipv4Addr::new(10, 101, 99, 101),
+                    1000,
+                    MacAddress::new([0xBC, 0x24, 0x11, 0, 0, 0x01]),
+                    "test0".to_string()
+                )
+                .into()
+            )
+            .unwrap(),
+        ])
+        .unwrap(),
+        ipam
     )
 }
