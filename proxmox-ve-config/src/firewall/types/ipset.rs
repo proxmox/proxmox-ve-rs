@@ -14,6 +14,7 @@ use crate::guest::vm::NetworkConfig;
 pub enum IpsetScope {
     Datacenter,
     Guest,
+    Sdn,
 }
 
 impl FromStr for IpsetScope {
@@ -23,6 +24,7 @@ impl FromStr for IpsetScope {
         Ok(match s {
             "+dc" => IpsetScope::Datacenter,
             "+guest" => IpsetScope::Guest,
+            "+sdn" => IpsetScope::Sdn,
             _ => bail!("invalid scope for ipset: {s}"),
         })
     }
@@ -33,6 +35,7 @@ impl Display for IpsetScope {
         let prefix = match self {
             Self::Datacenter => "dc",
             Self::Guest => "guest",
+            Self::Sdn => "sdn",
         };
 
         f.write_str(prefix)
