@@ -132,6 +132,20 @@ pub struct IpsetEntry {
     pub comment: Option<String>,
 }
 
+impl IpsetEntry {
+    pub fn new(
+        address: impl Into<IpsetAddress>,
+        nomatch: bool,
+        comment: impl Into<Option<String>>,
+    ) -> IpsetEntry {
+        IpsetEntry {
+            nomatch,
+            address: address.into(),
+            comment: comment.into(),
+        }
+    }
+}
+
 impl<T: Into<IpsetAddress>> From<T> for IpsetEntry {
     fn from(value: T) -> Self {
         Self {

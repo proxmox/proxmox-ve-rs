@@ -11,6 +11,16 @@ pub enum Family {
     V6,
 }
 
+impl Family {
+    pub fn is_ipv4(&self) -> bool {
+        *self == Self::V4
+    }
+
+    pub fn is_ipv6(&self) -> bool {
+        *self == Self::V6
+    }
+}
+
 impl fmt::Display for Family {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
