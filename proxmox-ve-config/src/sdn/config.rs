@@ -529,6 +529,76 @@ impl SdnConfig {
         self.zones()
             .flat_map(|zone| zone.vnets().map(move |vnet| (zone, vnet)))
     }
+
+    /// Generates multiple [`Ipset`] for all SDN VNets.
+    ///
+    /// # Arguments
+    /// * `filter` - A [`Allowlist`] of VNet names for which IPsets should get returned
+    ///
+    /// It generates the following [`Ipset`] for all VNets in the config:
+    /// * all: Contains all CIDRs of all subnets in the VNet
+    /// * gateway: Contains all gateways of all subnets in the VNet (if any gateway exists)
+    /// * no-gateway: Matches all CIDRs of all subnets, except for the gateways (if any gateway
+    ///   exists)
+    /// * dhcp: Contains all DHCP ranges of all subnets in the VNet (if any dhcp range exists)
+    pub fn ipsets<'a>(
+        &'a self,
+        filter: Option<&'a Allowlist<VnetName>>,
+    ) -> impl Iterator<Item = Ipset> + '_ {
+        self.zones
+            .values()
+            .flat_map(|zone| zone.vnets())
+            .filter(move |vnet| {
+                filter
+                    .map(|list| list.is_allowed(&vnet.name))
+                    .unwrap_or(true)
+            })
+            .flat_map(|vnet| {
+                let mut ipset_all = Ipset::new(IpsetName::new(
+                    IpsetScope::Sdn,
+                    format!("{}-all", vnet.name),
+                ));
+                ipset_all.comment = Some(format!("All subnets of VNet {}", vnet.name));
+
+                let mut ipset_gateway = Ipset::new(IpsetName::new(
+                    IpsetScope::Sdn,
+                    format!("{}-gateway", vnet.name),
+                ));
+                ipset_gateway.comment = Some(format!("All gateways of VNet {}", vnet.name));
+
+                let mut ipset_all_wo_gateway = Ipset::new(IpsetName::new(
+                    IpsetScope::Sdn,
+                    format!("{}-no-gateway", vnet.name),
+                ));
+                ipset_all_wo_gateway.comment = Some(format!(
+                    "All subnets of VNet {}, excluding gateways",
+                    vnet.name
+                ));
+
+                let mut ipset_dhcp = Ipset::new(IpsetName::new(
+                    IpsetScope::Sdn,
+                    format!("{}-dhcp", vnet.name),
+                ));
+                ipset_dhcp.comment = Some(format!("DHCP ranges of VNet {}", vnet.name));
+
+                for subnet in vnet.subnets.values() {
+                    ipset_all.push((*subnet.cidr()).into());
+
+                    ipset_all_wo_gateway.push((*subnet.cidr()).into());
+
+                    if let Some(gateway) = subnet.gateway {
+                        let gateway_nomatch = IpsetEntry::new(gateway, true, None);
+                        ipset_all_wo_gateway.push(gateway_nomatch);
+
+                        ipset_gateway.push(gateway.into());
+                    }
+
+                    ipset_dhcp.extend(subnet.dhcp_range.iter().cloned().map(IpsetEntry::from));
+                }
+
+                [ipset_all, ipset_gateway, ipset_all_wo_gateway, ipset_dhcp]
+            })
+    }
 }
 
 impl TryFrom<RunningConfig> for SdnConfig {
