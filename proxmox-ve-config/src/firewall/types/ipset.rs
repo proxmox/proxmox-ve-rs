@@ -6,7 +6,7 @@ use anyhow::{bail, format_err, Error};
 use serde_with::DeserializeFromStr;
 
 use crate::firewall::parse::match_non_whitespace;
-use crate::firewall::types::address::Cidr;
+use crate::firewall::types::address::{Cidr, IpRange};
 use crate::firewall::types::alias::AliasName;
 use crate::guest::vm::NetworkConfig;
 
@@ -93,6 +93,7 @@ impl Display for IpsetName {
 pub enum IpsetAddress {
     Alias(AliasName),
     Cidr(Cidr),
+    Range(IpRange),
 }
 
 impl FromStr for IpsetAddress {
@@ -114,6 +115,12 @@ impl FromStr for IpsetAddress {
 impl<T: Into<Cidr>> From<T> for IpsetAddress {
     fn from(cidr: T) -> Self {
         IpsetAddress::Cidr(cidr.into())
+    }
+}
+
+impl From<IpRange> for IpsetAddress {
+    fn from(range: IpRange) -> Self {
+        IpsetAddress::Range(range)
     }
 }
 
