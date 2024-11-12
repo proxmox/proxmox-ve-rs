@@ -303,6 +303,17 @@ impl IpRange {
     ) -> Result<Self, IpRangeError> {
         Ok(IpRange::V6(AddressRange::new_v6(start, last)?))
     }
+
+    /// Converts an IpRange into the minimal amount of CIDRs.
+    ///
+    /// see the concrete implementations of [`AddressRange<Ipv4Addr>`] or [`AddressRange<Ipv6Addr>`]
+    /// respectively
+    pub fn to_cidrs(&self) -> Vec<Cidr> {
+        match self {
+            IpRange::V4(range) => range.to_cidrs().into_iter().map(Cidr::from).collect(),
+            IpRange::V6(range) => range.to_cidrs().into_iter().map(Cidr::from).collect(),
+        }
+    }
 }
 
 impl std::str::FromStr for IpRange {
@@ -362,6 +373,71 @@ impl AddressRange<Ipv4Addr> {
 
         Ok(Self { start, last })
     }
+
+    /// Returns the minimum amount of CIDRs that exactly represent the range
+    ///
+    /// The idea behind this algorithm is as follows:
+    ///
+    /// Start iterating with current = start of the IP range
+    ///
+    /// Find two netmasks
+    /// * The largest CIDR that the current IP can be the first of
+    /// * The largest CIDR that *only* contains IPs from current - last
+    ///
+    /// Add the smaller of the two CIDRs to our result and current to the first IP that is in
+    /// the range but not in the CIDR we just added. Proceed until we reached the last of the IP
+    /// range.
+    ///
+    pub fn to_cidrs(&self) -> Vec<Ipv4Cidr> {
+        let mut cidrs = Vec::new();
+
+        let mut current = u32::from_be_bytes(self.start.octets());
+        let last = u32::from_be_bytes(self.last.octets());
+
+        if current == last {
+            // valid Ipv4 since netmask is 32
+            cidrs.push(Ipv4Cidr::new(current, 32).unwrap());
+            return cidrs;
+        }
+
+        // special case this, since this is the only possibility of overflow
+        // when calculating delta_min_mask - makes everything a lot easier
+        if current == u32::MIN && last == u32::MAX {
+            // valid Ipv4 since it is `0.0.0.0/0`
+            cidrs.push(Ipv4Cidr::new(current, 0).unwrap());
+            return cidrs;
+        }
+
+        while current <= last {
+            // netmask of largest CIDR that current IP can be the first of
+            // cast is safe, because trailing zeroes can at most be 32
+            let current_max_mask = IPV4_LENGTH - (current.trailing_zeros() as u8);
+
+            // netmask of largest CIDR that *only* contains IPs of the remaining range
+            // is at most 32 due to unwrap_or returning 32 and ilog2 being at most 31
+            let delta_min_mask = ((last - current) + 1) // safe due to special case above
+                .checked_ilog2() // should never occur due to special case, but for good measure
+                .map(|mask| IPV4_LENGTH - mask as u8)
+                .unwrap_or(IPV4_LENGTH);
+
+            // at most 32, due to current/delta being at most 32
+            let netmask = u8::max(current_max_mask, delta_min_mask);
+
+            // netmask is at most 32, therefore safe to unwrap
+            cidrs.push(Ipv4Cidr::new(current, netmask).unwrap());
+
+            let delta = 2u32.saturating_pow((IPV4_LENGTH - netmask).into());
+
+            if let Some(result) = current.checked_add(delta) {
+                current = result
+            } else {
+                // we reached the end of IP address space
+                break;
+            }
+        }
+
+        cidrs
+    }
 }
 
 impl AddressRange<Ipv6Addr> {
@@ -376,6 +452,61 @@ impl AddressRange<Ipv6Addr> {
         }
 
         Ok(Self { start, last })
+    }
+
+    /// Returns the minimum amount of CIDRs that exactly represent the [`AddressRange`].
+    ///
+    /// This function works analogous to the IPv4 version, please refer to the respective
+    /// documentation of [`AddressRange<Ipv4Addr>`]
+    pub fn to_cidrs(&self) -> Vec<Ipv6Cidr> {
+        let mut cidrs = Vec::new();
+
+        let mut current = u128::from_be_bytes(self.start.octets());
+        let last = u128::from_be_bytes(self.last.octets());
+
+        if current == last {
+            // valid Ipv6 since netmask is 128
+            cidrs.push(Ipv6Cidr::new(current, 128).unwrap());
+            return cidrs;
+        }
+
+        // special case this, since this is the only possibility of overflow
+        // when calculating delta_min_mask - makes everything a lot easier
+        if current == u128::MIN && last == u128::MAX {
+            // valid Ipv6 since it is `::/0`
+            cidrs.push(Ipv6Cidr::new(current, 0).unwrap());
+            return cidrs;
+        }
+
+        while current <= last {
+            // netmask of largest CIDR that current IP can be the first of
+            // cast is safe, because trailing zeroes can at most be 128
+            let current_max_mask = IPV6_LENGTH - (current.trailing_zeros() as u8);
+
+            // netmask of largest CIDR that *only* contains IPs of the remaining range
+            // is at most 128 due to unwrap_or returning 128 and ilog2 being at most 31
+            let delta_min_mask = ((last - current) + 1) // safe due to special case above
+                .checked_ilog2() // should never occur due to special case, but for good measure
+                .map(|mask| IPV6_LENGTH - mask as u8)
+                .unwrap_or(IPV6_LENGTH);
+
+            // at most 128, due to current/delta being at most 128
+            let netmask = u8::max(current_max_mask, delta_min_mask);
+
+            // netmask is at most 128, therefore safe to unwrap
+            cidrs.push(Ipv6Cidr::new(current, netmask).unwrap());
+
+            let delta = 2u128.saturating_pow((IPV6_LENGTH - netmask).into());
+
+            if let Some(result) = current.checked_add(delta) {
+                current = result
+            } else {
+                // we reached the end of IP address space
+                break;
+            }
+        }
+
+        cidrs
     }
 }
 
@@ -810,5 +941,692 @@ mod tests {
 
         "10.0.0.1-10.0.0.0".parse::<IpRange>().unwrap_err();
         "2001:db8::1-2001:db8::0".parse::<IpRange>().unwrap_err();
+    }
+
+    #[test]
+    fn test_ipv4_to_cidrs() {
+        let range = AddressRange::new_v4([192, 168, 0, 100], [192, 168, 0, 100]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([192, 168, 0, 100], 32).unwrap()],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([192, 168, 0, 100], [192, 168, 0, 200]).unwrap();
+
+        assert_eq!(
+            [
+                Ipv4Cidr::new([192, 168, 0, 100], 30).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 104], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 112], 28).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 128], 26).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 192], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 200], 32).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([192, 168, 0, 101], [192, 168, 0, 200]).unwrap();
+
+        assert_eq!(
+            [
+                Ipv4Cidr::new([192, 168, 0, 101], 32).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 102], 31).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 104], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 112], 28).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 128], 26).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 192], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 200], 32).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([192, 168, 0, 101], [192, 168, 0, 101]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([192, 168, 0, 101], 32).unwrap()],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([192, 168, 0, 101], [192, 168, 0, 201]).unwrap();
+
+        assert_eq!(
+            [
+                Ipv4Cidr::new([192, 168, 0, 101], 32).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 102], 31).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 104], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 112], 28).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 128], 26).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 192], 29).unwrap(),
+                Ipv4Cidr::new([192, 168, 0, 200], 31).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([192, 168, 0, 0], [192, 168, 0, 255]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([192, 168, 0, 0], 24).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([0, 0, 0, 0], [255, 255, 255, 255]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([0, 0, 0, 0], 0).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([0, 0, 0, 1], [255, 255, 255, 255]).unwrap();
+
+        assert_eq!(
+            [
+                Ipv4Cidr::new([0, 0, 0, 1], 32).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 2], 31).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 4], 30).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 8], 29).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 16], 28).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 32], 27).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 64], 26).unwrap(),
+                Ipv4Cidr::new([0, 0, 0, 128], 25).unwrap(),
+                Ipv4Cidr::new([0, 0, 1, 0], 24).unwrap(),
+                Ipv4Cidr::new([0, 0, 2, 0], 23).unwrap(),
+                Ipv4Cidr::new([0, 0, 4, 0], 22).unwrap(),
+                Ipv4Cidr::new([0, 0, 8, 0], 21).unwrap(),
+                Ipv4Cidr::new([0, 0, 16, 0], 20).unwrap(),
+                Ipv4Cidr::new([0, 0, 32, 0], 19).unwrap(),
+                Ipv4Cidr::new([0, 0, 64, 0], 18).unwrap(),
+                Ipv4Cidr::new([0, 0, 128, 0], 17).unwrap(),
+                Ipv4Cidr::new([0, 1, 0, 0], 16).unwrap(),
+                Ipv4Cidr::new([0, 2, 0, 0], 15).unwrap(),
+                Ipv4Cidr::new([0, 4, 0, 0], 14).unwrap(),
+                Ipv4Cidr::new([0, 8, 0, 0], 13).unwrap(),
+                Ipv4Cidr::new([0, 16, 0, 0], 12).unwrap(),
+                Ipv4Cidr::new([0, 32, 0, 0], 11).unwrap(),
+                Ipv4Cidr::new([0, 64, 0, 0], 10).unwrap(),
+                Ipv4Cidr::new([0, 128, 0, 0], 9).unwrap(),
+                Ipv4Cidr::new([1, 0, 0, 0], 8).unwrap(),
+                Ipv4Cidr::new([2, 0, 0, 0], 7).unwrap(),
+                Ipv4Cidr::new([4, 0, 0, 0], 6).unwrap(),
+                Ipv4Cidr::new([8, 0, 0, 0], 5).unwrap(),
+                Ipv4Cidr::new([16, 0, 0, 0], 4).unwrap(),
+                Ipv4Cidr::new([32, 0, 0, 0], 3).unwrap(),
+                Ipv4Cidr::new([64, 0, 0, 0], 2).unwrap(),
+                Ipv4Cidr::new([128, 0, 0, 0], 1).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([0, 0, 0, 0], [255, 255, 255, 254]).unwrap();
+
+        assert_eq!(
+            [
+                Ipv4Cidr::new([0, 0, 0, 0], 1).unwrap(),
+                Ipv4Cidr::new([128, 0, 0, 0], 2).unwrap(),
+                Ipv4Cidr::new([192, 0, 0, 0], 3).unwrap(),
+                Ipv4Cidr::new([224, 0, 0, 0], 4).unwrap(),
+                Ipv4Cidr::new([240, 0, 0, 0], 5).unwrap(),
+                Ipv4Cidr::new([248, 0, 0, 0], 6).unwrap(),
+                Ipv4Cidr::new([252, 0, 0, 0], 7).unwrap(),
+                Ipv4Cidr::new([254, 0, 0, 0], 8).unwrap(),
+                Ipv4Cidr::new([255, 0, 0, 0], 9).unwrap(),
+                Ipv4Cidr::new([255, 128, 0, 0], 10).unwrap(),
+                Ipv4Cidr::new([255, 192, 0, 0], 11).unwrap(),
+                Ipv4Cidr::new([255, 224, 0, 0], 12).unwrap(),
+                Ipv4Cidr::new([255, 240, 0, 0], 13).unwrap(),
+                Ipv4Cidr::new([255, 248, 0, 0], 14).unwrap(),
+                Ipv4Cidr::new([255, 252, 0, 0], 15).unwrap(),
+                Ipv4Cidr::new([255, 254, 0, 0], 16).unwrap(),
+                Ipv4Cidr::new([255, 255, 0, 0], 17).unwrap(),
+                Ipv4Cidr::new([255, 255, 128, 0], 18).unwrap(),
+                Ipv4Cidr::new([255, 255, 192, 0], 19).unwrap(),
+                Ipv4Cidr::new([255, 255, 224, 0], 20).unwrap(),
+                Ipv4Cidr::new([255, 255, 240, 0], 21).unwrap(),
+                Ipv4Cidr::new([255, 255, 248, 0], 22).unwrap(),
+                Ipv4Cidr::new([255, 255, 252, 0], 23).unwrap(),
+                Ipv4Cidr::new([255, 255, 254, 0], 24).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 0], 25).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 128], 26).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 192], 27).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 224], 28).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 240], 29).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 248], 30).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 252], 31).unwrap(),
+                Ipv4Cidr::new([255, 255, 255, 254], 32).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([0, 0, 0, 0], [0, 0, 0, 0]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([0, 0, 0, 0], 32).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v4([255, 255, 255, 255], [255, 255, 255, 255]).unwrap();
+
+        assert_eq!(
+            [Ipv4Cidr::new([255, 255, 255, 255], 32).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+    }
+
+    #[test]
+    fn test_ipv6_to_cidrs() {
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1000],
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1000],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1000], 128).unwrap()],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1000],
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2000],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1000], 116).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2000], 128).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001],
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2000],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001], 128).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1002], 127).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1004], 126).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1008], 125).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1010], 124).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1020], 123).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1040], 122).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1080], 121).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1100], 120).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1200], 119).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1400], 118).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1800], 117).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2000], 128).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001],
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001], 128).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001],
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2001],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1001], 128).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1002], 127).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1004], 126).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1008], 125).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1010], 124).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1020], 123).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1040], 122).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1080], 121).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1100], 120).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1200], 119).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1400], 118).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x1800], 117).unwrap(),
+                Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0x2000], 127).unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0],
+            [0x2001, 0x0DB8, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new([0x2001, 0x0DB8, 0, 0, 0, 0, 0, 0], 64).unwrap()],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [
+                0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new([0, 0, 0, 0, 0, 0, 0, 0], 0).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0, 0, 0, 0, 0, 0, 0, 0x0001],
+            [
+                0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [
+                "::1/128".parse::<Ipv6Cidr>().unwrap(),
+                "::2/127".parse::<Ipv6Cidr>().unwrap(),
+                "::4/126".parse::<Ipv6Cidr>().unwrap(),
+                "::8/125".parse::<Ipv6Cidr>().unwrap(),
+                "::10/124".parse::<Ipv6Cidr>().unwrap(),
+                "::20/123".parse::<Ipv6Cidr>().unwrap(),
+                "::40/122".parse::<Ipv6Cidr>().unwrap(),
+                "::80/121".parse::<Ipv6Cidr>().unwrap(),
+                "::100/120".parse::<Ipv6Cidr>().unwrap(),
+                "::200/119".parse::<Ipv6Cidr>().unwrap(),
+                "::400/118".parse::<Ipv6Cidr>().unwrap(),
+                "::800/117".parse::<Ipv6Cidr>().unwrap(),
+                "::1000/116".parse::<Ipv6Cidr>().unwrap(),
+                "::2000/115".parse::<Ipv6Cidr>().unwrap(),
+                "::4000/114".parse::<Ipv6Cidr>().unwrap(),
+                "::8000/113".parse::<Ipv6Cidr>().unwrap(),
+                "::1:0/112".parse::<Ipv6Cidr>().unwrap(),
+                "::2:0/111".parse::<Ipv6Cidr>().unwrap(),
+                "::4:0/110".parse::<Ipv6Cidr>().unwrap(),
+                "::8:0/109".parse::<Ipv6Cidr>().unwrap(),
+                "::10:0/108".parse::<Ipv6Cidr>().unwrap(),
+                "::20:0/107".parse::<Ipv6Cidr>().unwrap(),
+                "::40:0/106".parse::<Ipv6Cidr>().unwrap(),
+                "::80:0/105".parse::<Ipv6Cidr>().unwrap(),
+                "::100:0/104".parse::<Ipv6Cidr>().unwrap(),
+                "::200:0/103".parse::<Ipv6Cidr>().unwrap(),
+                "::400:0/102".parse::<Ipv6Cidr>().unwrap(),
+                "::800:0/101".parse::<Ipv6Cidr>().unwrap(),
+                "::1000:0/100".parse::<Ipv6Cidr>().unwrap(),
+                "::2000:0/99".parse::<Ipv6Cidr>().unwrap(),
+                "::4000:0/98".parse::<Ipv6Cidr>().unwrap(),
+                "::8000:0/97".parse::<Ipv6Cidr>().unwrap(),
+                "::1:0:0/96".parse::<Ipv6Cidr>().unwrap(),
+                "::2:0:0/95".parse::<Ipv6Cidr>().unwrap(),
+                "::4:0:0/94".parse::<Ipv6Cidr>().unwrap(),
+                "::8:0:0/93".parse::<Ipv6Cidr>().unwrap(),
+                "::10:0:0/92".parse::<Ipv6Cidr>().unwrap(),
+                "::20:0:0/91".parse::<Ipv6Cidr>().unwrap(),
+                "::40:0:0/90".parse::<Ipv6Cidr>().unwrap(),
+                "::80:0:0/89".parse::<Ipv6Cidr>().unwrap(),
+                "::100:0:0/88".parse::<Ipv6Cidr>().unwrap(),
+                "::200:0:0/87".parse::<Ipv6Cidr>().unwrap(),
+                "::400:0:0/86".parse::<Ipv6Cidr>().unwrap(),
+                "::800:0:0/85".parse::<Ipv6Cidr>().unwrap(),
+                "::1000:0:0/84".parse::<Ipv6Cidr>().unwrap(),
+                "::2000:0:0/83".parse::<Ipv6Cidr>().unwrap(),
+                "::4000:0:0/82".parse::<Ipv6Cidr>().unwrap(),
+                "::8000:0:0/81".parse::<Ipv6Cidr>().unwrap(),
+                "::1:0:0:0/80".parse::<Ipv6Cidr>().unwrap(),
+                "::2:0:0:0/79".parse::<Ipv6Cidr>().unwrap(),
+                "::4:0:0:0/78".parse::<Ipv6Cidr>().unwrap(),
+                "::8:0:0:0/77".parse::<Ipv6Cidr>().unwrap(),
+                "::10:0:0:0/76".parse::<Ipv6Cidr>().unwrap(),
+                "::20:0:0:0/75".parse::<Ipv6Cidr>().unwrap(),
+                "::40:0:0:0/74".parse::<Ipv6Cidr>().unwrap(),
+                "::80:0:0:0/73".parse::<Ipv6Cidr>().unwrap(),
+                "::100:0:0:0/72".parse::<Ipv6Cidr>().unwrap(),
+                "::200:0:0:0/71".parse::<Ipv6Cidr>().unwrap(),
+                "::400:0:0:0/70".parse::<Ipv6Cidr>().unwrap(),
+                "::800:0:0:0/69".parse::<Ipv6Cidr>().unwrap(),
+                "::1000:0:0:0/68".parse::<Ipv6Cidr>().unwrap(),
+                "::2000:0:0:0/67".parse::<Ipv6Cidr>().unwrap(),
+                "::4000:0:0:0/66".parse::<Ipv6Cidr>().unwrap(),
+                "::8000:0:0:0/65".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:1::/64".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:2::/63".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:4::/62".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:8::/61".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:10::/60".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:20::/59".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:40::/58".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:80::/57".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:100::/56".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:200::/55".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:400::/54".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:800::/53".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:1000::/52".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:2000::/51".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:4000::/50".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:0:8000::/49".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:1::/48".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:2::/47".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:4::/46".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:8::/45".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:10::/44".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:20::/43".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:40::/42".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:80::/41".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:100::/40".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:200::/39".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:400::/38".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:800::/37".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:1000::/36".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:2000::/35".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:4000::/34".parse::<Ipv6Cidr>().unwrap(),
+                "0:0:8000::/33".parse::<Ipv6Cidr>().unwrap(),
+                "0:1::/32".parse::<Ipv6Cidr>().unwrap(),
+                "0:2::/31".parse::<Ipv6Cidr>().unwrap(),
+                "0:4::/30".parse::<Ipv6Cidr>().unwrap(),
+                "0:8::/29".parse::<Ipv6Cidr>().unwrap(),
+                "0:10::/28".parse::<Ipv6Cidr>().unwrap(),
+                "0:20::/27".parse::<Ipv6Cidr>().unwrap(),
+                "0:40::/26".parse::<Ipv6Cidr>().unwrap(),
+                "0:80::/25".parse::<Ipv6Cidr>().unwrap(),
+                "0:100::/24".parse::<Ipv6Cidr>().unwrap(),
+                "0:200::/23".parse::<Ipv6Cidr>().unwrap(),
+                "0:400::/22".parse::<Ipv6Cidr>().unwrap(),
+                "0:800::/21".parse::<Ipv6Cidr>().unwrap(),
+                "0:1000::/20".parse::<Ipv6Cidr>().unwrap(),
+                "0:2000::/19".parse::<Ipv6Cidr>().unwrap(),
+                "0:4000::/18".parse::<Ipv6Cidr>().unwrap(),
+                "0:8000::/17".parse::<Ipv6Cidr>().unwrap(),
+                "1::/16".parse::<Ipv6Cidr>().unwrap(),
+                "2::/15".parse::<Ipv6Cidr>().unwrap(),
+                "4::/14".parse::<Ipv6Cidr>().unwrap(),
+                "8::/13".parse::<Ipv6Cidr>().unwrap(),
+                "10::/12".parse::<Ipv6Cidr>().unwrap(),
+                "20::/11".parse::<Ipv6Cidr>().unwrap(),
+                "40::/10".parse::<Ipv6Cidr>().unwrap(),
+                "80::/9".parse::<Ipv6Cidr>().unwrap(),
+                "100::/8".parse::<Ipv6Cidr>().unwrap(),
+                "200::/7".parse::<Ipv6Cidr>().unwrap(),
+                "400::/6".parse::<Ipv6Cidr>().unwrap(),
+                "800::/5".parse::<Ipv6Cidr>().unwrap(),
+                "1000::/4".parse::<Ipv6Cidr>().unwrap(),
+                "2000::/3".parse::<Ipv6Cidr>().unwrap(),
+                "4000::/2".parse::<Ipv6Cidr>().unwrap(),
+                "8000::/1".parse::<Ipv6Cidr>().unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [
+                0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFE,
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [
+                "::/1".parse::<Ipv6Cidr>().unwrap(),
+                "8000::/2".parse::<Ipv6Cidr>().unwrap(),
+                "c000::/3".parse::<Ipv6Cidr>().unwrap(),
+                "e000::/4".parse::<Ipv6Cidr>().unwrap(),
+                "f000::/5".parse::<Ipv6Cidr>().unwrap(),
+                "f800::/6".parse::<Ipv6Cidr>().unwrap(),
+                "fc00::/7".parse::<Ipv6Cidr>().unwrap(),
+                "fe00::/8".parse::<Ipv6Cidr>().unwrap(),
+                "ff00::/9".parse::<Ipv6Cidr>().unwrap(),
+                "ff80::/10".parse::<Ipv6Cidr>().unwrap(),
+                "ffc0::/11".parse::<Ipv6Cidr>().unwrap(),
+                "ffe0::/12".parse::<Ipv6Cidr>().unwrap(),
+                "fff0::/13".parse::<Ipv6Cidr>().unwrap(),
+                "fff8::/14".parse::<Ipv6Cidr>().unwrap(),
+                "fffc::/15".parse::<Ipv6Cidr>().unwrap(),
+                "fffe::/16".parse::<Ipv6Cidr>().unwrap(),
+                "ffff::/17".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:8000::/18".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:c000::/19".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:e000::/20".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:f000::/21".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:f800::/22".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fc00::/23".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fe00::/24".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ff00::/25".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ff80::/26".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffc0::/27".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffe0::/28".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fff0::/29".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fff8::/30".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fffc::/31".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:fffe::/32".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff::/33".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:8000::/34".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:c000::/35".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:e000::/36".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:f000::/37".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:f800::/38".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fc00::/39".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fe00::/40".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ff00::/41".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ff80::/42".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffc0::/43".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffe0::/44".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fff0::/45".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fff8::/46".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fffc::/47".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:fffe::/48".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff::/49".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:8000::/50".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:c000::/51".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:e000::/52".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:f000::/53".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:f800::/54".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fc00::/55".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fe00::/56".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ff00::/57".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ff80::/58".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffc0::/59".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffe0::/60".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fff0::/61".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fff8::/62".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fffc::/63".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:fffe::/64".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff::/65".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:8000::/66".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:c000::/67".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:e000::/68".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:f000::/69".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:f800::/70".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fc00::/71".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fe00::/72".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ff00::/73".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ff80::/74".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ffc0::/75".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ffe0::/76".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fff0::/77".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fff8::/78".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fffc::/79".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:fffe::/80".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ffff::/81".parse::<Ipv6Cidr>().unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:8000::/82"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:c000::/83"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:e000::/84"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:f000::/85"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:f800::/86"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fc00::/87"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fe00::/88"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ff00::/89"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ff80::/90"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffc0::/91"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffe0::/92"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fff0::/93"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fff8::/94"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fffc::/95"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:fffe::/96"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff::/97"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:8000:0/98"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:c000:0/99"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:e000:0/100"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:f000:0/101"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:f800:0/102"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fc00:0/103"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fe00:0/104"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ff00:0/105"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ff80:0/106"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffc0:0/107"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffe0:0/108"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fff0:0/109"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fff8:0/110"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fffc:0/111"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:fffe:0/112"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0/113"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:8000/114"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:c000/115"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:e000/116"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:f000/117"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:f800/118"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fc00/119"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fe00/120"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00/121"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ff80/122"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffc0/123"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffe0/124"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0/125"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8/126"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc/127"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+                "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/128"
+                    .parse::<Ipv6Cidr>()
+                    .unwrap(),
+            ],
+            range.to_cidrs().as_slice()
+        );
+
+        let range =
+            AddressRange::new_v6([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]).unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new([0, 0, 0, 0, 0, 0, 0, 0], 128).unwrap(),],
+            range.to_cidrs().as_slice()
+        );
+
+        let range = AddressRange::new_v6(
+            [
+                0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+            ],
+            [
+                0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            [Ipv6Cidr::new(
+                [0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF],
+                128
+            )
+            .unwrap(),],
+            range.to_cidrs().as_slice()
+        );
     }
 }
