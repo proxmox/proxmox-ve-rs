@@ -1,0 +1,54 @@
+{
+  "version": 10,
+  "subnets": {
+    "ids": {
+      "zone0-fd80::-64": {
+        "gateway": "fd80::1",
+        "type": "subnet",
+        "snat": 1,
+        "dhcp-range": [
+          "start-address=fd80::1000,end-address=fd80::ffff"
+        ],
+        "vnet": "vnet0"
+      },
+      "zone0-10.102.0.0-16": {
+        "vnet": "vnet1",
+        "type": "subnet"
+      },
+      "zone0-10.101.0.0-16": {
+        "dhcp-range": [
+          "start-address=10.101.98.100,end-address=10.101.98.200",
+          "start-address=10.101.99.100,end-address=10.101.99.200"
+        ],
+        "vnet": "vnet0",
+        "type": "subnet",
+        "gateway": "10.101.1.1",
+        "snat": 1
+      }
+    }
+  },
+  "zones": {
+    "ids": {
+      "zone0": {
+        "ipam": "pve",
+        "dhcp": "dnsmasq",
+        "type": "simple"
+      }
+    }
+  },
+  "controllers": {
+    "ids": {}
+  },
+  "vnets": {
+    "ids": {
+      "vnet0": {
+        "type": "vnet",
+        "zone": "zone0"
+      },
+      "vnet1": {
+        "type": "vnet",
+        "zone": "zone0"
+      }
+    }
+  }
+}
