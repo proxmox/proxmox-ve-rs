@@ -61,6 +61,14 @@ impl Cidr {
     pub fn is_ipv6(&self) -> bool {
         matches!(self, Cidr::Ipv6(_))
     }
+
+    pub fn contains_address(&self, ip: &IpAddr) -> bool {
+        match (self, ip) {
+            (Cidr::Ipv4(cidr), IpAddr::V4(ip)) => cidr.contains_address(ip),
+            (Cidr::Ipv6(cidr), IpAddr::V6(ip)) => cidr.contains_address(ip),
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Cidr {

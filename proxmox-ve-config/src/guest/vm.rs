@@ -18,6 +18,10 @@ static LOCAL_PART: [u8; 8] = [0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 static EUI64_MIDDLE_PART: [u8; 2] = [0xFF, 0xFE];
 
 impl MacAddress {
+    pub fn new(address: [u8; 6]) -> Self {
+        Self(address)
+    }
+
     /// generates a link local IPv6-address according to RFC 4291 (Appendix A)
     pub fn eui64_link_local_address(&self) -> Ipv6Addr {
         let head = &self.0[..3];

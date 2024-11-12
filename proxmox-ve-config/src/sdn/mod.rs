@@ -1,3 +1,5 @@
+pub mod ipam;
+
 use std::{error::Error, fmt::Display, str::FromStr};
 
 use serde_with::DeserializeFromStr;
