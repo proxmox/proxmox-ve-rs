@@ -1,0 +1,46 @@
+Source: proxmox-ve-config
+Section: rust
+Priority: optional
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Build-Depends: cargo:native,
+               debhelper-compat (= 13),
+               dh-sequence-cargo,
+               librust-anyhow-1+default-dev,
+               librust-log-0.4+default-dev (>= 0.4.17-~~),
+               librust-nix-0.26+default-dev (>= 0.26.1-~~),
+               librust-thiserror-dev (>= 1.0.59-~~),
+               librust-proxmox-schema-3+default-dev,
+               librust-proxmox-sortable-macro-dev,
+               librust-proxmox-sys-dev,
+               librust-serde-1+default-dev,
+               librust-serde-1+derive-dev,
+               librust-serde-json-1+default-dev,
+               librust-serde-plain-1+default-dev,
+               librust-serde-with+default-dev,
+               libstd-rust-dev,
+               netbase,
+               python3,
+               rustc:native (>= 1.82),
+Standards-Version: 4.7.0
+Homepage: https://www.proxmox.com
+
+Package: librust-proxmox-ve-config-dev
+Architecture: any
+Multi-Arch: same
+Depends:
+ ${misc:Depends},
+ librust-anyhow-1+default-dev,
+ librust-log-0.4+default-dev (>= 0.4.17-~~),
+ librust-nix-0.26+default-dev (>= 0.26.1-~~),
+ librust-thiserror-dev (>= 1.0.59-~~),
+ librust-proxmox-schema-3+default-dev,
+ librust-proxmox-sortable-macro-dev,
+ librust-proxmox-sys-dev,
+ librust-serde-1+default-dev,
+ librust-serde-1+derive-dev,
+ librust-serde-json-1+default-dev,
+ librust-serde-plain-1+default-dev,
+ librust-serde-with+default-dev,
+ libstd-rust-dev,
+Description: Library for reading and writing the configuration files of Proxmox
+ Virtual Enviroment.

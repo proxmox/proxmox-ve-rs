@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "proxmox-ve-config",
+]
+exclude = [
+    "build",
+]
+resolver = "2"
+
+[workspace.package]
+authors = ["Proxmox Support Team <support@proxmox.com>"]
+edition = "2021"
+license = "AGPL-3"
+homepage = "https://proxmox.com"
+exclude = [ "debian" ]
+rust-version = "1.82"
+
