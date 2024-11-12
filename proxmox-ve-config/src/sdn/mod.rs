@@ -1,3 +1,4 @@
+pub mod config;
 pub mod ipam;
 
 use std::{error::Error, fmt::Display, str::FromStr};
