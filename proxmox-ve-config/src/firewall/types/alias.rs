@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
-use serde_with::DeserializeFromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::firewall::parse::{match_name, match_non_whitespace};
 use crate::firewall::types::address::Cidr;
@@ -35,7 +35,7 @@ impl Display for AliasScope {
     }
 }
 
-#[derive(Debug, Clone, DeserializeFromStr)]
+#[derive(Debug, Clone, DeserializeFromStr, SerializeDisplay)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct AliasName {
     scope: AliasScope,

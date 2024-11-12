@@ -1,4 +1,3 @@
-use anyhow::{bail, Error};
 use core::fmt::Display;
 use std::io;
 use std::str::FromStr;
@@ -6,11 +5,13 @@ use std::{collections::HashMap, net::Ipv6Addr};
 
 use proxmox_schema::property_string::PropertyIterator;
 
+use anyhow::{bail, Error};
+use serde_with::DeserializeFromStr;
+
 use crate::firewall::parse::{match_digits, parse_bool};
 use crate::firewall::types::address::{Ipv4Cidr, Ipv6Cidr};
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(Clone, Debug, DeserializeFromStr, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MacAddress([u8; 6]);
 
 static LOCAL_PART: [u8; 8] = [0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];

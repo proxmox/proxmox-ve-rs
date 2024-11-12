@@ -2,8 +2,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::{format_err, Error};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct Vmid(u32);
 
 impl Vmid {
@@ -34,5 +37,3 @@ impl FromStr for Vmid {
         ))
     }
 }
-
-serde_plain::derive_deserialize_from_fromstr!(Vmid, "valid vmid");

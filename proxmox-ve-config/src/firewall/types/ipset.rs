@@ -88,7 +88,7 @@ impl Display for IpsetName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum IpsetAddress {
     Alias(AliasName),
@@ -124,7 +124,7 @@ impl From<IpRange> for IpsetAddress {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct IpsetEntry {
     pub nomatch: bool,
@@ -208,7 +208,7 @@ impl Ipfilter<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Ipset {
     pub name: IpsetName,

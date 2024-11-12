@@ -30,8 +30,9 @@ impl fmt::Display for Family {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(
+    Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash, SerializeDisplay, DeserializeFromStr,
+)]
 pub enum Cidr {
     Ipv4(Ipv4Cidr),
     Ipv6(Ipv6Cidr),
@@ -101,8 +102,7 @@ impl From<Ipv6Cidr> for Cidr {
 
 const IPV4_LENGTH: u8 = 32;
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Ipv4Cidr {
     addr: Ipv4Addr,
     mask: u8,
@@ -176,8 +176,7 @@ impl fmt::Display for Ipv4Cidr {
 
 const IPV6_LENGTH: u8 = 128;
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Ipv6Cidr {
     addr: Ipv6Addr,
     mask: u8,
@@ -271,7 +270,9 @@ impl Display for IpRangeError {
 /// Represents a range of IPv4 or IPv6 addresses.
 ///
 /// For more information see [`AddressRange`]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, SerializeDisplay, DeserializeFromStr,
+)]
 pub enum IpRange {
     V4(AddressRange<Ipv4Addr>),
     V6(AddressRange<Ipv6Addr>),
@@ -364,7 +365,9 @@ impl fmt::Display for IpRange {
 /// # Textual representation
 ///
 /// Two IP addresses separated by a hyphen, e.g.: `127.0.0.1-127.0.0.255`
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct AddressRange<T> {
     start: T,
     last: T,
