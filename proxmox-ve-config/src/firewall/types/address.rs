@@ -1,9 +1,9 @@
-use std::fmt;
+use std::fmt::{self, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ops::Deref;
 
 use anyhow::{bail, format_err, Error};
-use serde_with::DeserializeFromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Family {
@@ -236,6 +236,202 @@ impl<T: Into<Ipv6Addr>> From<T> for Ipv6Cidr {
             addr: addr.into(),
             mask: 128,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+pub enum IpRangeError {
+    MismatchedFamilies,
+    StartGreaterThanLast,
+    InvalidFormat,
+}
+
+impl std::error::Error for IpRangeError {}
+
+impl Display for IpRangeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            IpRangeError::MismatchedFamilies => "mismatched ip address families",
+            IpRangeError::StartGreaterThanLast => "start is greater than last",
+            IpRangeError::InvalidFormat => "invalid ip range format",
+        })
+    }
+}
+
+/// Represents a range of IPv4 or IPv6 addresses.
+///
+/// For more information see [`AddressRange`]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
+pub enum IpRange {
+    V4(AddressRange<Ipv4Addr>),
+    V6(AddressRange<Ipv6Addr>),
+}
+
+impl IpRange {
+    /// Returns the family of the IpRange.
+    pub fn family(&self) -> Family {
+        match self {
+            IpRange::V4(_) => Family::V4,
+            IpRange::V6(_) => Family::V6,
+        }
+    }
+
+    /// Creates a new [`IpRange`] from two [`IpAddr`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if start and last IP address are not from the same family.
+    pub fn new(start: impl Into<IpAddr>, last: impl Into<IpAddr>) -> Result<Self, IpRangeError> {
+        match (start.into(), last.into()) {
+            (IpAddr::V4(start), IpAddr::V4(last)) => Self::new_v4(start, last),
+            (IpAddr::V6(start), IpAddr::V6(last)) => Self::new_v6(start, last),
+            _ => Err(IpRangeError::MismatchedFamilies),
+        }
+    }
+
+    /// construct a new Ipv4 Range
+    pub fn new_v4(
+        start: impl Into<Ipv4Addr>,
+        last: impl Into<Ipv4Addr>,
+    ) -> Result<Self, IpRangeError> {
+        Ok(IpRange::V4(AddressRange::new_v4(start, last)?))
+    }
+
+    pub fn new_v6(
+        start: impl Into<Ipv6Addr>,
+        last: impl Into<Ipv6Addr>,
+    ) -> Result<Self, IpRangeError> {
+        Ok(IpRange::V6(AddressRange::new_v6(start, last)?))
+    }
+}
+
+impl std::str::FromStr for IpRange {
+    type Err = IpRangeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(range) = s.parse() {
+            return Ok(IpRange::V4(range));
+        }
+
+        if let Ok(range) = s.parse() {
+            return Ok(IpRange::V6(range));
+        }
+
+        Err(IpRangeError::InvalidFormat)
+    }
+}
+
+impl fmt::Display for IpRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IpRange::V4(range) => range.fmt(f),
+            IpRange::V6(range) => range.fmt(f),
+        }
+    }
+}
+
+/// Represents a range of IP addresses from start to last.
+///
+/// This type is for encapsulation purposes for the [`IpRange`] enum and should be instantiated via
+/// that enum.
+///
+/// # Invariants
+///
+/// * start and last have the same IP address family
+/// * start is less than or equal to last
+///
+/// # Textual representation
+///
+/// Two IP addresses separated by a hyphen, e.g.: `127.0.0.1-127.0.0.255`
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AddressRange<T> {
+    start: T,
+    last: T,
+}
+
+impl AddressRange<Ipv4Addr> {
+    pub(crate) fn new_v4(
+        start: impl Into<Ipv4Addr>,
+        last: impl Into<Ipv4Addr>,
+    ) -> Result<AddressRange<Ipv4Addr>, IpRangeError> {
+        let (start, last) = (start.into(), last.into());
+
+        if start > last {
+            return Err(IpRangeError::StartGreaterThanLast);
+        }
+
+        Ok(Self { start, last })
+    }
+}
+
+impl AddressRange<Ipv6Addr> {
+    pub(crate) fn new_v6(
+        start: impl Into<Ipv6Addr>,
+        last: impl Into<Ipv6Addr>,
+    ) -> Result<AddressRange<Ipv6Addr>, IpRangeError> {
+        let (start, last) = (start.into(), last.into());
+
+        if start > last {
+            return Err(IpRangeError::StartGreaterThanLast);
+        }
+
+        Ok(Self { start, last })
+    }
+}
+
+impl<T> AddressRange<T> {
+    pub fn start(&self) -> &T {
+        &self.start
+    }
+
+    pub fn last(&self) -> &T {
+        &self.last
+    }
+}
+
+impl std::str::FromStr for AddressRange<Ipv4Addr> {
+    type Err = IpRangeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((start, last)) = s.split_once('-') {
+            let start_address = start
+                .parse::<Ipv4Addr>()
+                .map_err(|_| IpRangeError::InvalidFormat)?;
+
+            let last_address = last
+                .parse::<Ipv4Addr>()
+                .map_err(|_| IpRangeError::InvalidFormat)?;
+
+            return Self::new_v4(start_address, last_address);
+        }
+
+        Err(IpRangeError::InvalidFormat)
+    }
+}
+
+impl std::str::FromStr for AddressRange<Ipv6Addr> {
+    type Err = IpRangeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((start, last)) = s.split_once('-') {
+            let start_address = start
+                .parse::<Ipv6Addr>()
+                .map_err(|_| IpRangeError::InvalidFormat)?;
+
+            let last_address = last
+                .parse::<Ipv6Addr>()
+                .map_err(|_| IpRangeError::InvalidFormat)?;
+
+            return Self::new_v6(start_address, last_address);
+        }
+
+        Err(IpRangeError::InvalidFormat)
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for AddressRange<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}-{}", self.start, self.last)
     }
 }
 
@@ -611,5 +807,35 @@ mod tests {
             Cidr::new_v6([0x0000; 8], 8).unwrap().into(),
         ])
         .expect_err("cannot mix ip families in ip list");
+    }
+
+    #[test]
+    fn test_ip_range() {
+        IpRange::new([10, 0, 0, 2], [10, 0, 0, 1]).unwrap_err();
+
+        IpRange::new(
+            [0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1000],
+            [0x2001, 0x0db8, 0, 0, 0, 0, 0, 0],
+        )
+        .unwrap_err();
+
+        let v4_range = IpRange::new([10, 0, 0, 0], [10, 0, 0, 100]).unwrap();
+        assert_eq!(v4_range.family(), Family::V4);
+
+        let v6_range = IpRange::new(
+            [0x2001, 0x0db8, 0, 0, 0, 0, 0, 0],
+            [0x2001, 0x0db8, 0, 0, 0, 0, 0, 0x1000],
+        )
+        .unwrap();
+        assert_eq!(v6_range.family(), Family::V6);
+
+        "10.0.0.1-10.0.0.100".parse::<IpRange>().unwrap();
+        "2001:db8::1-2001:db8::f".parse::<IpRange>().unwrap();
+
+        "10.0.0.1-2001:db8::1000".parse::<IpRange>().unwrap_err();
+        "2001:db8::1-192.168.0.2".parse::<IpRange>().unwrap_err();
+
+        "10.0.0.1-10.0.0.0".parse::<IpRange>().unwrap_err();
+        "2001:db8::1-2001:db8::0".parse::<IpRange>().unwrap_err();
     }
 }
