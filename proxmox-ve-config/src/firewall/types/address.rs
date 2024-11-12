@@ -439,57 +439,30 @@ impl<T: fmt::Display> fmt::Display for AddressRange<T> {
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum IpEntry {
     Cidr(Cidr),
-    Range(IpAddr, IpAddr),
+    Range(IpRange),
 }
 
 impl std::str::FromStr for IpEntry {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        if s.is_empty() {
-            bail!("Empty IP specification!")
+        if let Ok(cidr) = s.parse() {
+            return Ok(IpEntry::Cidr(cidr));
         }
 
-        let entries: Vec<&str> = s
-            .split('-')
-            .take(3) // so we can check whether there are too many
-            .collect();
-
-        match entries.as_slice() {
-            [cidr] => Ok(IpEntry::Cidr(cidr.parse()?)),
-            [beg, end] => {
-                if let Ok(beg) = beg.parse::<Ipv4Addr>() {
-                    if let Ok(end) = end.parse::<Ipv4Addr>() {
-                        if beg < end {
-                            return Ok(IpEntry::Range(beg.into(), end.into()));
-                        }
-
-                        bail!("start address is greater than end address!");
-                    }
-                }
-
-                if let Ok(beg) = beg.parse::<Ipv6Addr>() {
-                    if let Ok(end) = end.parse::<Ipv6Addr>() {
-                        if beg < end {
-                            return Ok(IpEntry::Range(beg.into(), end.into()));
-                        }
-
-                        bail!("start address is greater than end address!");
-                    }
-                }
-
-                bail!("start and end are not valid IP addresses of the same type!")
-            }
-            _ => bail!("Invalid amount of elements in IpEntry!"),
+        if let Ok(range) = s.parse() {
+            return Ok(IpEntry::Range(range));
         }
+
+        bail!("Invalid IP entry: {s}");
     }
 }
 
 impl fmt::Display for IpEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Cidr(ip) => write!(f, "{ip}"),
-            Self::Range(beg, end) => write!(f, "{beg}-{end}"),
+            Self::Cidr(ip) => ip.fmt(f),
+            Self::Range(range) => range.fmt(f),
         }
     }
 }
@@ -498,19 +471,7 @@ impl IpEntry {
     fn family(&self) -> Family {
         match self {
             Self::Cidr(cidr) => cidr.family(),
-            Self::Range(start, end) => {
-                if start.is_ipv4() && end.is_ipv4() {
-                    return Family::V4;
-                }
-
-                if start.is_ipv6() && end.is_ipv6() {
-                    return Family::V6;
-                }
-
-                // should never be reached due to constructors validating that
-                // start type == end type
-                unreachable!("invalid IP entry")
-            }
+            Self::Range(range) => range.family(),
         }
     }
 }
@@ -518,6 +479,12 @@ impl IpEntry {
 impl From<Cidr> for IpEntry {
     fn from(value: Cidr) -> Self {
         IpEntry::Cidr(value)
+    }
+}
+
+impl From<IpRange> for IpEntry {
+    fn from(value: IpRange) -> Self {
+        IpEntry::Range(value)
     }
 }
 
@@ -708,7 +675,9 @@ mod tests {
 
         assert_eq!(
             entry,
-            IpEntry::Range([192, 168, 0, 1].into(), [192, 168, 99, 255].into())
+            IpRange::new_v4([192, 168, 0, 1], [192, 168, 99, 255])
+                .expect("valid IP range")
+                .into()
         );
 
         entry = "fe80::1".parse().expect("valid IP entry");
@@ -733,10 +702,12 @@ mod tests {
 
         assert_eq!(
             entry,
-            IpEntry::Range(
-                [0xFD80, 0, 0, 0, 0, 0, 0, 1].into(),
-                [0xFD80, 0, 0, 0, 0, 0, 0, 0xFFFF].into(),
+            IpRange::new_v6(
+                [0xFD80, 0, 0, 0, 0, 0, 0, 1],
+                [0xFD80, 0, 0, 0, 0, 0, 0, 0xFFFF],
             )
+            .expect("valid IP range")
+            .into()
         );
 
         "192.168.100.0-192.168.99.255"
@@ -764,7 +735,9 @@ mod tests {
                 entries: vec![
                     IpEntry::Cidr(Cidr::new_v4([192, 168, 0, 1], 32).unwrap()),
                     IpEntry::Cidr(Cidr::new_v4([192, 168, 100, 0], 24).unwrap()),
-                    IpEntry::Range([172, 16, 0, 0].into(), [172, 32, 255, 255].into()),
+                    IpRange::new_v4([172, 16, 0, 0], [172, 32, 255, 255])
+                        .unwrap()
+                        .into(),
                 ],
                 family: Family::V4,
             }

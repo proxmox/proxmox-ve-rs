@@ -242,7 +242,7 @@ impl FromStr for RuleGroup {
 #[cfg(test)]
 mod tests {
     use crate::firewall::types::{
-        address::{IpEntry, IpList},
+        address::{IpEntry, IpList, IpRange},
         alias::{AliasName, AliasScope},
         ipset::{IpsetName, IpsetScope},
         log::LogLevel,
@@ -322,7 +322,9 @@ mod tests {
                         IpAddrMatch::Ip(IpList::from(Cidr::new_v4([10, 0, 0, 0], 24).unwrap())),
                         IpAddrMatch::Ip(
                             IpList::new(vec![
-                                IpEntry::Range([20, 0, 0, 0].into(), [20, 255, 255, 255].into()),
+                                IpRange::new_v4([20, 0, 0, 0], [20, 255, 255, 255])
+                                    .unwrap()
+                                    .into(),
                                 IpEntry::Cidr(Cidr::new_v4([192, 168, 0, 0], 16).unwrap()),
                             ])
                             .unwrap()
