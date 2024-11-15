@@ -1,5 +1,30 @@
-proxmox-ve-config (0.1.0) UNRELEASED; urgency=medium
+proxmox-ve-config (0.2.0) unstable; urgency=medium
 
-  * Initial release.
+  * firewall config: add sdn scope for ipsets
+
+  * firewall config: add ip range types and use them for ip entries
+
+  * sdn: add ipam module, which can be used to parse the current IPAM state
+
+  * sdn: ipam: add method for generating ipsets
+
+  * sdn: add config module to allow dedicated parsing of the SDN config.
+
+  * sdn: config: add method for generating ipsets
+
+  * firewall config: add forward direction, which will be used for specifying
+    rules on bridge-level firewalls as well as rules on the cluster / host
+    level that are for forwarded network packets.
+
+  * firewall config: add bridge firewall config parser to be used for defining
+    rules on bridge-level, similar to the existing cluster/host/vm
+    configuration files.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 Nov 2024 14:57:16 +0100
+
+proxmox-ve-config (0.1.0) unstable; urgency=medium
+
+  * Initial release, moving over common rust code for proxmox-ve over from the
+    proxmox-firewall workspace to a dedicated and generic workspace.
 
  -- Proxmox Support Team <support@proxmox.com>  Mon, 03 Jun 2024 10:51:11 +0200
