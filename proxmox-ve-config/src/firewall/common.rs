@@ -6,6 +6,7 @@ use serde::de::IntoDeserializer;
 
 use crate::firewall::parse::{parse_named_section_tail, split_key_value, SomeString};
 use crate::firewall::types::ipset::{IpsetName, IpsetScope};
+use crate::firewall::types::rule::{Direction, Kind};
 use crate::firewall::types::{Alias, Group, Ipset, Rule};
 
 #[derive(Debug, Default)]
@@ -34,6 +35,7 @@ pub struct ParserConfig {
     /// Network interfaces must be of the form `netX`.
     pub guest_iface_names: bool,
     pub ipset_scope: Option<IpsetScope>,
+    pub allowed_directions: Vec<Direction>,
 }
 
 impl<O> Config<O>
@@ -147,6 +149,15 @@ where
                     .map_err(|_| {
                         format_err!("interface name must be of the form \"net<number>\"")
                     })?;
+            }
+        }
+
+        if let Kind::Match(rule) = rule.kind() {
+            if !parser_cfg.allowed_directions.contains(&rule.dir) {
+                bail!(
+                    "found not allowed direction in firewall config: {0}",
+                    rule.dir
+                );
             }
         }
 

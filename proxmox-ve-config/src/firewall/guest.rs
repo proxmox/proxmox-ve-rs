@@ -31,6 +31,8 @@ pub const GUEST_IPFILTER_DEFAULT: bool = false;
 pub const GUEST_POLICY_IN_DEFAULT: Verdict = Verdict::Drop;
 /// default return value for [`Config::default_policy()`]
 pub const GUEST_POLICY_OUT_DEFAULT: Verdict = Verdict::Accept;
+/// default return value for [`Config::default_policy()`]
+pub const GUEST_POLICY_FORWARD_DEFAULT: Verdict = Verdict::Accept;
 
 #[derive(Debug, Default, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
@@ -61,6 +63,8 @@ pub struct Options {
 
     #[serde(rename = "policy_out")]
     policy_out: Option<Verdict>,
+
+    policy_forward: Option<Verdict>,
 }
 
 #[derive(Debug)]
@@ -84,6 +88,7 @@ impl Config {
         let parser_cfg = super::common::ParserConfig {
             guest_iface_names: true,
             ipset_scope: Some(IpsetScope::Guest),
+            allowed_directions: vec![Direction::In, Direction::Out],
         };
 
         let config = super::common::Config::parse(firewall_input, &parser_cfg)?;
@@ -131,6 +136,7 @@ impl Config {
         match dir {
             Direction::In => self.config.options.log_level_in.unwrap_or_default(),
             Direction::Out => self.config.options.log_level_out.unwrap_or_default(),
+            _ => LogLevel::Nolog,
         }
     }
 
@@ -179,6 +185,11 @@ impl Config {
                 .options
                 .policy_out
                 .unwrap_or(GUEST_POLICY_OUT_DEFAULT),
+            Direction::Forward => self
+                .config
+                .options
+                .policy_forward
+                .unwrap_or(GUEST_POLICY_FORWARD_DEFAULT),
         }
     }
 
@@ -211,6 +222,7 @@ ndp:1
 radv:1
 policy_in: REJECT
 policy_out: REJECT
+policy_forward: DROP
 "#;
 
         let config = CONFIG.as_bytes();
@@ -231,6 +243,7 @@ policy_out: REJECT
                 macfilter: Some(false),
                 policy_in: Some(Verdict::Reject),
                 policy_out: Some(Verdict::Reject),
+                policy_forward: Some(Verdict::Drop),
             }
         );
     }

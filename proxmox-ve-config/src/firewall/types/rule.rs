@@ -13,19 +13,24 @@ pub enum Direction {
     #[default]
     In,
     Out,
+    Forward,
 }
 
 impl std::str::FromStr for Direction {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
-        for (name, dir) in [("IN", Direction::In), ("OUT", Direction::Out)] {
+        for (name, dir) in [
+            ("IN", Direction::In),
+            ("OUT", Direction::Out),
+            ("FORWARD", Direction::Forward),
+        ] {
             if s.eq_ignore_ascii_case(name) {
                 return Ok(dir);
             }
         }
 
-        bail!("invalid direction: {s:?}, expect 'IN' or 'OUT'");
+        bail!("invalid direction: {s:?}, expect 'IN', 'OUT' or 'FORWARD'");
     }
 }
 
@@ -36,6 +41,7 @@ impl fmt::Display for Direction {
         match self {
             Direction::In => f.write_str("in"),
             Direction::Out => f.write_str("out"),
+            Direction::Forward => f.write_str("forward"),
         }
     }
 }

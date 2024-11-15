@@ -25,12 +25,15 @@ pub const CLUSTER_EBTABLES_DEFAULT: bool = false;
 pub const CLUSTER_POLICY_IN_DEFAULT: Verdict = Verdict::Drop;
 /// default setting for [`Config::default_policy()`]
 pub const CLUSTER_POLICY_OUT_DEFAULT: Verdict = Verdict::Accept;
+/// default setting for [`Config::default_policy()`]
+pub const CLUSTER_POLICY_FORWARD_DEFAULT: Verdict = Verdict::Accept;
 
 impl Config {
     pub fn parse<R: io::BufRead>(input: R) -> Result<Self, Error> {
         let parser_config = ParserConfig {
             guest_iface_names: false,
             ipset_scope: Some(IpsetScope::Datacenter),
+            allowed_directions: vec![Direction::In, Direction::Out, Direction::Forward],
         };
 
         Ok(Self {
@@ -86,6 +89,11 @@ impl Config {
                 .options
                 .policy_out
                 .unwrap_or(CLUSTER_POLICY_OUT_DEFAULT),
+            Direction::Forward => self
+                .config
+                .options
+                .policy_forward
+                .unwrap_or(CLUSTER_POLICY_FORWARD_DEFAULT),
         }
     }
 
@@ -121,6 +129,7 @@ pub struct Options {
 
     policy_in: Option<Verdict>,
     policy_out: Option<Verdict>,
+    policy_forward: Option<Verdict>,
 }
 
 #[cfg(test)]
@@ -148,6 +157,7 @@ log_ratelimit: 1,rate=10/second,burst=20
 ebtables: 0
 policy_in: REJECT
 policy_out: REJECT
+policy_forward: DROP
 
 [ALIASES]
 
@@ -191,6 +201,7 @@ IN BGP(REJECT) -log crit -source 1.2.3.4
                 )),
                 policy_in: Some(Verdict::Reject),
                 policy_out: Some(Verdict::Reject),
+                policy_forward: Some(Verdict::Drop),
             }
         );
 

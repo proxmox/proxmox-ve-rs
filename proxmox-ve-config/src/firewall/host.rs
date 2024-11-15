@@ -44,6 +44,7 @@ pub struct Options {
 
     log_level_in: Option<LogLevel>,
     log_level_out: Option<LogLevel>,
+    log_level_forward: Option<LogLevel>,
 
     #[serde(default, with = "parse::serde_option_bool")]
     log_nf_conntrack: Option<bool>,
@@ -94,7 +95,13 @@ impl Config {
     }
 
     pub fn parse<R: io::BufRead>(input: R) -> Result<Self, Error> {
-        let config = super::common::Config::parse(input, &Default::default())?;
+        let parser_cfg = super::common::ParserConfig {
+            guest_iface_names: false,
+            ipset_scope: None,
+            allowed_directions: vec![Direction::In, Direction::Out, Direction::Forward],
+        };
+
+        let config = super::common::Config::parse(input, &parser_cfg)?;
 
         if !config.groups.is_empty() {
             bail!("host firewall config cannot declare groups");
@@ -262,6 +269,7 @@ impl Config {
         match dir {
             Direction::In => self.config.options.log_level_in.unwrap_or_default(),
             Direction::Out => self.config.options.log_level_out.unwrap_or_default(),
+            Direction::Forward => self.config.options.log_level_forward.unwrap_or_default(),
         }
     }
 }
@@ -284,6 +292,7 @@ enable: 1
 nftables: 1
 log_level_in: debug
 log_level_out: emerg
+log_level_forward: warn
 log_nf_conntrack: 0
 ndp: 1
 nf_conntrack_allow_invalid: yes
@@ -316,6 +325,7 @@ IN ACCEPT -p udp -dport 33 -sport 22 -log warning
                 nftables: Some(true),
                 log_level_in: Some(LogLevel::Debug),
                 log_level_out: Some(LogLevel::Emergency),
+                log_level_forward: Some(LogLevel::Warning),
                 log_nf_conntrack: Some(false),
                 ndp: Some(true),
                 nf_conntrack_allow_invalid: Some(true),
