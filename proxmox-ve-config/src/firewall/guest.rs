@@ -247,4 +247,57 @@ policy_forward: DROP
             }
         );
     }
+
+    #[test]
+    fn test_parse_valid_interface_prefix() {
+        const CONFIG: &str = r#"
+[RULES]
+
+IN ACCEPT -p udp -dport 33 -sport 22 -log warning -i tapeth0
+"#;
+
+        let config = CONFIG.as_bytes();
+        let network_config: Vec<u8> = Vec::new();
+        Config::parse(&Vmid::new(100), "tap", config, network_config.as_slice()).unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_invalid_interface_prefix() {
+        const CONFIG: &str = r#"
+[RULES]
+
+IN ACCEPT -p udp -dport 33 -sport 22 -log warning -i eth0
+"#;
+
+        let config = CONFIG.as_bytes();
+        let network_config: Vec<u8> = Vec::new();
+        Config::parse(&Vmid::new(100), "tap", config, network_config.as_slice()).unwrap_err();
+    }
+
+    #[test]
+    fn test_parse_valid_directions() {
+        const CONFIG: &str = r#"
+[RULES]
+
+IN ACCEPT -p udp -dport 33 -sport 22 -log warning
+OUT ACCEPT -p udp -dport 33 -sport 22 -log warning
+"#;
+
+        let config = CONFIG.as_bytes();
+        let network_config: Vec<u8> = Vec::new();
+        Config::parse(&Vmid::new(100), "tap", config, network_config.as_slice()).unwrap();
+    }
+
+    #[test]
+    fn test_parse_invalid_direction() {
+        const CONFIG: &str = r#"
+[RULES]
+
+FORWARD ACCEPT -p udp -dport 33 -sport 22 -log warning
+"#;
+
+        let config = CONFIG.as_bytes();
+        let network_config: Vec<u8> = Vec::new();
+        Config::parse(&Vmid::new(100), "tap", config, network_config.as_slice()).unwrap_err();
+    }
 }
