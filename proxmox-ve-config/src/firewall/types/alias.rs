@@ -53,10 +53,7 @@ impl FromStr for AliasName {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.split_once('/') {
-            Some((prefix, name)) if !name.is_empty() => Ok(Self {
-                scope: prefix.parse()?,
-                name: name.to_string(),
-            }),
+            Some((prefix, name)) if !name.is_empty() => Ok(Self::new(prefix.parse()?, name)),
             _ => {
                 bail!("Invalid Alias name!")
             }
@@ -65,10 +62,18 @@ impl FromStr for AliasName {
 }
 
 impl AliasName {
+    /// Creates a new [`AliasName`].
+    ///
+    /// It will convert any ASCII characters contained in the name into lowercase. This is for
+    /// maintaining backwards-compatiblity with pve-firewall, where all aliases are lowercased when
+    /// reading from the config.
     pub fn new(scope: AliasScope, name: impl Into<String>) -> Self {
+        let mut lowercase_name = name.into();
+        lowercase_name.make_ascii_lowercase();
+
         Self {
             scope,
-            name: name.into(),
+            name: lowercase_name,
         }
     }
 
@@ -90,13 +95,21 @@ pub struct Alias {
 }
 
 impl Alias {
+    /// Creates a new [`Alias`].
+    ///
+    /// It will convert any ASCII characters contained in the name into lowercase. This is for
+    /// maintaining backwards-compatiblity with pve-firewall, where all aliases are lowercased when
+    /// reading from the config.
     pub fn new(
         name: impl Into<String>,
         address: impl Into<Cidr>,
         comment: impl Into<Option<String>>,
     ) -> Self {
+        let mut lowercase_name = name.into();
+        lowercase_name.make_ascii_lowercase();
+
         Self {
-            name: name.into(),
+            name: lowercase_name,
             address: address.into(),
             comment: comment.into(),
         }
@@ -135,11 +148,7 @@ impl FromStr for Alias {
             None => None,
         };
 
-        Ok(Alias {
-            name: name.to_string(),
-            address,
-            comment,
-        })
+        Ok(Alias::new(name, address, comment))
     }
 }
 
@@ -159,6 +168,16 @@ mod tests {
         for alias in ["-- 10.0.0.1/32", "0asd 10.0.0.1/32", "__test 10.0.0.0/32"] {
             alias.parse::<Alias>().expect_err("invalid alias");
         }
+
+        let alias = "pRoxMox 10.0.0.0/32 # a comment"
+            .parse::<Alias>()
+            .expect("valid alias");
+        assert_eq!(alias.name(), "proxmox");
+        assert_eq!(
+            alias.address(),
+            &Cidr::new_v4([10, 0, 0, 0], 32).expect("valid CIDR")
+        );
+        assert_eq!(alias.comment(), Some("a comment"));
     }
 
     #[test]
@@ -169,6 +188,14 @@ mod tests {
 
         for name in ["proxmox/proxmox_123", "guests/proxmox-123", "dc/", "/name"] {
             name.parse::<AliasName>().expect_err("invalid alias name");
+        }
+    }
+
+    #[test]
+    fn test_parse_alias_case() {
+        for name in ["dc/PROxMoX", "guest/PROXMOX"] {
+            let alias_name = name.parse::<AliasName>().expect("valid alias name");
+            assert_eq!(alias_name.name(), "proxmox");
         }
     }
 }
