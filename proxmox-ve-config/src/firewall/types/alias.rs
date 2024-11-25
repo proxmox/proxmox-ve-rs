@@ -35,6 +35,8 @@ impl Display for AliasScope {
     }
 }
 
+/// Represents the name of an alias in a firewall rule in the RULES section of the firewall
+/// configuration.
 #[derive(Debug, Clone, DeserializeFromStr, SerializeDisplay)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct AliasName {
@@ -86,6 +88,11 @@ impl AliasName {
     }
 }
 
+/// Represents an Alias stored in the ALIASES section of the firewall configuration.
+///
+/// Since they contain no scope in the firewall configuration itself, this struct also does not
+/// contain a scope. The scope has to be inferred from the Context where this Alias is stored, if
+/// that is necessary.
 #[derive(Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Alias {
