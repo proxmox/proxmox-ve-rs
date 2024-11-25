@@ -9,6 +9,12 @@ pub struct Group {
     comment: Option<String>,
 }
 
+impl Default for Group {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Group {
     pub const fn new() -> Self {
         Self {
