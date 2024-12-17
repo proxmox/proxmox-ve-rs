@@ -43,4 +43,4 @@ Depends:
  librust-serde-with+default-dev,
  libstd-rust-dev,
 Description: Library for reading and writing the configuration files of Proxmox
- Virtual Enviroment.
+ Virtual Environment.

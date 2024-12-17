@@ -67,7 +67,7 @@ impl AliasName {
     /// Creates a new [`AliasName`].
     ///
     /// It will convert any ASCII characters contained in the name into lowercase. This is for
-    /// maintaining backwards-compatiblity with pve-firewall, where all aliases are lowercased when
+    /// maintaining backwards-compatibility with pve-firewall, where all aliases are lowercased when
     /// reading from the config.
     pub fn new(scope: AliasScope, name: impl Into<String>) -> Self {
         let mut lowercase_name = name.into();
@@ -105,7 +105,7 @@ impl Alias {
     /// Creates a new [`Alias`].
     ///
     /// It will convert any ASCII characters contained in the name into lowercase. This is for
-    /// maintaining backwards-compatiblity with pve-firewall, where all aliases are lowercased when
+    /// maintaining backwards-compatibility with pve-firewall, where all aliases are lowercased when
     /// reading from the config.
     pub fn new(
         name: impl Into<String>,
