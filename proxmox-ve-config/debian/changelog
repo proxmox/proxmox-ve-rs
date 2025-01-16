@@ -1,3 +1,9 @@
+proxmox-ve-config (0.2.2) unstable; urgency=medium
+
+  * rebuild with proxmox-schema 4.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 16 Jan 2025 13:52:09 +0100
+
 proxmox-ve-config (0.2.1) unstable; urgency=medium
 
   * fix #5927: firewall: alias: lowercase names of aliases
