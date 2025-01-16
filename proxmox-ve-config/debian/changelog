@@ -1,4 +1,4 @@
-proxmox-ve-config (0.2.2) unstable; urgency=medium
+rust-proxmox-ve-config (0.2.2) unstable; urgency=medium
 
   * rebuild with proxmox-schema 4.0
 

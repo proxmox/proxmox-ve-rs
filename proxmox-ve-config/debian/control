@@ -1,4 +1,4 @@
-Source: proxmox-ve-config
+Source: rust-proxmox-ve-config
 Section: rust
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
