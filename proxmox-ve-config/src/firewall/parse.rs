@@ -316,7 +316,7 @@ pub mod serde_option_log_ratelimit {
 #[derive(Clone, Copy, Debug)]
 pub struct SomeStrDeserializer<'a, E>(serde::de::value::StrDeserializer<'a, E>);
 
-impl<'de, 'a, E> serde::de::Deserializer<'de> for SomeStrDeserializer<'a, E>
+impl<'de, E> serde::de::Deserializer<'de> for SomeStrDeserializer<'_, E>
 where
     E: serde::de::Error,
 {
@@ -379,7 +379,7 @@ impl<'a> From<&'a str> for SomeStr<'a> {
     }
 }
 
-impl<'de, 'a, E> serde::de::IntoDeserializer<'de, E> for SomeStr<'a>
+impl<'a, E> serde::de::IntoDeserializer<'_, E> for SomeStr<'a>
 where
     E: serde::de::Error,
 {
@@ -465,7 +465,7 @@ impl From<String> for SomeString {
     }
 }
 
-impl<'de, E> serde::de::IntoDeserializer<'de, E> for SomeString
+impl<E> serde::de::IntoDeserializer<'_, E> for SomeString
 where
     E: serde::de::Error,
 {

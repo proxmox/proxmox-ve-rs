@@ -544,7 +544,7 @@ impl SdnConfig {
     pub fn ipsets<'a>(
         &'a self,
         filter: Option<&'a Allowlist<VnetName>>,
-    ) -> impl Iterator<Item = Ipset> + '_ {
+    ) -> impl Iterator<Item = Ipset> + 'a {
         self.zones
             .values()
             .flat_map(|zone| zone.vnets())
