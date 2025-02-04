@@ -478,19 +478,19 @@
   "NeighborDiscovery": {
     "code": [
       {
-        "dport": "nd-router-solicit",
+        "icmp-type": "nd-router-solicit",
         "proto": "icmpv6"
       },
       {
-        "dport": "nd-router-advert",
+        "icmp-type": "nd-router-advert",
         "proto": "icmpv6"
       },
       {
-        "dport": "nd-neighbor-solicit",
+        "icmp-type": "nd-neighbor-solicit",
         "proto": "icmpv6"
       },
       {
-        "dport": "nd-neighbor-advert",
+        "icmp-type": "nd-neighbor-advert",
         "proto": "icmpv6"
       }
     ],
@@ -577,7 +577,7 @@
   "Ping": {
     "code": [
       {
-        "dport": "echo-request",
+        "icmp-type": "echo-request",
         "proto": "icmp"
       }
     ],
@@ -856,7 +856,7 @@
         "proto": "udp"
       },
       {
-        "dport": "echo-request",
+        "icmp-type": "echo-request",
         "proto": "icmp"
       }
     ],
