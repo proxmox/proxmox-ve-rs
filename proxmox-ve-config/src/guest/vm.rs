@@ -3,15 +3,18 @@ use std::io;
 use std::str::FromStr;
 use std::{collections::HashMap, net::Ipv6Addr};
 
-use proxmox_schema::property_string::PropertyIterator;
+use proxmox_schema::property_string::PropertyString;
+use proxmox_sortable_macro::sortable;
 
 use anyhow::{bail, Error};
+use proxmox_schema::{ApiType, BooleanSchema, KeyAliasInfo, ObjectSchema, StringSchema};
+use serde::Deserialize;
 use serde_with::DeserializeFromStr;
 
-use crate::firewall::parse::{match_digits, parse_bool};
+use crate::firewall::parse::match_digits;
 use crate::firewall::types::address::{Ipv4Cidr, Ipv6Cidr};
 
-#[derive(Clone, Debug, DeserializeFromStr, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, DeserializeFromStr, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct MacAddress([u8; 6]);
 
 static LOCAL_PART: [u8; 8] = [0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
@@ -75,7 +78,8 @@ impl Display for MacAddress {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+/// All possible models of network devices for both QEMU and LXC guests.
+#[derive(Debug, Clone, Copy, DeserializeFromStr)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum NetworkDeviceModel {
     VirtIO,
@@ -100,35 +104,217 @@ impl FromStr for NetworkDeviceModel {
     }
 }
 
+/// Representation of the network device property string of a QEMU guest.
+///
+/// It currently only cotains properties that are required for the firewall to function, there are
+/// still missing properties that can be contained in the schema.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub struct QemuNetworkDevice {
+    model: NetworkDeviceModel,
+    #[serde(rename = "macaddr")]
+    mac_address: MacAddress,
+    firewall: Option<bool>,
+}
+
+impl ApiType for QemuNetworkDevice {
+    #[sortable]
+    const API_SCHEMA: proxmox_schema::Schema = ObjectSchema::new(
+        "QEMU Network Device",
+        &sorted!([
+            (
+                "firewall",
+                true,
+                &BooleanSchema::new("firewall enabled for this network device").schema(),
+            ),
+            (
+                "macaddr",
+                false,
+                &StringSchema::new("mac address for this network device").schema(),
+            ),
+            (
+                "model",
+                false,
+                &StringSchema::new("type of this network device").schema(),
+            ),
+        ]),
+    )
+    .additional_properties(true)
+    .key_alias_info(KeyAliasInfo::new(
+        "model",
+        &sorted!(["e1000", "rtl8139", "virtio", "vmxnet3"]),
+        "macaddr",
+    ))
+    .schema();
+}
+
+/// Representation of possible values for an LXC guest IPv4 field.
+#[derive(Debug, DeserializeFromStr, Copy, Clone)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub enum LxcIpv4Addr {
+    Ip(Ipv4Cidr),
+    Dhcp,
+    Manual,
+}
+
+impl LxcIpv4Addr {
+    pub fn cidr(&self) -> Option<Ipv4Cidr> {
+        match self {
+            LxcIpv4Addr::Ip(ipv4_cidr) => Some(*ipv4_cidr),
+            _ => None,
+        }
+    }
+}
+
+impl FromStr for LxcIpv4Addr {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "dhcp" => LxcIpv4Addr::Dhcp,
+            "manual" => LxcIpv4Addr::Manual,
+            _ => LxcIpv4Addr::Ip(s.parse()?),
+        })
+    }
+}
+
+/// Representation of possible values for an LXC guest IPv6 field.
+#[derive(Debug, DeserializeFromStr, Copy, Clone)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub enum LxcIpv6Addr {
+    Ip(Ipv6Cidr),
+    Dhcp,
+    Auto,
+    Manual,
+}
+
+impl LxcIpv6Addr {
+    pub fn cidr(&self) -> Option<Ipv6Cidr> {
+        match self {
+            LxcIpv6Addr::Ip(ipv6_cidr) => Some(*ipv6_cidr),
+            _ => None,
+        }
+    }
+}
+
+impl FromStr for LxcIpv6Addr {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "dhcp" => LxcIpv6Addr::Dhcp,
+            "manual" => LxcIpv6Addr::Manual,
+            "auto" => LxcIpv6Addr::Auto,
+            _ => LxcIpv6Addr::Ip(s.parse()?),
+        })
+    }
+}
+
+/// Representation of the network device property string of a LXC guest.
+///
+/// It currently only cotains properties that are required for the firewall to function, there are
+/// still missing properties that can be contained in the schema.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub struct LxcNetworkDevice {
+    #[serde(rename = "type")]
+    ty: NetworkDeviceModel,
+    #[serde(rename = "hwaddr")]
+    mac_address: MacAddress,
+    firewall: Option<bool>,
+    ip: Option<LxcIpv4Addr>,
+    ip6: Option<LxcIpv6Addr>,
+}
+
+impl ApiType for LxcNetworkDevice {
+    #[sortable]
+    const API_SCHEMA: proxmox_schema::Schema = ObjectSchema::new(
+        "LXC Network Device",
+        &sorted!([
+            (
+                "firewall",
+                true,
+                &BooleanSchema::new("firewall enabled for this network device").schema(),
+            ),
+            (
+                "hwaddr",
+                false,
+                &StringSchema::new("mac address for this network device").schema(),
+            ),
+            (
+                "ip",
+                true,
+                &StringSchema::new("IP settings for this network device").schema(),
+            ),
+            (
+                "ip6",
+                true,
+                &StringSchema::new("IPv6 settings for this network device").schema(),
+            ),
+            (
+                "type",
+                false,
+                &StringSchema::new("type of the network device").schema(),
+            ),
+        ]),
+    )
+    .additional_properties(true)
+    .schema();
+}
+
+/// Container type that can hold both LXC and QEMU network devices.
 #[derive(Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
-pub struct NetworkDevice {
-    model: NetworkDeviceModel,
-    mac_address: MacAddress,
-    firewall: bool,
-    ip: Option<Ipv4Cidr>,
-    ip6: Option<Ipv6Cidr>,
+pub enum NetworkDevice {
+    Qemu(QemuNetworkDevice),
+    Lxc(LxcNetworkDevice),
 }
+
+/// default return value for [`NetworkDevice::has_firewall()`]
+pub const NETWORK_DEVICE_FIREWALL_DEFAULT: bool = false;
 
 impl NetworkDevice {
     pub fn model(&self) -> NetworkDeviceModel {
-        self.model
+        match self {
+            NetworkDevice::Qemu(qemu_network_device) => qemu_network_device.model,
+            NetworkDevice::Lxc(lxc_network_device) => lxc_network_device.ty,
+        }
     }
 
-    pub fn mac_address(&self) -> &MacAddress {
-        &self.mac_address
+    /// Returns the MAC address of the network device
+    pub fn mac_address(&self) -> MacAddress {
+        match self {
+            NetworkDevice::Qemu(qemu_network_device) => qemu_network_device.mac_address,
+            NetworkDevice::Lxc(lxc_network_device) => lxc_network_device.mac_address,
+        }
     }
 
-    pub fn ip(&self) -> Option<&Ipv4Cidr> {
-        self.ip.as_ref()
+    /// Returns the IPv4 of the network device, if set in the configuration (LXC only).
+    pub fn ip(&self) -> Option<Ipv4Cidr> {
+        if let NetworkDevice::Lxc(device) = self {
+            return device.ip?.cidr();
+        }
+
+        None
     }
 
-    pub fn ip6(&self) -> Option<&Ipv6Cidr> {
-        self.ip6.as_ref()
+    /// Returns the IPv6 of the network device, if set in the configuration (LXC only).
+    pub fn ip6(&self) -> Option<Ipv6Cidr> {
+        if let NetworkDevice::Lxc(device) = self {
+            return device.ip6?.cidr();
+        }
+
+        None
     }
 
+    /// Whether the firewall is enabled for this network device, defaults to [`NETWORK_DEVICE_FIREWALL_DEFAULT`]
     pub fn has_firewall(&self) -> bool {
-        self.firewall
+        let firewall_option = match self {
+            NetworkDevice::Qemu(qemu_network_device) => qemu_network_device.firewall,
+            NetworkDevice::Lxc(lxc_network_device) => lxc_network_device.firewall,
+        };
+
+        firewall_option.unwrap_or(NETWORK_DEVICE_FIREWALL_DEFAULT)
     }
 }
 
@@ -136,57 +322,15 @@ impl FromStr for NetworkDevice {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (mut ty, mut hwaddr, mut firewall, mut ip, mut ip6) = (None, None, true, None, None);
-
-        for entry in PropertyIterator::new(s) {
-            let (key, value) = entry.unwrap();
-
-            if let Some(key) = key {
-                match key {
-                    "type" | "model" => {
-                        ty = Some(NetworkDeviceModel::from_str(&value)?);
-                    }
-                    "hwaddr" | "macaddr" => {
-                        hwaddr = Some(MacAddress::from_str(&value)?);
-                    }
-                    "firewall" => {
-                        firewall = parse_bool(&value)?;
-                    }
-                    "ip" => {
-                        if value == "dhcp" {
-                            continue;
-                        }
-
-                        ip = Some(Ipv4Cidr::from_str(&value)?);
-                    }
-                    "ip6" => {
-                        if value == "dhcp" || value == "auto" {
-                            continue;
-                        }
-
-                        ip6 = Some(Ipv6Cidr::from_str(&value)?);
-                    }
-                    _ => {
-                        if let Ok(model) = NetworkDeviceModel::from_str(key) {
-                            ty = Some(model);
-                            hwaddr = Some(MacAddress::from_str(&value)?);
-                        }
-                    }
-                }
-            }
+        if let Ok(qemu_device) = s.parse::<PropertyString<QemuNetworkDevice>>() {
+            return Ok(NetworkDevice::Qemu(qemu_device.into_inner()));
         }
 
-        if let (Some(ty), Some(hwaddr)) = (ty, hwaddr) {
-            return Ok(NetworkDevice {
-                model: ty,
-                mac_address: hwaddr,
-                firewall,
-                ip,
-                ip6,
-            });
+        if let Ok(lxc_device) = s.parse::<PropertyString<LxcNetworkDevice>>() {
+            return Ok(NetworkDevice::Lxc(lxc_device.into_inner()));
         }
 
-        bail!("No valid network device detected in string {s}");
+        bail!("not a valid network device property string: {s}")
     }
 }
 
@@ -312,14 +456,27 @@ mod tests {
 
         assert_eq!(
             network_device,
-            NetworkDevice {
+            NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
                 mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
-                firewall: true,
-                ip: None,
-                ip6: None,
-            }
+                firewall: Some(true),
+            })
         );
+
+        network_device = "model=virtio,macaddr=AA:AA:AA:17:19:81,bridge=public"
+            .parse()
+            .expect("valid network configuration");
+
+        assert_eq!(
+            network_device,
+            NetworkDevice::Qemu(QemuNetworkDevice {
+                model: NetworkDeviceModel::VirtIO,
+                mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
+                firewall: None,
+            })
+        );
+
+        assert!(!network_device.has_firewall());
 
         network_device = "model=virtio,macaddr=AA:AA:AA:17:19:81,bridge=public,firewall=1,queues=4"
             .parse()
@@ -327,14 +484,14 @@ mod tests {
 
         assert_eq!(
             network_device,
-            NetworkDevice {
+            NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
                 mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
-                firewall: true,
-                ip: None,
-                ip6: None,
-            }
+                firewall: Some(true),
+            })
         );
+
+        assert!(network_device.has_firewall());
 
         network_device =
             "name=eth0,bridge=public,firewall=0,hwaddr=AA:AA:AA:E2:3E:24,ip=dhcp,type=veth"
@@ -343,13 +500,13 @@ mod tests {
 
         assert_eq!(
             network_device,
-            NetworkDevice {
-                model: NetworkDeviceModel::Veth,
+            NetworkDevice::Lxc(LxcNetworkDevice {
+                ty: NetworkDeviceModel::Veth,
                 mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0xE2, 0x3E, 0x24]),
-                firewall: false,
-                ip: None,
+                firewall: Some(false),
+                ip: Some(LxcIpv4Addr::Dhcp),
                 ip6: None,
-            }
+            })
         );
 
         "model=virtio"
@@ -369,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_network_confg() {
+    fn test_parse_network_config() {
         let mut guest_config = "\
 boot: order=scsi0;net0
 cores: 4
@@ -433,13 +590,11 @@ vmgenid: 706fbe99-d28b-4047-a9cd-3677c859ca8a"
 
         assert_eq!(
             network_config.network_devices()[&0],
-            NetworkDevice {
+            NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
                 mac_address: MacAddress([0xAA, 0xBB, 0xCC, 0xF2, 0xFE, 0x75]),
-                firewall: true,
-                ip: None,
-                ip6: None,
-            }
+                firewall: None,
+            })
         );
 
         guest_config = "\
@@ -448,7 +603,7 @@ cores: 1
 features: nesting=1
 hostname: dnsct
 memory: 512
-net0: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth
+net0: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,ip6=auto,type=veth
 net2:   name=eth0,bridge=data,firewall=0,hwaddr=BC:24:11:47:83:12,ip=123.123.123.123/24,type=veth  
 net5: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:13,ip6=fd80::1/64,type=veth
 ostype: alpine
@@ -463,35 +618,39 @@ unprivileged: 1"
 
         assert_eq!(
             network_config.network_devices()[&0],
-            NetworkDevice {
-                model: NetworkDeviceModel::Veth,
+            NetworkDevice::Lxc(LxcNetworkDevice {
+                ty: NetworkDeviceModel::Veth,
                 mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x11]),
-                firewall: true,
-                ip: None,
-                ip6: None,
-            }
+                firewall: Some(true),
+                ip: Some(LxcIpv4Addr::Dhcp),
+                ip6: Some(LxcIpv6Addr::Auto),
+            })
         );
 
         assert_eq!(
             network_config.network_devices()[&2],
-            NetworkDevice {
-                model: NetworkDeviceModel::Veth,
+            NetworkDevice::Lxc(LxcNetworkDevice {
+                ty: NetworkDeviceModel::Veth,
                 mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x12]),
-                firewall: false,
-                ip: Some(Ipv4Cidr::from_str("123.123.123.123/24").expect("valid ipv4")),
+                firewall: Some(false),
+                ip: Some(LxcIpv4Addr::Ip(
+                    Ipv4Cidr::from_str("123.123.123.123/24").expect("valid ipv4")
+                )),
                 ip6: None,
-            }
+            })
         );
 
         assert_eq!(
             network_config.network_devices()[&5],
-            NetworkDevice {
-                model: NetworkDeviceModel::Veth,
+            NetworkDevice::Lxc(LxcNetworkDevice {
+                ty: NetworkDeviceModel::Veth,
                 mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x13]),
-                firewall: true,
+                firewall: Some(true),
                 ip: None,
-                ip6: Some(Ipv6Cidr::from_str("fd80::1/64").expect("valid ipv6")),
-            }
+                ip6: Some(LxcIpv6Addr::Ip(
+                    Ipv6Cidr::from_str("fd80::1/64").expect("valid ipv6")
+                )),
+            })
         );
 
         NetworkConfig::parse(

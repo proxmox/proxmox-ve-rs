@@ -119,7 +119,7 @@ impl From<IpAddr> for Cidr {
 
 const IPV4_LENGTH: u8 = 32;
 
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash, DeserializeFromStr)]
 pub struct Ipv4Cidr {
     addr: Ipv4Addr,
     mask: u8,
@@ -193,7 +193,7 @@ impl fmt::Display for Ipv4Cidr {
 
 const IPV6_LENGTH: u8 = 128;
 
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq, Hash, DeserializeFromStr)]
 pub struct Ipv6Cidr {
     addr: Ipv6Addr,
     mask: u8,
