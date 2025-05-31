@@ -42,6 +42,7 @@ pub fn network_interface_cidrs() -> Vec<Cidr> {
                         .as_sockaddr_in()
                         .expect("is an IPv4 address")
                         .ip()
+                        .to_bits()
                         .count_ones()
                         .try_into()
                         .expect("count_ones of u32 is < u8_max");
