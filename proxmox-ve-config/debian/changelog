@@ -1,3 +1,13 @@
+rust-proxmox-ve-config (0.3.0) trixie; urgency=medium
+
+  * re-build for Debian Trixie based releases.
+
+  * upgrade thiserror dependency to version 2.
+
+  * use endian-safe to_bits for getting the IP netmask from a CIDR.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 31 May 2025 16:29:04 +0200
+
 rust-proxmox-ve-config (0.2.3) unstable; urgency=medium
 
   * firewall macros: fix macros using ICMP protocol.
