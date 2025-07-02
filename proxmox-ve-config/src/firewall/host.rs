@@ -36,49 +36,49 @@ pub const HOST_LOG_INVALID_CONNTRACK: bool = false;
 #[derive(Debug, Default, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Options {
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     enable: Option<bool>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     nftables: Option<bool>,
 
     log_level_in: Option<LogLevel>,
     log_level_out: Option<LogLevel>,
     log_level_forward: Option<LogLevel>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     log_nf_conntrack: Option<bool>,
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     ndp: Option<bool>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     nf_conntrack_allow_invalid: Option<bool>,
 
     // is Option<Vec<>> for easier deserialization
     #[serde(default, with = "parse::serde_option_conntrack_helpers")]
     nf_conntrack_helpers: Option<Vec<String>>,
 
-    #[serde(default, with = "parse::serde_option_number")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_i64")]
     nf_conntrack_max: Option<i64>,
-    #[serde(default, with = "parse::serde_option_number")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_i64")]
     nf_conntrack_tcp_timeout_established: Option<i64>,
-    #[serde(default, with = "parse::serde_option_number")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_i64")]
     nf_conntrack_tcp_timeout_syn_recv: Option<i64>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     nosmurfs: Option<bool>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     protection_synflood: Option<bool>,
-    #[serde(default, with = "parse::serde_option_number")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_i64")]
     protection_synflood_burst: Option<i64>,
-    #[serde(default, with = "parse::serde_option_number")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_i64")]
     protection_synflood_rate: Option<i64>,
 
     smurf_log_level: Option<LogLevel>,
     tcp_flags_log_level: Option<LogLevel>,
 
-    #[serde(default, with = "parse::serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     tcpflags: Option<bool>,
 }
 

@@ -10,7 +10,7 @@ use crate::firewall::types::log::LogRateLimit;
 use crate::firewall::types::rule::{Direction, Verdict};
 use crate::firewall::types::{Alias, Group, Rule};
 
-use crate::firewall::parse::{serde_option_bool, serde_option_log_ratelimit};
+use crate::firewall::parse::serde_option_log_ratelimit;
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -118,10 +118,10 @@ impl Config {
 #[derive(Debug, Default, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Options {
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     enable: Option<bool>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     ebtables: Option<bool>,
 
     #[serde(default, with = "serde_option_log_ratelimit")]

@@ -3,7 +3,6 @@ use std::io;
 use anyhow::Error;
 use serde::Deserialize;
 
-use crate::firewall::parse::serde_option_bool;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::rule::{Direction, Verdict};
 
@@ -55,7 +54,7 @@ impl Config {
 #[derive(Debug, Default, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Options {
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     enable: Option<bool>,
 
     policy_forward: Option<Verdict>,

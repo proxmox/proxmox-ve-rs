@@ -13,8 +13,6 @@ use crate::firewall::types::Ipset;
 use anyhow::{bail, Error};
 use serde::Deserialize;
 
-use crate::firewall::parse::serde_option_bool;
-
 /// default return value for [`Config::is_enabled()`]
 pub const GUEST_ENABLED_DEFAULT: bool = false;
 /// default return value for [`Config::allow_ndp()`]
@@ -37,25 +35,25 @@ pub const GUEST_POLICY_FORWARD_DEFAULT: Verdict = Verdict::Accept;
 #[derive(Debug, Default, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Options {
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     dhcp: Option<bool>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     enable: Option<bool>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     ipfilter: Option<bool>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     ndp: Option<bool>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     radv: Option<bool>,
 
     log_level_in: Option<LogLevel>,
     log_level_out: Option<LogLevel>,
 
-    #[serde(default, with = "serde_option_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     macfilter: Option<bool>,
 
     #[serde(rename = "policy_in")]
