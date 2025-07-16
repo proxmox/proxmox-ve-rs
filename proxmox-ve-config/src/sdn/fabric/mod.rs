@@ -1,3 +1,5 @@
+#[cfg(feature = "frr")]
+pub mod frr;
 pub mod section_config;
 
 use std::collections::{BTreeMap, HashSet};

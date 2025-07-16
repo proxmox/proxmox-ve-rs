@@ -25,6 +25,7 @@ serde = { version = "1" }
 serde_with = "3"
 thiserror = "2.0.0"
 
+proxmox-frr = { version = "0.1", path = "proxmox-frr" }
 proxmox-network-types = { version = "0.1" }
 proxmox-schema = { version = "4" }
 proxmox-sdn-types = { version = "0.1", path = "proxmox-sdn-types" }
