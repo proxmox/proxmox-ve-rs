@@ -1,0 +1,49 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+snapshot_kind: text
+---
+router openfabric test1
+ net 49.0001.1921.6800.2009.00
+exit
+!
+router openfabric test2
+ net 49.0001.1921.6800.2009.00
+exit
+!
+interface dummy_test1
+ ip router openfabric test1
+ openfabric passive
+exit
+!
+interface dummy_test2
+ ip router openfabric test2
+ openfabric passive
+exit
+!
+interface ens19
+ ip router openfabric test1
+ openfabric hello-interval 4
+exit
+!
+interface ens21
+ ip router openfabric test2
+ openfabric hello-interval 4
+exit
+!
+access-list pve_openfabric_test1_ips permit 192.168.2.0/24
+!
+access-list pve_openfabric_test2_ips permit 192.168.1.0/24
+!
+route-map pve_openfabric permit 100
+ match ip address pve_openfabric_test1_ips
+ set src 192.168.2.9
+exit
+!
+route-map pve_openfabric permit 110
+ match ip address pve_openfabric_test2_ips
+ set src 192.168.1.9
+exit
+!
+ip protocol openfabric route-map pve_openfabric
+!

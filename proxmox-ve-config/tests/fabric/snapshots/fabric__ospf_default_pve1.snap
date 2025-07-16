@@ -1,0 +1,28 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+snapshot_kind: text
+---
+router ospf
+ ospf router-id 10.10.10.2
+exit
+!
+interface dummy_test
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface ens19
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+access-list pve_ospf_test_ips permit 10.10.10.10/24
+!
+route-map pve_ospf permit 100
+ match ip address pve_ospf_test_ips
+ set src 10.10.10.2
+exit
+!
+ip protocol ospf route-map pve_ospf
+!

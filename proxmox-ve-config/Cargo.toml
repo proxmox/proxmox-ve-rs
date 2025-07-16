@@ -31,3 +31,6 @@ proxmox-sortable-macro = "1"
 
 [features]
 frr = ["dep:proxmox-frr"]
+
+[dev-dependencies]
+insta = "1.21"

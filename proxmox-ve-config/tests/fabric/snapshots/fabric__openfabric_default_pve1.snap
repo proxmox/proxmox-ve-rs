@@ -1,0 +1,33 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+snapshot_kind: text
+---
+router openfabric uwu
+ net 49.0001.1921.6800.2009.00
+exit
+!
+interface dummy_uwu
+ ip router openfabric uwu
+ openfabric passive
+exit
+!
+interface ens19
+ ip router openfabric uwu
+ openfabric hello-interval 4
+exit
+!
+interface ens20
+ ip router openfabric uwu
+ openfabric hello-interval 4
+exit
+!
+access-list pve_openfabric_uwu_ips permit 192.168.2.0/24
+!
+route-map pve_openfabric permit 100
+ match ip address pve_openfabric_uwu_ips
+ set src 192.168.2.9
+exit
+!
+ip protocol openfabric route-map pve_openfabric
+!

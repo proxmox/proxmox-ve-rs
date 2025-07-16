@@ -1,0 +1,34 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+snapshot_kind: text
+---
+router openfabric uwu
+ net 49.0001.0000.0000.000a.00
+exit
+!
+interface dummy_uwu
+ ipv6 router openfabric uwu
+ openfabric passive
+exit
+!
+interface ens19
+ ipv6 router openfabric uwu
+ openfabric hello-interval 4
+exit
+!
+interface ens20
+ ipv6 router openfabric uwu
+ openfabric hello-interval 4
+ openfabric hello-multiplier 50
+exit
+!
+ipv6 access-list pve_openfabric_uwu_ip6s permit a:b::/75
+!
+route-map pve_openfabric6 permit 100
+ match ipv6 address pve_openfabric_uwu_ip6s
+ set src a:b::a
+exit
+!
+ipv6 protocol openfabric route-map pve_openfabric6
+!
