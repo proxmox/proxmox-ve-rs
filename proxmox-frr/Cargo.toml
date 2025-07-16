@@ -1,0 +1,18 @@
+[package]
+name = "proxmox-frr"
+description = "Rust types for the FRR configuration file"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+anyhow = "1"
+tracing = "0.1"
+
+proxmox-network-types = { workspace = true }
+proxmox-sdn-types = { workspace = true }

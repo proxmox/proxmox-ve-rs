@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "proxmox-ve-config",
+    "proxmox-frr",
     "proxmox-sdn-types",
 ]
 exclude = [

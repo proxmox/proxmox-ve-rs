@@ -1,0 +1,41 @@
+Source: rust-proxmox-frr
+Section: rust
+Priority: optional
+Build-Depends: debhelper-compat (= 13),
+ dh-sequence-cargo
+Build-Depends-Arch: cargo:native <!nocheck>,
+ rustc:native (>= 1.82) <!nocheck>,
+ libstd-rust-dev <!nocheck>,
+ librust-anyhow-1+default-dev <!nocheck>,
+ librust-proxmox-network-types-0.1+default-dev <!nocheck>,
+ librust-proxmox-sdn-types-0.1+default-dev <!nocheck>,
+ librust-thiserror-2+default-dev <!nocheck>,
+ librust-tracing-0.1+default-dev <!nocheck>
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Standards-Version: 4.7.0
+Vcs-Git: git://git.proxmox.com/git/proxmox-ve-rs.git
+Vcs-Browser: https://git.proxmox.com/?p=proxmox-ve-rs.git
+Homepage: https://proxmox.com
+X-Cargo-Crate: proxmox-frr
+Rules-Requires-Root: no
+
+Package: librust-proxmox-frr-dev
+Architecture: any
+Multi-Arch: same
+Depends:
+ ${misc:Depends},
+ librust-anyhow-1+default-dev,
+ librust-proxmox-network-types-0.1+default-dev,
+ librust-proxmox-sdn-types-0.1+default-dev,
+ librust-thiserror-2+default-dev,
+ librust-tracing-0.1+default-dev
+Provides:
+ librust-proxmox-frr+default-dev (= ${binary:Version}),
+ librust-proxmox-frr-0-dev (= ${binary:Version}),
+ librust-proxmox-frr-0+default-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.1-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.1+default-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.1.0-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.1.0+default-dev (= ${binary:Version})
+Description: Rust types for the FRR configuration file - Rust source code
+ Source code for Debianized Rust crate "proxmox-frr"
