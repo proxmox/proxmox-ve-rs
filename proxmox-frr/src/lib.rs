@@ -1,9 +1,62 @@
 pub mod openfabric;
 pub mod ospf;
 pub mod route_map;
-use std::{fmt::Display, str::FromStr};
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Display;
+use std::str::FromStr;
+
+use crate::route_map::{AccessList, ProtocolRouteMap, RouteMap};
 
 use thiserror::Error;
+
+/// Generic FRR router.
+///
+/// This generic FRR router contains all the protocols that we implement.
+/// In FRR this is e.g.:
+/// ```text
+/// router openfabric test
+/// !....
+/// ! or
+/// router ospf
+/// !....
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Router {
+    Openfabric(openfabric::OpenfabricRouter),
+    Ospf(ospf::OspfRouter),
+}
+
+impl From<openfabric::OpenfabricRouter> for Router {
+    fn from(value: openfabric::OpenfabricRouter) -> Self {
+        Router::Openfabric(value)
+    }
+}
+
+/// Generic FRR routername.
+///
+/// The variants represent different protocols. Some have `router <protocol> <name>`, others have
+/// `router <protocol> <process-id>`, some only have `router <protocol>`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum RouterName {
+    Openfabric(openfabric::OpenfabricRouterName),
+    Ospf(ospf::OspfRouterName),
+}
+
+impl From<openfabric::OpenfabricRouterName> for RouterName {
+    fn from(value: openfabric::OpenfabricRouterName) -> Self {
+        Self::Openfabric(value)
+    }
+}
+
+impl Display for RouterName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Openfabric(r) => r.fmt(f),
+            Self::Ospf(r) => r.fmt(f),
+        }
+    }
+}
 
 /// The interface name is the same on ospf and openfabric, but it is an enum so that we can have
 /// two different entries in the btreemap. This allows us to have an interface in a ospf and
@@ -144,5 +197,44 @@ impl CommonInterfaceName {
 impl Display for CommonInterfaceName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+/// Main FRR config.
+///
+/// Contains the two main frr building blocks: routers and interfaces. It also holds other
+/// top-level FRR options, such as access-lists, router-maps and protocol-routemaps. This struct
+/// gets generated using the `FrrConfigBuilder` in `proxmox-ve-config`.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct FrrConfig {
+    pub router: BTreeMap<RouterName, Router>,
+    pub interfaces: BTreeMap<InterfaceName, Interface>,
+    pub access_lists: Vec<AccessList>,
+    pub routemaps: Vec<RouteMap>,
+    pub protocol_routemaps: BTreeSet<ProtocolRouteMap>,
+}
+
+impl FrrConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn router(&self) -> impl Iterator<Item = (&RouterName, &Router)> + '_ {
+        self.router.iter()
+    }
+
+    pub fn interfaces(&self) -> impl Iterator<Item = (&InterfaceName, &Interface)> + '_ {
+        self.interfaces.iter()
+    }
+
+    pub fn access_lists(&self) -> impl Iterator<Item = &AccessList> + '_ {
+        self.access_lists.iter()
+    }
+    pub fn routemaps(&self) -> impl Iterator<Item = &RouteMap> + '_ {
+        self.routemaps.iter()
+    }
+
+    pub fn protocol_routemaps(&self) -> impl Iterator<Item = &ProtocolRouteMap> + '_ {
+        self.protocol_routemaps.iter()
     }
 }
