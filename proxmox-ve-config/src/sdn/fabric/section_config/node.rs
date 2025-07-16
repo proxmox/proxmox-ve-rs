@@ -223,3 +223,162 @@ impl From<NodeSection<OspfNodeProperties>> for Node {
         Self::Ospf(value)
     }
 }
+
+/// API types for SDN fabric node configurations.
+///
+/// This module provides specialized types that are used for API interactions when retrieving,
+/// creating, or updating fabric/node configurations. These types serialize differently than their
+/// section-config configuration counterparts to be nicer client-side.
+///
+/// The module includes:
+/// - [`api::NodeData<T>`]: API-friendly version of [`NodeSection<T>`] that flattens the node identifier
+///   into separate `fabric_id` and `node_id` fields
+/// - [`api::Node`]: API-version of [`super::Node`]
+/// - [`api::NodeDataUpdater`]
+/// - [`api::NodeDeletableProperties`]
+///
+/// These types include conversion methods to transform between API representations and internal
+/// configuration objects.
+pub mod api {
+    use serde::{Deserialize, Serialize};
+
+    use proxmox_schema::{Updater, UpdaterType};
+
+    use crate::sdn::fabric::section_config::protocol::{
+        openfabric::{
+            OpenfabricNodeDeletableProperties, OpenfabricNodeProperties,
+            OpenfabricNodePropertiesUpdater,
+        },
+        ospf::{OspfNodeDeletableProperties, OspfNodeProperties, OspfNodePropertiesUpdater},
+    };
+
+    use super::*;
+
+    /// API-equivalent to [`NodeSection<T>`].
+    ///
+    /// The difference is that instead of serializing fabric_id and node_id into a single string
+    /// (`{fabric_id}_{node_id}`), are serialized normally as two distinct properties. This
+    /// prevents us from needing to parse the node_id in the frontend using `split("_")`.
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NodeData<T> {
+        fabric_id: FabricId,
+        node_id: NodeId,
+
+        /// IPv4 for this node in the Ospf fabric
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ip: Option<Ipv4Addr>,
+
+        /// IPv6 for this node in the Ospf fabric
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ip6: Option<Ipv6Addr>,
+
+        #[serde(flatten)]
+        properties: T,
+    }
+
+    impl<T> From<NodeSection<T>> for NodeData<T> {
+        fn from(value: NodeSection<T>) -> Self {
+            Self {
+                fabric_id: value.id.fabric_id,
+                node_id: value.id.node_id,
+                ip: value.ip,
+                ip6: value.ip6,
+                properties: value.properties,
+            }
+        }
+    }
+
+    impl<T> From<NodeData<T>> for NodeSection<T> {
+        fn from(value: NodeData<T>) -> Self {
+            let id = NodeSectionId::new(value.fabric_id, value.node_id);
+
+            Self {
+                id,
+                ip: value.ip,
+                ip6: value.ip6,
+                properties: value.properties,
+            }
+        }
+    }
+
+    /// API-equivalent to [`super::Node`].
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case", tag = "protocol")]
+    pub enum Node {
+        Openfabric(NodeData<OpenfabricNodeProperties>),
+        Ospf(NodeData<OspfNodeProperties>),
+    }
+
+    impl From<super::Node> for Node {
+        fn from(value: super::Node) -> Self {
+            match value {
+                super::Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
+                super::Node::Ospf(node_section) => Self::Ospf(node_section.into()),
+            }
+        }
+    }
+
+    impl From<Node> for super::Node {
+        fn from(value: Node) -> Self {
+            match value {
+                Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
+                Node::Ospf(node_section) => Self::Ospf(node_section.into()),
+            }
+        }
+    }
+
+    impl UpdaterType for NodeData<OpenfabricNodeProperties> {
+        type Updater =
+            NodeDataUpdater<OpenfabricNodePropertiesUpdater, OpenfabricNodeDeletableProperties>;
+    }
+
+    impl UpdaterType for NodeData<OspfNodeProperties> {
+        type Updater = NodeDataUpdater<OspfNodePropertiesUpdater, OspfNodeDeletableProperties>;
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct NodeDataUpdater<T, D> {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub(crate) ip: Option<Ipv4Addr>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub(crate) ip6: Option<Ipv6Addr>,
+
+        #[serde(flatten)]
+        pub(crate) properties: T,
+
+        #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
+        pub(crate) delete: Vec<NodeDeletableProperties<D>>,
+    }
+
+    impl<T: UpdaterType + Updater, D> UpdaterType for NodeDataUpdater<T, D> {
+        type Updater = NodeDataUpdater<T::Updater, D>;
+    }
+
+    impl<T: Updater, D> Updater for NodeDataUpdater<T, D> {
+        fn is_empty(&self) -> bool {
+            T::is_empty(&self.properties)
+                && self.ip.is_none()
+                && self.ip6.is_none()
+                && self.delete.is_empty()
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case", tag = "protocol")]
+    pub enum NodeUpdater {
+        Openfabric(
+            NodeDataUpdater<OpenfabricNodePropertiesUpdater, OpenfabricNodeDeletableProperties>,
+        ),
+        Ospf(NodeDataUpdater<OspfNodePropertiesUpdater, OspfNodeDeletableProperties>),
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum NodeDeletableProperties<T> {
+        Ip,
+        Ip6,
+        #[serde(untagged)]
+        Protocol(T),
+    }
+}

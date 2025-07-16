@@ -233,3 +233,8 @@ pub enum FabricDeletableProperties<T> {
     #[serde(untagged)]
     Protocol(T),
 }
+
+pub mod api {
+    pub type Fabric = super::Fabric;
+    pub type FabricUpdater = super::FabricUpdater;
+}
