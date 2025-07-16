@@ -1,3 +1,4 @@
+pub mod openfabric;
 use std::{fmt::Display, str::FromStr};
 
 use thiserror::Error;
