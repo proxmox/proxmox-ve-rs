@@ -3,8 +3,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use proxmox_network_types::ip_address::Family;
 use crate::firewall::types::rule_match::{Ports, Protocol, Tcp, Udp};
+use proxmox_network_types::ip_address::Family;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CtHelperMacroJson {

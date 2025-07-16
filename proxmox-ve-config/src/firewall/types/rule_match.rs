@@ -771,8 +771,8 @@ impl fmt::Display for Icmpv6Code {
 
 #[cfg(test)]
 mod tests {
-    use proxmox_network_types::ip_address::Cidr;
     use crate::firewall::types::alias::AliasScope::Guest;
+    use proxmox_network_types::ip_address::Cidr;
 
     use super::*;
 
