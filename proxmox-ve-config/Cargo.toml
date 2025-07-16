@@ -22,5 +22,7 @@ proxmox-serde = { version = "1.0.0", features = [ "perl" ]}
 
 proxmox-network-types = { workspace = true, features = [ "api-types" ] }
 proxmox-schema = { workspace = true, features = [ "api-types" ] }
+proxmox-sdn-types = { workspace = true }
+proxmox-section-config = { version = "3" }
 proxmox-sys = "1"
 proxmox-sortable-macro = "1"

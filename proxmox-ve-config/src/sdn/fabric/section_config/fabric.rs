@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use proxmox_schema::{
     api, api_string_type, const_regex, AllOfSchema, ApiStringFormat, ApiType, ObjectSchema, Schema,
-    Updater,
+    Updater, UpdaterType,
+};
+
+use crate::sdn::fabric::section_config::protocol::openfabric::{
+    OpenfabricDeletableProperties, OpenfabricProperties, OpenfabricPropertiesUpdater,
 };
 
 pub const FABRIC_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9])(?:[a-zA-Z0-9\-]){0,6}(?:[a-zA-Z0-9])?";
@@ -119,6 +123,85 @@ impl<T: Updater, D> Updater for FabricSectionUpdater<T, D> {
             && self.ip_prefix.is_none()
             && self.ip6_prefix.is_none()
             && self.delete.is_empty()
+    }
+}
+
+impl UpdaterType for FabricSection<OpenfabricProperties> {
+    type Updater = FabricSectionUpdater<OpenfabricPropertiesUpdater, OpenfabricDeletableProperties>;
+}
+
+/// Enum containing all types of fabrics.
+///
+/// It utilizes [`FabricSection<T>`] to define all possible types of fabrics. For parsing the
+/// configuration, please use the [`Section`] enum, which contains the Node sections as well. This
+/// struct is used for sorting the sections into their sub-types after parsing the configuration
+/// via [`Section`].
+#[api(
+    "id-property": "id",
+    "id-schema": {
+        type: String,
+        description: "Fabric ID",
+        format: &FABRIC_ID_FORMAT,
+    },
+    "type-key": "protocol",
+)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "snake_case", tag = "protocol")]
+pub enum Fabric {
+    Openfabric(FabricSection<OpenfabricProperties>),
+}
+
+impl UpdaterType for Fabric {
+    type Updater = FabricUpdater;
+}
+
+impl Fabric {
+    /// Get the id of the [`Fabric`].
+    ///
+    /// This is a common property for all protocols.
+    pub fn id(&self) -> &FabricId {
+        match self {
+            Self::Openfabric(fabric_section) => fabric_section.id(),
+        }
+    }
+
+    /// Get the ip-prefix (IPv4 CIDR) of the [`Fabric`].
+    ///
+    /// This is a common property for all protocols.
+    pub fn ip_prefix(&self) -> Option<Ipv4Cidr> {
+        match self {
+            Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix(),
+        }
+    }
+
+    /// Get the ip6-prefix (IPv6 CIDR) of the [`Fabric`].
+    ///
+    /// This is a common property for all protocols.
+    pub fn ip6_prefix(&self) -> Option<Ipv6Cidr> {
+        match self {
+            Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
+        }
+    }
+}
+
+impl From<FabricSection<OpenfabricProperties>> for Fabric {
+    fn from(section: FabricSection<OpenfabricProperties>) -> Self {
+        Fabric::Openfabric(section)
+    }
+}
+
+/// Enum containing all updater types for fabrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "protocol")]
+pub enum FabricUpdater {
+    Openfabric(<FabricSection<OpenfabricProperties> as UpdaterType>::Updater),
+}
+
+impl Updater for FabricUpdater {
+    fn is_empty(&self) -> bool {
+        match self {
+            FabricUpdater::Openfabric(updater) => updater.is_empty(),
+        }
     }
 }
 

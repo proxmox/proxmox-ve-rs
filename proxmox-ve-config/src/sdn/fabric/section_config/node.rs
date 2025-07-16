@@ -12,6 +12,7 @@ use proxmox_schema::{
 
 use crate::sdn::fabric::section_config::{
     fabric::{FabricId, FABRIC_ID_REGEX_STR},
+    protocol::openfabric::OpenfabricNodeProperties,
 };
 
 pub const NODE_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]){0,61}(?:[a-zA-Z0-9]){0,1})";
@@ -166,4 +167,49 @@ impl<T: ApiType> ApiType for NodeSection<T> {
         &[&NODE_SECTION_SCHEMA, &T::API_SCHEMA],
     )
     .schema();
+}
+
+/// Enum containing all types of nodes.
+#[api(
+    "id-property": "id",
+    "id-schema": {
+        type: String,
+        description: "Node ID",
+        format: &NODE_ID_FORMAT,
+    },
+    "type-key": "protocol",
+)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "snake_case", tag = "protocol")]
+pub enum Node {
+    Openfabric(NodeSection<OpenfabricNodeProperties>),
+}
+
+impl Node {
+    /// Get the id of the [`Node`].
+    pub fn id(&self) -> &NodeSectionId {
+        match self {
+            Node::Openfabric(node_section) => node_section.id(),
+        }
+    }
+
+    /// Get the ip (IPv4) of the [`Node`].
+    pub fn ip(&self) -> Option<std::net::Ipv4Addr> {
+        match self {
+            Node::Openfabric(node_section) => node_section.ip(),
+        }
+    }
+
+    /// Get the ip (IPv6) of the [`Node`].
+    pub fn ip6(&self) -> Option<std::net::Ipv6Addr> {
+        match self {
+            Node::Openfabric(node_section) => node_section.ip6(),
+        }
+    }
+}
+
+impl From<NodeSection<OpenfabricNodeProperties>> for Node {
+    fn from(value: NodeSection<OpenfabricNodeProperties>) -> Self {
+        Self::Openfabric(value)
+    }
 }
