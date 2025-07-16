@@ -1,3 +1,11 @@
+rust-proxmox-ve-config (0.3.1) trixie; urgency=medium
+
+  * use proxmox_serde perl helpers.
+
+  * add ip link struct.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Jul 2025 16:58:43 +0200
+
 rust-proxmox-ve-config (0.3.0) trixie; urgency=medium
 
   * re-build for Debian Trixie based releases.
