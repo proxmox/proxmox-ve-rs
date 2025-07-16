@@ -10,6 +10,8 @@ exclude.workspace = true
 log = "0.4"
 anyhow = { workspace = true }
 nix = "0.29"
+regex = { workspace = true }
+const_format = { workspace = true }
 thiserror = { workspace = true }
 
 serde = { workspace = true, features = [ "derive" ] }
@@ -18,7 +20,7 @@ serde_plain = "1"
 serde_with = { workspace = true }
 proxmox-serde = { version = "1.0.0", features = [ "perl" ]}
 
-proxmox-network-types = { workspace = true }
-proxmox-schema = "4.1"
+proxmox-network-types = { workspace = true, features = [ "api-types" ] }
+proxmox-schema = { workspace = true, features = [ "api-types" ] }
 proxmox-sys = "1"
 proxmox-sortable-macro = "1"
