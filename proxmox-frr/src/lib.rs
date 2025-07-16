@@ -1,5 +1,6 @@
 pub mod openfabric;
 pub mod ospf;
+pub mod route_map;
 use std::{fmt::Display, str::FromStr};
 
 use thiserror::Error;
