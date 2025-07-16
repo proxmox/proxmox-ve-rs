@@ -1,4 +1,5 @@
 pub mod openfabric;
+pub mod ospf;
 use std::{fmt::Display, str::FromStr};
 
 use thiserror::Error;
@@ -18,6 +19,30 @@ impl Display for InterfaceName {
             InterfaceName::Openfabric(frr_word) => frr_word.fmt(f),
             InterfaceName::Ospf(frr_word) => frr_word.fmt(f),
         }
+    }
+}
+
+/// Generic FRR Interface.
+///
+/// In FRR config it looks like this:
+/// ```text
+/// interface <name>
+/// ! ...
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Interface {
+    Openfabric(openfabric::OpenfabricInterface),
+    Ospf(ospf::OspfInterface),
+}
+
+impl From<openfabric::OpenfabricInterface> for Interface {
+    fn from(value: openfabric::OpenfabricInterface) -> Self {
+        Self::Openfabric(value)
+    }
+}
+
+impl From<ospf::OspfInterface> for Interface {
+    fn from(value: ospf::OspfInterface) -> Self {
+        Self::Ospf(value)
     }
 }
 
