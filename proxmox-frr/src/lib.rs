@@ -1,6 +1,7 @@
 pub mod openfabric;
 pub mod ospf;
 pub mod route_map;
+pub mod serializer;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
