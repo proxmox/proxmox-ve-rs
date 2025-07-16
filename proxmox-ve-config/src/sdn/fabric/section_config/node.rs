@@ -12,7 +12,7 @@ use proxmox_schema::{
 
 use crate::sdn::fabric::section_config::{
     fabric::{FabricId, FABRIC_ID_REGEX_STR},
-    protocol::openfabric::OpenfabricNodeProperties,
+    protocol::{openfabric::OpenfabricNodeProperties, ospf::OspfNodeProperties},
 };
 
 pub const NODE_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]){0,61}(?:[a-zA-Z0-9]){0,1})";
@@ -183,6 +183,7 @@ impl<T: ApiType> ApiType for NodeSection<T> {
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum Node {
     Openfabric(NodeSection<OpenfabricNodeProperties>),
+    Ospf(NodeSection<OspfNodeProperties>),
 }
 
 impl Node {
@@ -190,6 +191,7 @@ impl Node {
     pub fn id(&self) -> &NodeSectionId {
         match self {
             Node::Openfabric(node_section) => node_section.id(),
+            Node::Ospf(node_section) => node_section.id(),
         }
     }
 
@@ -197,6 +199,7 @@ impl Node {
     pub fn ip(&self) -> Option<std::net::Ipv4Addr> {
         match self {
             Node::Openfabric(node_section) => node_section.ip(),
+            Node::Ospf(node_section) => node_section.ip(),
         }
     }
 
@@ -204,6 +207,7 @@ impl Node {
     pub fn ip6(&self) -> Option<std::net::Ipv6Addr> {
         match self {
             Node::Openfabric(node_section) => node_section.ip6(),
+            Node::Ospf(node_section) => node_section.ip6(),
         }
     }
 }
@@ -211,5 +215,11 @@ impl Node {
 impl From<NodeSection<OpenfabricNodeProperties>> for Node {
     fn from(value: NodeSection<OpenfabricNodeProperties>) -> Self {
         Self::Openfabric(value)
+    }
+}
+
+impl From<NodeSection<OspfNodeProperties>> for Node {
+    fn from(value: NodeSection<OspfNodeProperties>) -> Self {
+        Self::Ospf(value)
     }
 }

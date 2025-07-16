@@ -10,6 +10,9 @@ use proxmox_schema::{
 use crate::sdn::fabric::section_config::protocol::openfabric::{
     OpenfabricDeletableProperties, OpenfabricProperties, OpenfabricPropertiesUpdater,
 };
+use crate::sdn::fabric::section_config::protocol::ospf::{
+    OspfDeletableProperties, OspfProperties, OspfPropertiesUpdater,
+};
 
 pub const FABRIC_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9])(?:[a-zA-Z0-9\-]){0,6}(?:[a-zA-Z0-9])?";
 
@@ -130,6 +133,10 @@ impl UpdaterType for FabricSection<OpenfabricProperties> {
     type Updater = FabricSectionUpdater<OpenfabricPropertiesUpdater, OpenfabricDeletableProperties>;
 }
 
+impl UpdaterType for FabricSection<OspfProperties> {
+    type Updater = FabricSectionUpdater<OspfPropertiesUpdater, OspfDeletableProperties>;
+}
+
 /// Enum containing all types of fabrics.
 ///
 /// It utilizes [`FabricSection<T>`] to define all possible types of fabrics. For parsing the
@@ -149,6 +156,7 @@ impl UpdaterType for FabricSection<OpenfabricProperties> {
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum Fabric {
     Openfabric(FabricSection<OpenfabricProperties>),
+    Ospf(FabricSection<OspfProperties>),
 }
 
 impl UpdaterType for Fabric {
@@ -162,6 +170,7 @@ impl Fabric {
     pub fn id(&self) -> &FabricId {
         match self {
             Self::Openfabric(fabric_section) => fabric_section.id(),
+            Self::Ospf(fabric_section) => fabric_section.id(),
         }
     }
 
@@ -171,6 +180,7 @@ impl Fabric {
     pub fn ip_prefix(&self) -> Option<Ipv4Cidr> {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix(),
+            Fabric::Ospf(fabric_section) => fabric_section.ip_prefix(),
         }
     }
 
@@ -180,6 +190,7 @@ impl Fabric {
     pub fn ip6_prefix(&self) -> Option<Ipv6Cidr> {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
+            Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix(),
         }
     }
 }
@@ -190,17 +201,25 @@ impl From<FabricSection<OpenfabricProperties>> for Fabric {
     }
 }
 
+impl From<FabricSection<OspfProperties>> for Fabric {
+    fn from(section: FabricSection<OspfProperties>) -> Self {
+        Fabric::Ospf(section)
+    }
+}
+
 /// Enum containing all updater types for fabrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum FabricUpdater {
     Openfabric(<FabricSection<OpenfabricProperties> as UpdaterType>::Updater),
+    Ospf(<FabricSection<OspfProperties> as UpdaterType>::Updater),
 }
 
 impl Updater for FabricUpdater {
     fn is_empty(&self) -> bool {
         match self {
             FabricUpdater::Openfabric(updater) => updater.is_empty(),
+            FabricUpdater::Ospf(updater) => updater.is_empty(),
         }
     }
 }
