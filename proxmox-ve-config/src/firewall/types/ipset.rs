@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
 use proxmox_network_types::ip_address::{Cidr, IpRange};
-use serde_with::DeserializeFromStr;
 
 use crate::firewall::parse::match_non_whitespace;
 use crate::firewall::types::alias::AliasName;
@@ -42,12 +41,14 @@ impl Display for IpsetScope {
     }
 }
 
-#[derive(Debug, Clone, DeserializeFromStr)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct IpsetName {
     pub scope: IpsetScope,
     pub name: String,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(IpsetName);
 
 impl IpsetName {
     pub fn new(scope: IpsetScope, name: impl Into<String>) -> Self {

@@ -34,7 +34,7 @@ impl std::str::FromStr for Direction {
     }
 }
 
-serde_plain::derive_deserialize_from_fromstr!(Direction, "valid packet direction");
+proxmox_serde::forward_deserialize_to_from_str!(Direction);
 
 impl fmt::Display for Direction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -83,7 +83,7 @@ impl Display for Verdict {
     }
 }
 
-serde_plain::derive_deserialize_from_fromstr!(Verdict, "valid verdict");
+proxmox_serde::forward_deserialize_to_from_str!(Verdict);
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]

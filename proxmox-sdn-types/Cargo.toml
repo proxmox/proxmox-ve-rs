@@ -12,7 +12,6 @@ rust-version.workspace = true
 anyhow = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = [ "derive" ] }
-serde_with = { workspace = true }
 
 proxmox-schema = { workspace = true, features = [ "api-macro", "api-types" ] }
-proxmox-serde = { version = "1.0.0", features = [ "perl" ] }
+proxmox-serde = { workspace = true, features = [ "perl" ] }

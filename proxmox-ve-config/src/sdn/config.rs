@@ -9,7 +9,6 @@ use std::{
 use proxmox_network_types::ip_address::{Cidr, IpRange, IpRangeError};
 use proxmox_schema::{property_string::PropertyString, ApiType, ObjectSchema, StringSchema};
 use serde::Deserialize;
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     common::Allowlist,
@@ -63,9 +62,7 @@ impl Display for SdnConfigError {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, SerializeDisplay, DeserializeFromStr,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ZoneType {
     Simple,
     Vlan,
@@ -73,6 +70,9 @@ pub enum ZoneType {
     Vxlan,
     Evpn,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(ZoneType);
+proxmox_serde::forward_serialize_to_display!(ZoneType);
 
 impl FromStr for ZoneType {
     type Err = SdnConfigError;
@@ -101,12 +101,12 @@ impl Display for ZoneType {
     }
 }
 
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, SerializeDisplay, DeserializeFromStr,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DhcpType {
     Dnsmasq,
 }
+proxmox_serde::forward_deserialize_to_from_str!(DhcpType);
+proxmox_serde::forward_serialize_to_display!(DhcpType);
 
 impl FromStr for DhcpType {
     type Err = SdnConfigError;

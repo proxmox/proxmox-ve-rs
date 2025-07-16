@@ -2,7 +2,6 @@ use std::fmt;
 use std::ops::Deref;
 
 use anyhow::{bail, Error};
-use serde_with::DeserializeFromStr;
 
 use crate::firewall::ports::parse_named_port;
 
@@ -65,9 +64,11 @@ impl TryFrom<(u16, u16)> for PortEntry {
     }
 }
 
-#[derive(Clone, Debug, DeserializeFromStr)]
+#[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct PortList(pub(crate) Vec<PortEntry>);
+
+proxmox_serde::forward_deserialize_to_from_str!(PortList);
 
 impl FromIterator<PortEntry> for PortList {
     fn from_iter<T: IntoIterator<Item = PortEntry>>(iter: T) -> Self {

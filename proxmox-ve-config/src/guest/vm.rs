@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use anyhow::{bail, Error};
 use serde::Deserialize;
-use serde_with::DeserializeFromStr;
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use proxmox_network_types::mac_address::MacAddress;
@@ -15,7 +14,7 @@ use proxmox_sortable_macro::sortable;
 use crate::firewall::parse::match_digits;
 
 /// All possible models of network devices for both QEMU and LXC guests.
-#[derive(Debug, Clone, Copy, DeserializeFromStr)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum NetworkDeviceModel {
     VirtIO,
@@ -24,6 +23,8 @@ pub enum NetworkDeviceModel {
     Vmxnet3,
     RTL8139,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(NetworkDeviceModel);
 
 impl FromStr for NetworkDeviceModel {
     type Err = Error;
@@ -85,13 +86,15 @@ impl ApiType for QemuNetworkDevice {
 }
 
 /// Representation of possible values for an LXC guest IPv4 field.
-#[derive(Debug, DeserializeFromStr, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum LxcIpv4Addr {
     Ip(Ipv4Cidr),
     Dhcp,
     Manual,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(LxcIpv4Addr);
 
 impl LxcIpv4Addr {
     pub fn cidr(&self) -> Option<Ipv4Cidr> {
@@ -115,7 +118,7 @@ impl FromStr for LxcIpv4Addr {
 }
 
 /// Representation of possible values for an LXC guest IPv6 field.
-#[derive(Debug, DeserializeFromStr, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum LxcIpv6Addr {
     Ip(Ipv6Cidr),
@@ -123,6 +126,8 @@ pub enum LxcIpv6Addr {
     Auto,
     Manual,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(LxcIpv6Addr);
 
 impl LxcIpv6Addr {
     pub fn cidr(&self) -> Option<Ipv6Cidr> {

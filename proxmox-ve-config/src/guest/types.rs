@@ -2,12 +2,12 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::{format_err, Error};
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, SerializeDisplay, DeserializeFromStr,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct Vmid(u32);
+
+proxmox_serde::forward_deserialize_to_from_str!(Vmid);
+proxmox_serde::forward_serialize_to_display!(Vmid);
 
 impl Vmid {
     pub fn new(id: u32) -> Self {

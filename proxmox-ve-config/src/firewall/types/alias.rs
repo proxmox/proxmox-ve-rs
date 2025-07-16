@@ -3,7 +3,6 @@ use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
 use proxmox_network_types::ip_address::Cidr;
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::firewall::parse::{match_name, match_non_whitespace};
 
@@ -37,12 +36,15 @@ impl Display for AliasScope {
 
 /// Represents the name of an alias in a firewall rule in the RULES section of the firewall
 /// configuration.
-#[derive(Debug, Clone, DeserializeFromStr, SerializeDisplay)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct AliasName {
     scope: AliasScope,
     name: String,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(AliasName);
+proxmox_serde::forward_serialize_to_display!(AliasName);
 
 impl Display for AliasName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

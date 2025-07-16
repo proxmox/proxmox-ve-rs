@@ -1,7 +1,6 @@
 use const_format::concatcp;
 use proxmox_schema::api_types::{IP_V4_SCHEMA, IP_V6_SCHEMA};
 use serde::{Deserialize, Serialize};
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use proxmox_network_types::ip_address::api_types::{Ipv4Addr, Ipv6Addr};
 
@@ -44,13 +43,14 @@ api_string_type! {
 ///
 /// This struct is a helper for parsing the string into the two separate parts. It (de-)serializes
 /// from and into a String.
-#[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, SerializeDisplay, DeserializeFromStr,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeSectionId {
     pub(crate) fabric_id: FabricId,
     pub(crate) node_id: NodeId,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(NodeSectionId);
+proxmox_serde::forward_serialize_to_display!(NodeSectionId);
 
 impl ApiType for NodeSectionId {
     const API_SCHEMA: Schema = StringSchema::new("ID of a SDN node in the section config")

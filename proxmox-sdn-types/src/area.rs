@@ -2,20 +2,20 @@ use std::{fmt::Display, net::Ipv4Addr};
 
 use anyhow::Error;
 use proxmox_schema::{ApiType, Schema, StringSchema, UpdaterType};
-use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 /// An OSPF Area.
 ///
 /// Internally the area is just a 32 bit number and is often represented in dotted-decimal
 /// notation, like an IPv4. FRR also allows us to specify it as a number or an IPv4-Address.
 /// To keep a nice user experience we keep whichever format the user entered.
-#[derive(
-    Debug, DeserializeFromStr, SerializeDisplay, Clone, Hash, PartialEq, Eq, PartialOrd, Ord,
-)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Area {
     Number(u32),
     IpAddress(Ipv4Addr),
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(Area);
+proxmox_serde::forward_serialize_to_display!(Area);
 
 impl ApiType for Area {
     const API_SCHEMA: Schema =

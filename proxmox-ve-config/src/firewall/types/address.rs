@@ -3,7 +3,6 @@ use std::ops::Deref;
 
 use anyhow::{bail, Error};
 use proxmox_network_types::ip_address::{Cidr, Family, IpRange};
-use serde_with::DeserializeFromStr;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
@@ -58,13 +57,15 @@ impl From<IpRange> for IpEntry {
     }
 }
 
-#[derive(Clone, Debug, DeserializeFromStr)]
+#[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct IpList {
     // guaranteed to have the same family
     entries: Vec<IpEntry>,
     family: Family,
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(IpList);
 
 impl Deref for IpList {
     type Target = Vec<IpEntry>;

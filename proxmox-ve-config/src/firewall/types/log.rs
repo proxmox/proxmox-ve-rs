@@ -164,7 +164,7 @@ impl fmt::Display for LogLevel {
     }
 }
 
-serde_plain::derive_deserialize_from_fromstr!(LogLevel, "valid log level");
+proxmox_serde::forward_deserialize_to_from_str!(LogLevel);
 
 #[cfg(test)]
 mod tests {

@@ -13,7 +13,7 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-proxmox-network-types-0.1+api-types-dev <!nocheck>,
  librust-proxmox-network-types-0.1+default-dev <!nocheck>,
  librust-proxmox-schema-4+api-types-dev <!nocheck>,
- librust-proxmox-schema-4+default-dev (>= 4.1-~~) <!nocheck>,
+ librust-proxmox-schema-4+default-dev <!nocheck>,
  librust-proxmox-sdn-types-0.1+default-dev <!nocheck>,
  librust-proxmox-section-config-3+default-dev <!nocheck>,
  librust-proxmox-serde-1+default-dev <!nocheck>,
@@ -24,8 +24,6 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-serde-1+default-dev <!nocheck>,
  librust-serde-1+derive-dev <!nocheck>,
  librust-serde-json-1+default-dev <!nocheck>,
- librust-serde-plain-1+default-dev <!nocheck>,
- librust-serde-with-3+default-dev <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
  librust-tracing-0.1+default-dev (>= 0.1.37-~~) <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
@@ -47,7 +45,7 @@ Depends:
  librust-proxmox-network-types-0.1+api-types-dev,
  librust-proxmox-network-types-0.1+default-dev,
  librust-proxmox-schema-4+api-types-dev,
- librust-proxmox-schema-4+default-dev (>= 4.1-~~),
+ librust-proxmox-schema-4+default-dev,
  librust-proxmox-sdn-types-0.1+default-dev,
  librust-proxmox-section-config-3+default-dev,
  librust-proxmox-serde-1+default-dev,
@@ -58,8 +56,6 @@ Depends:
  librust-serde-1+default-dev,
  librust-serde-1+derive-dev,
  librust-serde-json-1+default-dev,
- librust-serde-plain-1+default-dev,
- librust-serde-with-3+default-dev,
  librust-thiserror-2+default-dev,
  librust-tracing-0.1+default-dev (>= 0.1.37-~~)
 Suggests:
@@ -89,4 +85,3 @@ Provides:
 Description: Rust crate "proxmox-ve-config" - feature "frr"
  This metapackage enables feature "frr" for the Rust proxmox-ve-config crate, by
  pulling in any additional dependencies needed by that feature.
-

@@ -7,16 +7,14 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  rustc:native (>= 1.82) <!nocheck>,
  libstd-rust-dev <!nocheck>,
  librust-anyhow-1+default-dev <!nocheck>,
- librust-const-format-0.2+default-dev <!nocheck>,
  librust-proxmox-schema-4+api-macro-dev <!nocheck>,
  librust-proxmox-schema-4+api-types-dev <!nocheck>,
  librust-proxmox-schema-4+default-dev <!nocheck>,
- librust-proxmox-serde-0.1+default-dev (>= 0.1.2-~~) <!nocheck>,
- librust-proxmox-serde-0.1+perl-dev (>= 0.1.2-~~) <!nocheck>,
+ librust-proxmox-serde-1+default-dev <!nocheck>,
+ librust-proxmox-serde-1+perl-dev <!nocheck>,
  librust-regex-1+default-dev (>= 1.7-~~) <!nocheck>,
  librust-serde-1+default-dev <!nocheck>,
- librust-serde-1+derive-dev <!nocheck>,
- librust-serde-with-3+default-dev <!nocheck>
+ librust-serde-1+derive-dev <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.7.0
 Vcs-Git: git://git.proxmox.com/git/proxmox-ve-rs.git
@@ -31,16 +29,14 @@ Multi-Arch: same
 Depends:
  ${misc:Depends},
  librust-anyhow-1+default-dev,
- librust-const-format-0.2+default-dev,
  librust-proxmox-schema-4+api-macro-dev,
  librust-proxmox-schema-4+api-types-dev,
  librust-proxmox-schema-4+default-dev,
- librust-proxmox-serde-0.1+default-dev (>= 0.1.2-~~),
- librust-proxmox-serde-0.1+perl-dev (>= 0.1.2-~~),
+ librust-proxmox-serde-1+default-dev,
+ librust-proxmox-serde-1+perl-dev,
  librust-regex-1+default-dev (>= 1.7-~~),
  librust-serde-1+default-dev,
- librust-serde-1+derive-dev,
- librust-serde-with-3+default-dev
+ librust-serde-1+derive-dev
 Provides:
  librust-proxmox-sdn-types+default-dev (= ${binary:Version}),
  librust-proxmox-sdn-types-0-dev (= ${binary:Version}),

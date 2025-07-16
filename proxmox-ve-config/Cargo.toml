@@ -17,15 +17,13 @@ tracing = "0.1.37"
 
 serde = { workspace = true, features = [ "derive" ] }
 serde_json = "1"
-serde_plain = "1"
-serde_with = { workspace = true }
-proxmox-serde = { version = "1.0.0", features = [ "perl" ]}
 
 proxmox-frr = { workspace = true, optional = true }
 proxmox-network-types = { workspace = true, features = [ "api-types" ] }
 proxmox-schema = { workspace = true, features = [ "api-types" ] }
 proxmox-sdn-types = { workspace = true }
 proxmox-section-config = { version = "3" }
+proxmox-serde = { workspace = true, features = [ "perl" ]}
 proxmox-sys = "1"
 proxmox-sortable-macro = "1"
 

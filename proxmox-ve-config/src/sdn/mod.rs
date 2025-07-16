@@ -7,7 +7,6 @@ pub mod ipam;
 use std::{error::Error, fmt::Display, str::FromStr};
 
 use proxmox_network_types::ip_address::Cidr;
-use serde_with::DeserializeFromStr;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SdnNameError {
@@ -54,8 +53,10 @@ fn validate_sdn_name(name: &str) -> Result<(), SdnNameError> {
 }
 
 /// represents the name of an sdn zone
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, DeserializeFromStr)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ZoneName(String);
+
+proxmox_serde::forward_deserialize_to_from_str!(ZoneName);
 
 impl ZoneName {
     /// construct a new zone name
@@ -91,8 +92,10 @@ impl Display for ZoneName {
 }
 
 /// represents the name of an sdn vnet
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, DeserializeFromStr)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VnetName(String);
+
+proxmox_serde::forward_deserialize_to_from_str!(VnetName);
 
 impl VnetName {
     /// construct a new vnet name
@@ -135,8 +138,10 @@ impl Display for VnetName {
 ///
 /// # Textual representation
 /// A subnet name has the form `{zone_id}-{cidr_ip}-{cidr_mask}`
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, DeserializeFromStr)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SubnetName(ZoneName, Cidr);
+
+proxmox_serde::forward_deserialize_to_from_str!(SubnetName);
 
 impl SubnetName {
     pub fn new(zone: ZoneName, cidr: Cidr) -> Self {
