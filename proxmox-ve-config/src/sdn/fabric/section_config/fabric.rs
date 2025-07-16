@@ -7,12 +7,14 @@ use proxmox_schema::{
     Updater, UpdaterType,
 };
 
+use crate::common::valid::Validatable;
 use crate::sdn::fabric::section_config::protocol::openfabric::{
     OpenfabricDeletableProperties, OpenfabricProperties, OpenfabricPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::protocol::ospf::{
     OspfDeletableProperties, OspfProperties, OspfPropertiesUpdater,
 };
+use crate::sdn::fabric::FabricConfigError;
 
 pub const FABRIC_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9])(?:[a-zA-Z0-9\-]){0,6}(?:[a-zA-Z0-9])?";
 
@@ -191,6 +193,18 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix(),
+        }
+    }
+}
+
+impl Validatable for Fabric {
+    type Error = FabricConfigError;
+
+    /// Validate the [`Fabric`] by calling the validation function for the respective protocol.
+    fn validate(&self) -> Result<(), Self::Error> {
+        match self {
+            Fabric::Openfabric(fabric_section) => fabric_section.validate(),
+            Fabric::Ospf(fabric_section) => fabric_section.validate(),
         }
     }
 }

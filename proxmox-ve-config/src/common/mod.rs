@@ -2,6 +2,8 @@ use core::hash::Hash;
 use std::cmp::Eq;
 use std::collections::HashSet;
 
+pub mod valid;
+
 #[derive(Clone, Debug, Default)]
 pub struct Allowlist<T>(HashSet<T>);
 

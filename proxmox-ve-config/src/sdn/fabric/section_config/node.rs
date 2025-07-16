@@ -10,10 +10,12 @@ use proxmox_schema::{
     StringSchema, UpdaterType,
 };
 
+use crate::common::valid::Validatable;
 use crate::sdn::fabric::section_config::{
     fabric::{FabricId, FABRIC_ID_REGEX_STR},
     protocol::{openfabric::OpenfabricNodeProperties, ospf::OspfNodeProperties},
 };
+use crate::sdn::fabric::FabricConfigError;
 
 pub const NODE_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]){0,61}(?:[a-zA-Z0-9]){0,1})";
 
@@ -208,6 +210,17 @@ impl Node {
         match self {
             Node::Openfabric(node_section) => node_section.ip6(),
             Node::Ospf(node_section) => node_section.ip6(),
+        }
+    }
+}
+
+impl Validatable for Node {
+    type Error = FabricConfigError;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        match self {
+            Node::Openfabric(node_section) => node_section.validate(),
+            Node::Ospf(node_section) => node_section.validate(),
         }
     }
 }

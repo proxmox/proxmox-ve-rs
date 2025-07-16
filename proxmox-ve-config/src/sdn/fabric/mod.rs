@@ -1,10 +1,12 @@
 pub mod section_config;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
+
+use crate::common::valid::Validatable;
 
 use crate::sdn::fabric::section_config::fabric::{
     Fabric, FabricDeletableProperties, FabricId, FabricSection, FabricSectionUpdater, FabricUpdater,
@@ -28,15 +30,38 @@ pub enum FabricConfigError {
     FabricDoesNotExist(String),
     #[error("node '{0}' does not exist in fabric '{1}'")]
     NodeDoesNotExist(String, String),
+    #[error("node IP {0} is outside the IP prefix {1} of the fabric")]
+    NodeIpOutsideFabricRange(String, String),
     #[error("node has a different protocol than the referenced fabric")]
     ProtocolMismatch,
     #[error("fabric '{0}' already exists in config")]
     DuplicateFabric(String),
     #[error("node '{0}' already exists in config for fabric {1}")]
     DuplicateNode(String, String),
+    #[error("fabric {0} contains nodes with duplicated IPs")]
+    DuplicateNodeIp(String),
+    #[error("fabric '{0}' does not have an IP prefix configured for the node IP {1}")]
+    FabricNoIpPrefixForNode(String, String),
+    #[error("node '{0}' does not have an IP configured for this fabric prefix {1}")]
+    NodeNoIpForFabricPrefix(String, String),
+    #[error("fabric '{0}' does not have an IP prefix configured")]
+    FabricNoIpPrefix(String),
+    #[error("node '{0}' does not have an IP configured")]
+    NodeNoIp(String),
+    #[error("interface is already in use by another fabric")]
+    DuplicateInterface,
+    #[error("IPv6 is currently not supported for protocol {0}")]
+    Ipv6Unsupported(String),
     // should usually not occur, but we still check for it nonetheless
     #[error("mismatched fabric_id")]
     FabricIdMismatch,
+    // this is technically possible, but we don't allow it
+    #[error("duplicate OSPF area")]
+    DuplicateOspfArea,
+    #[error("IP prefix {0} in fabric '{1}' overlaps with IPv4 prefix {2} in fabric '{3}'")]
+    OverlappingIp4Prefix(String, String, String, String),
+    #[error("IPv6 prefix {0} in fabric '{1}' overlaps with IPv6 prefix {2} in fabric '{3}'")]
+    OverlappingIp6Prefix(String, String, String, String),
 }
 
 /// An entry in a [`FabricConfig`].
@@ -365,6 +390,93 @@ impl From<Fabric> for FabricEntry {
     }
 }
 
+impl Validatable for FabricEntry {
+    type Error = FabricConfigError;
+
+    /// Validates the [`FabricEntry`] configuration.
+    ///
+    /// Ensures that:
+    /// - Node IP addresses are within their respective fabric IP prefix ranges
+    /// - IP addresses are unique across all nodes in the fabric
+    /// - Each node passes its own validation checks
+    fn validate(&self) -> Result<(), FabricConfigError> {
+        let fabric = self.fabric();
+
+        let mut ips = HashSet::new();
+        let mut ip6s = HashSet::new();
+
+        for (_id, node) in self.nodes() {
+            // Check IPv4 prefix and ip
+            match (fabric.ip_prefix(), node.ip()) {
+                (None, Some(ip)) => {
+                    // Fabric needs to have a prefix if a node has an IP configured
+                    return Err(FabricConfigError::FabricNoIpPrefixForNode(
+                        fabric.id().to_string(),
+                        ip.to_string(),
+                    ));
+                }
+                (Some(prefix), None) => {
+                    return Err(FabricConfigError::NodeNoIpForFabricPrefix(
+                        node.id().to_string(),
+                        prefix.to_string(),
+                    ));
+                }
+                (Some(prefix), Some(ip)) => {
+                    // Fabric prefix needs to contain the node IP
+                    if !prefix.contains_address(&ip) {
+                        return Err(FabricConfigError::NodeIpOutsideFabricRange(
+                            ip.to_string(),
+                            prefix.to_string(),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+
+            // Check IPv6 prefix and ip
+            match (fabric.ip6_prefix(), node.ip6()) {
+                (None, Some(ip)) => {
+                    // Fabric needs to have a prefix if a node has an IP configured
+                    return Err(FabricConfigError::FabricNoIpPrefixForNode(
+                        fabric.id().to_string(),
+                        ip.to_string(),
+                    ));
+                }
+                (Some(prefix), None) => {
+                    return Err(FabricConfigError::NodeNoIpForFabricPrefix(
+                        node.id().to_string(),
+                        prefix.to_string(),
+                    ))
+                }
+                (Some(prefix), Some(ip)) => {
+                    // Fabric prefix needs to contain the node IP
+                    if !prefix.contains_address(&ip) {
+                        return Err(FabricConfigError::NodeIpOutsideFabricRange(
+                            ip.to_string(),
+                            prefix.to_string(),
+                        ));
+                    }
+                }
+                _ => {}
+            }
+
+            // Node IPs need to be unique inside a fabric
+            if !node.ip().map(|ip| ips.insert(ip)).unwrap_or(true) {
+                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
+            }
+
+            // Node IPs need to be unique inside a fabric
+            if !node.ip6().map(|ip| ip6s.insert(ip)).unwrap_or(true) {
+                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
+            }
+
+            node.validate()?;
+        }
+
+        fabric.validate()
+    }
+}
+
 /// A complete SDN fabric configuration.
 ///
 /// This struct contains the whole fabric configuration in a tree-like structure (fabrics -> nodes
@@ -379,6 +491,89 @@ impl Deref for FabricConfig {
 
     fn deref(&self) -> &Self::Target {
         &self.fabrics
+    }
+}
+
+impl Validatable for FabricConfig {
+    type Error = FabricConfigError;
+
+    /// Validate the [`FabricConfig`].
+    ///
+    /// Ensures that:
+    /// - (node, interface) combinations exist only once across all fabrics
+    /// - every entry (fabric) validates
+    /// - all the ospf fabrics have different areas
+    /// - IP prefixes of fabrics do not overlap
+    fn validate(&self) -> Result<(), FabricConfigError> {
+        let mut node_interfaces = HashSet::new();
+        let mut ospf_area = HashSet::new();
+
+        // Check for overlapping IP prefixes across fabrics
+        let fabrics: Vec<_> = self.fabrics.values().map(|f| f.fabric()).collect();
+        let cartesian_product = fabrics
+            .iter()
+            .enumerate()
+            .flat_map(|(i, f1)| fabrics.iter().skip(i + 1).map(move |f2| (f1, f2)));
+
+        for (fabric1, fabric2) in cartesian_product {
+            if let (Some(prefix1), Some(prefix2)) = (fabric1.ip_prefix(), fabric2.ip_prefix()) {
+                if prefix1.overlaps(&prefix2) {
+                    return Err(FabricConfigError::OverlappingIp4Prefix(
+                        prefix2.to_string(),
+                        fabric2.id().to_string(),
+                        prefix1.to_string(),
+                        fabric1.id().to_string(),
+                    ));
+                }
+            }
+            if let (Some(prefix1), Some(prefix2)) = (fabric1.ip6_prefix(), fabric2.ip6_prefix()) {
+                if prefix1.overlaps(&prefix2) {
+                    return Err(FabricConfigError::OverlappingIp6Prefix(
+                        prefix2.to_string(),
+                        fabric2.id().to_string(),
+                        prefix1.to_string(),
+                        fabric1.id().to_string(),
+                    ));
+                }
+            }
+        }
+
+        // validate that each (node, interface) combination exists only once across all fabrics
+        for entry in self.fabrics.values() {
+            if let FabricEntry::Ospf(entry) = entry {
+                if !ospf_area.insert(
+                    entry
+                        .fabric_section()
+                        .properties()
+                        .area()
+                        .get_ipv4_representation(),
+                ) {
+                    return Err(FabricConfigError::DuplicateOspfArea);
+                }
+            }
+            for (node_id, node) in entry.nodes() {
+                match node {
+                    Node::Ospf(node_section) => {
+                        if !node_section.properties().interfaces().all(|interface| {
+                            node_interfaces.insert((node_id, interface.name.as_str()))
+                        }) {
+                            return Err(FabricConfigError::DuplicateInterface);
+                        }
+                    }
+                    Node::Openfabric(node_section) => {
+                        if !node_section.properties().interfaces().all(|interface| {
+                            node_interfaces.insert((node_id, interface.name.as_str()))
+                        }) {
+                            return Err(FabricConfigError::DuplicateInterface);
+                        }
+                    }
+                }
+            }
+
+            entry.validate()?;
+        }
+
+        Ok(())
     }
 }
 

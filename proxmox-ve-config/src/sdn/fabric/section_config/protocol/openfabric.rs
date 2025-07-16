@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater};
 use proxmox_sdn_types::openfabric::{CsnpInterval, HelloInterval, HelloMultiplier};
 
+use crate::common::valid::Validatable;
+use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
+use crate::sdn::fabric::section_config::node::NodeSection;
+use crate::sdn::fabric::FabricConfigError;
 
 /// Protocol-specific options for an OpenFabric Fabric.
 #[api]
@@ -22,6 +26,21 @@ pub struct OpenfabricProperties {
     /// Packets (CSNP) interval in seconds. The interval range is 1 to 600.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) csnp_interval: Option<CsnpInterval>,
+}
+
+impl Validatable for FabricSection<OpenfabricProperties> {
+    type Error = FabricConfigError;
+
+    /// Validates the [`FabricSection<OpenfabricProperties>`].
+    ///
+    /// Checks if we have either IPv4-prefix or IPv6-prefix. If both are not set, return an error.
+    fn validate(&self) -> Result<(), Self::Error> {
+        if self.ip_prefix().is_none() && self.ip6_prefix().is_none() {
+            return Err(FabricConfigError::FabricNoIpPrefix(self.id().to_string()));
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -58,6 +77,21 @@ impl OpenfabricNodeProperties {
         self.interfaces
             .iter()
             .map(|property_string| property_string.deref())
+    }
+}
+
+impl Validatable for NodeSection<OpenfabricNodeProperties> {
+    type Error = FabricConfigError;
+
+    /// Validates the [`FabricSection<OpenfabricProperties>`].
+    ///
+    /// Checks if we have either an IPv4 or an IPv6 address. If neither is set, return an error.
+    fn validate(&self) -> Result<(), Self::Error> {
+        if self.ip().is_none() && self.ip6().is_none() {
+            return Err(FabricConfigError::NodeNoIp(self.id().to_string()));
+        }
+
+        Ok(())
     }
 }
 
