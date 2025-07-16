@@ -134,6 +134,8 @@ pub struct Options {
 
 #[cfg(test)]
 mod tests {
+    use proxmox_network_types::ip_address::Cidr;
+
     use crate::firewall::types::{
         address::IpList,
         alias::{AliasName, AliasScope},
@@ -143,7 +145,6 @@ mod tests {
         rule_match::{
             Icmpv6, Icmpv6Code, IpAddrMatch, IpMatch, Ports, Protocol, RuleMatch, Tcp, Udp,
         },
-        Cidr,
     };
 
     use super::*;

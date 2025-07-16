@@ -1,82 +1,18 @@
-use core::fmt::Display;
+use std::collections::HashMap;
 use std::io;
 use std::str::FromStr;
-use std::{collections::HashMap, net::Ipv6Addr};
-
-use proxmox_schema::property_string::PropertyString;
-use proxmox_sortable_macro::sortable;
 
 use anyhow::{bail, Error};
-use proxmox_schema::{ApiType, BooleanSchema, KeyAliasInfo, ObjectSchema, StringSchema};
 use serde::Deserialize;
 use serde_with::DeserializeFromStr;
 
+use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
+use proxmox_network_types::mac_address::MacAddress;
+use proxmox_schema::property_string::PropertyString;
+use proxmox_schema::{ApiType, BooleanSchema, KeyAliasInfo, ObjectSchema, StringSchema};
+use proxmox_sortable_macro::sortable;
+
 use crate::firewall::parse::match_digits;
-use crate::firewall::types::address::{Ipv4Cidr, Ipv6Cidr};
-
-#[derive(Clone, Copy, Debug, DeserializeFromStr, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct MacAddress([u8; 6]);
-
-static LOCAL_PART: [u8; 8] = [0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-static EUI64_MIDDLE_PART: [u8; 2] = [0xFF, 0xFE];
-
-impl MacAddress {
-    pub fn new(address: [u8; 6]) -> Self {
-        Self(address)
-    }
-
-    /// generates a link local IPv6-address according to RFC 4291 (Appendix A)
-    pub fn eui64_link_local_address(&self) -> Ipv6Addr {
-        let head = &self.0[..3];
-        let tail = &self.0[3..];
-
-        let mut eui64_address: Vec<u8> = LOCAL_PART
-            .iter()
-            .chain(head.iter())
-            .chain(EUI64_MIDDLE_PART.iter())
-            .chain(tail.iter())
-            .copied()
-            .collect();
-
-        // we need to flip the 7th bit of the first eui64 byte
-        eui64_address[8] ^= 0x02;
-
-        Ipv6Addr::from(
-            TryInto::<[u8; 16]>::try_into(eui64_address).expect("is an u8 array with 16 entries"),
-        )
-    }
-}
-
-impl FromStr for MacAddress {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split = s.split(':');
-
-        let parsed = split
-            .into_iter()
-            .map(|elem| u8::from_str_radix(elem, 16))
-            .collect::<Result<Vec<u8>, _>>()
-            .map_err(Error::msg)?;
-
-        if parsed.len() != 6 {
-            bail!("Invalid amount of elements in MAC address!");
-        }
-
-        let address = &parsed.as_slice()[0..6];
-        Ok(Self(address.try_into().unwrap()))
-    }
-}
-
-impl Display for MacAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:<02X}:{:<02X}:{:<02X}:{:<02X}:{:<02X}:{:<02X}",
-            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
-        )
-    }
-}
 
 /// All possible models of network devices for both QEMU and LXC guests.
 #[derive(Debug, Clone, Copy, DeserializeFromStr)]
@@ -410,6 +346,8 @@ impl NetworkConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::net::Ipv6Addr;
+
     use super::*;
 
     #[test]
@@ -458,7 +396,7 @@ mod tests {
             network_device,
             NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
-                mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
+                mac_address: MacAddress::new([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
                 firewall: Some(true),
             })
         );
@@ -471,7 +409,7 @@ mod tests {
             network_device,
             NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
-                mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
+                mac_address: MacAddress::new([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
                 firewall: None,
             })
         );
@@ -486,7 +424,7 @@ mod tests {
             network_device,
             NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
-                mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
+                mac_address: MacAddress::new([0xAA, 0xAA, 0xAA, 0x17, 0x19, 0x81]),
                 firewall: Some(true),
             })
         );
@@ -502,7 +440,7 @@ mod tests {
             network_device,
             NetworkDevice::Lxc(LxcNetworkDevice {
                 ty: NetworkDeviceModel::Veth,
-                mac_address: MacAddress([0xAA, 0xAA, 0xAA, 0xE2, 0x3E, 0x24]),
+                mac_address: MacAddress::new([0xAA, 0xAA, 0xAA, 0xE2, 0x3E, 0x24]),
                 firewall: Some(false),
                 ip: Some(LxcIpv4Addr::Dhcp),
                 ip6: None,
@@ -592,7 +530,7 @@ vmgenid: 706fbe99-d28b-4047-a9cd-3677c859ca8a"
             network_config.network_devices()[&0],
             NetworkDevice::Qemu(QemuNetworkDevice {
                 model: NetworkDeviceModel::VirtIO,
-                mac_address: MacAddress([0xAA, 0xBB, 0xCC, 0xF2, 0xFE, 0x75]),
+                mac_address: MacAddress::new([0xAA, 0xBB, 0xCC, 0xF2, 0xFE, 0x75]),
                 firewall: None,
             })
         );
@@ -620,7 +558,7 @@ unprivileged: 1"
             network_config.network_devices()[&0],
             NetworkDevice::Lxc(LxcNetworkDevice {
                 ty: NetworkDeviceModel::Veth,
-                mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x11]),
+                mac_address: MacAddress::new([0xBC, 0x24, 0x11, 0x47, 0x83, 0x11]),
                 firewall: Some(true),
                 ip: Some(LxcIpv4Addr::Dhcp),
                 ip6: Some(LxcIpv6Addr::Auto),
@@ -631,7 +569,7 @@ unprivileged: 1"
             network_config.network_devices()[&2],
             NetworkDevice::Lxc(LxcNetworkDevice {
                 ty: NetworkDeviceModel::Veth,
-                mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x12]),
+                mac_address: MacAddress::new([0xBC, 0x24, 0x11, 0x47, 0x83, 0x12]),
                 firewall: Some(false),
                 ip: Some(LxcIpv4Addr::Ip(
                     Ipv4Cidr::from_str("123.123.123.123/24").expect("valid ipv4")
@@ -644,7 +582,7 @@ unprivileged: 1"
             network_config.network_devices()[&5],
             NetworkDevice::Lxc(LxcNetworkDevice {
                 ty: NetworkDeviceModel::Veth,
-                mac_address: MacAddress([0xBC, 0x24, 0x11, 0x47, 0x83, 0x13]),
+                mac_address: MacAddress::new([0xBC, 0x24, 0x11, 0x47, 0x83, 0x13]),
                 firewall: Some(true),
                 ip: None,
                 ip6: Some(LxcIpv6Addr::Ip(

@@ -1,6 +1,6 @@
 use std::net::{IpAddr, ToSocketAddrs};
 
-use crate::firewall::types::Cidr;
+use proxmox_network_types::ip_address::Cidr;
 
 use nix::sys::socket::{AddressFamily, SockaddrLike};
 use proxmox_sys::nodename;

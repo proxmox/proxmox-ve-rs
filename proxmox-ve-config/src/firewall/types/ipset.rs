@@ -3,10 +3,10 @@ use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
+use proxmox_network_types::ip_address::{Cidr, IpRange};
 use serde_with::DeserializeFromStr;
 
 use crate::firewall::parse::match_non_whitespace;
-use crate::firewall::types::address::{Cidr, IpRange};
 use crate::firewall::types::alias::AliasName;
 use crate::guest::vm::NetworkConfig;
 
@@ -112,9 +112,9 @@ impl FromStr for IpsetAddress {
     }
 }
 
-impl<T: Into<Cidr>> From<T> for IpsetAddress {
-    fn from(cidr: T) -> Self {
-        IpsetAddress::Cidr(cidr.into())
+impl From<Cidr> for IpsetAddress {
+    fn from(cidr: Cidr) -> Self {
+        IpsetAddress::Cidr(cidr)
     }
 }
 

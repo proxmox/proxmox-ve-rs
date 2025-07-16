@@ -6,17 +6,16 @@ use std::{
     str::FromStr,
 };
 
+use proxmox_network_types::ip_address::{Cidr, IpRange, IpRangeError};
 use proxmox_schema::{property_string::PropertyString, ApiType, ObjectSchema, StringSchema};
-
 use serde::Deserialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     common::Allowlist,
     firewall::types::{
-        address::{IpRange, IpRangeError},
         ipset::{IpsetEntry, IpsetName, IpsetScope},
-        Cidr, Ipset,
+        Ipset,
     },
     sdn::{SdnNameError, SubnetName, VnetName, ZoneName},
 };
@@ -587,10 +586,10 @@ impl SdnConfig {
                     ipset_all_wo_gateway.push((*subnet.cidr()).into());
 
                     if let Some(gateway) = subnet.gateway {
-                        let gateway_nomatch = IpsetEntry::new(gateway, true, None);
+                        let gateway_nomatch = IpsetEntry::new(Cidr::from(gateway), true, None);
                         ipset_all_wo_gateway.push(gateway_nomatch);
 
-                        ipset_gateway.push(gateway.into());
+                        ipset_gateway.push(Cidr::from(gateway).into());
                     }
 
                     ipset_dhcp.extend(subnet.dhcp_range.iter().cloned().map(IpsetEntry::from));

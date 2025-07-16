@@ -2,10 +2,10 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use anyhow::{bail, format_err, Error};
+use proxmox_network_types::ip_address::Cidr;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::firewall::parse::{match_name, match_non_whitespace};
-use crate::firewall::types::address::Cidr;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]

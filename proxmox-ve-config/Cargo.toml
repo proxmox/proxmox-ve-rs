@@ -18,6 +18,7 @@ serde_plain = "1"
 serde_with = "3"
 proxmox-serde = { version = "1.0.0", features = [ "perl" ]}
 
+proxmox-network-types = { workspace = true }
 proxmox-schema = "4.1"
 proxmox-sys = "1"
 proxmox-sortable-macro = "1"

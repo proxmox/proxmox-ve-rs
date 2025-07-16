@@ -3,9 +3,8 @@ pub mod ipam;
 
 use std::{error::Error, fmt::Display, str::FromStr};
 
+use proxmox_network_types::ip_address::Cidr;
 use serde_with::DeserializeFromStr;
-
-use crate::firewall::types::Cidr;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SdnNameError {

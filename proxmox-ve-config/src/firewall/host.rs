@@ -4,13 +4,15 @@ use std::net::IpAddr;
 use anyhow::{bail, Error};
 use serde::Deserialize;
 
+use proxmox_network_types::ip_address::Cidr;
+
 use crate::host::utils::{host_ips, network_interface_cidrs};
 use proxmox_sys::nodename;
 
 use crate::firewall::parse;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::rule::Direction;
-use crate::firewall::types::{Alias, Cidr, Rule};
+use crate::firewall::types::{Alias, Rule};
 
 /// default setting for the enabled key
 pub const HOST_ENABLED_DEFAULT: bool = true;

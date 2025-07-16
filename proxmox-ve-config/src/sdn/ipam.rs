@@ -7,13 +7,16 @@ use std::{
 
 use serde::Deserialize;
 
+use proxmox_network_types::ip_address::Cidr;
+use proxmox_network_types::mac_address::MacAddress;
+
 use crate::{
     common::Allowlist,
     firewall::types::{
-        ipset::{IpsetEntry, IpsetScope},
-        Cidr, Ipset,
+        ipset::IpsetScope,
+        Ipset,
     },
-    guest::{types::Vmid, vm::MacAddress},
+    guest::types::Vmid,
     sdn::{SdnNameError, SubnetName, ZoneName},
 };
 
@@ -339,7 +342,7 @@ impl Ipam {
                     .or_insert_with(|| {
                         Ipset::from_parts(IpsetScope::Sdn, format!("guest-ipam-{}", entry.vmid))
                     })
-                    .push(IpsetEntry::from(entry.ip));
+                    .push(Cidr::from(entry.ip).into());
 
                 acc
             })

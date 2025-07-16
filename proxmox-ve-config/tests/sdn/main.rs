@@ -3,18 +3,17 @@ use std::{
     str::FromStr,
 };
 
-use proxmox_ve_config::{
-    firewall::types::{address::IpRange, Cidr},
-    guest::vm::MacAddress,
-    sdn::{
+use proxmox_network_types::ip_address::{Cidr, IpRange};
+use proxmox_network_types::mac_address::MacAddress;
+
+use proxmox_ve_config::sdn::{
         config::{
             RunningConfig, SdnConfig, SdnConfigError, SubnetConfig, VnetConfig, ZoneConfig,
             ZoneType,
         },
         ipam::{Ipam, IpamDataVm, IpamEntry, IpamJson},
         SubnetName, VnetName, ZoneName,
-    },
-};
+    };
 
 #[test]
 fn parse_running_config() {

@@ -7,7 +7,6 @@ pub mod port;
 pub mod rule;
 pub mod rule_match;
 
-pub use address::Cidr;
 pub use alias::Alias;
 pub use group::Group;
 pub use ipset::Ipset;

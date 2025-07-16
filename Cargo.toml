@@ -15,3 +15,5 @@ homepage = "https://proxmox.com"
 exclude = [ "debian" ]
 rust-version = "1.82"
 
+[workspace.dependencies]
+proxmox-network-types = { version = "0.1" }

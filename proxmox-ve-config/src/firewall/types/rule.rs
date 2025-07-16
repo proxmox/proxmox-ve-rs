@@ -247,13 +247,14 @@ impl FromStr for RuleGroup {
 
 #[cfg(test)]
 mod tests {
+    use proxmox_network_types::ip_address::{Cidr, IpRange};
+
     use crate::firewall::types::{
-        address::{IpEntry, IpList, IpRange},
+        address::{IpEntry, IpList},
         alias::{AliasName, AliasScope},
         ipset::{IpsetName, IpsetScope},
         log::LogLevel,
         rule_match::{Icmp, IcmpCode, IpAddrMatch, IpMatch, Ports, Protocol, Udp},
-        Cidr,
     };
 
     use super::*;

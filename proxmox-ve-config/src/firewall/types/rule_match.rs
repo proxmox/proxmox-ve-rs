@@ -7,10 +7,11 @@ use serde::Deserialize;
 use anyhow::{bail, format_err, Error};
 use serde::de::IntoDeserializer;
 
+use proxmox_network_types::ip_address::Family;
 use proxmox_sortable_macro::sortable;
 
 use crate::firewall::parse::{match_name, match_non_whitespace, SomeStr};
-use crate::firewall::types::address::{Family, IpList};
+use crate::firewall::types::address::IpList;
 use crate::firewall::types::alias::AliasName;
 use crate::firewall::types::ipset::IpsetName;
 use crate::firewall::types::log::LogLevel;
@@ -770,7 +771,8 @@ impl fmt::Display for Icmpv6Code {
 
 #[cfg(test)]
 mod tests {
-    use crate::firewall::types::{alias::AliasScope::Guest, Cidr};
+    use proxmox_network_types::ip_address::Cidr;
+    use crate::firewall::types::alias::AliasScope::Guest;
 
     use super::*;
 
