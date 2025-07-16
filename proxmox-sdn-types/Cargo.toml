@@ -1,0 +1,18 @@
+[package]
+name = "proxmox-sdn-types"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = [ "derive" ] }
+serde_with = { workspace = true }
+
+proxmox-schema = { workspace = true, features = [ "api-macro", "api-types" ] }
+proxmox-serde = { version = "1.0.0", features = [ "perl" ] }

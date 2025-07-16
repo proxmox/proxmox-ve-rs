@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "proxmox-ve-config",
+    "proxmox-sdn-types",
 ]
 exclude = [
     "build",
@@ -16,4 +17,13 @@ exclude = [ "debian" ]
 rust-version = "1.82"
 
 [workspace.dependencies]
+anyhow = "1"
+const_format = "0.2"
+regex = "1.7"
+serde = { version = "1" }
+serde_with = "3"
+thiserror = "2.0.0"
+
 proxmox-network-types = { version = "0.1" }
+proxmox-schema = { version = "4" }
+proxmox-sdn-types = { version = "0.1", path = "proxmox-sdn-types" }
