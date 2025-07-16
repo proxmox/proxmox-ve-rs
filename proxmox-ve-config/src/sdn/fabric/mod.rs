@@ -4,9 +4,12 @@ use std::collections::{BTreeMap, HashSet};
 use std::marker::PhantomData;
 use std::ops::Deref;
 
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 
-use crate::common::valid::Validatable;
+use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
+
+use crate::common::valid::{Valid, Validatable};
 
 use crate::sdn::fabric::section_config::fabric::{
     Fabric, FabricDeletableProperties, FabricId, FabricSection, FabricSectionUpdater, FabricUpdater,
@@ -23,6 +26,7 @@ use crate::sdn::fabric::section_config::protocol::ospf::{
     OspfDeletableProperties, OspfNodeDeletableProperties, OspfNodeProperties,
     OspfNodePropertiesUpdater, OspfProperties, OspfPropertiesUpdater,
 };
+use crate::sdn::fabric::section_config::{FabricOrNode, Section};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FabricConfigError {
@@ -706,5 +710,90 @@ impl FabricConfig {
             }
             _ => Err(FabricConfigError::ProtocolMismatch),
         }
+    }
+
+    /// Constructs a valid [`FabricConfig`] from section-config data.
+    ///
+    /// Iterates through the [`SectionConfigData<Section>`] and matches on the [`Section`] enum. Then
+    /// construct the [`FabricConfig`] and validate it.
+    pub fn from_section_config(
+        config: SectionConfigData<Section>,
+    ) -> Result<Valid<Self>, FabricConfigError> {
+        let mut fabrics = BTreeMap::new();
+        let mut nodes = Vec::new();
+
+        for (_id, section) in config {
+            let fabric_or_node = FabricOrNode::from(section);
+
+            match fabric_or_node {
+                FabricOrNode::Fabric(fabric) => {
+                    fabrics.insert(fabric.id().clone(), FabricEntry::from(fabric));
+                }
+                FabricOrNode::Node(node) => {
+                    nodes.push(node);
+                }
+            };
+        }
+
+        for node in nodes {
+            fabrics
+                .get_mut(node.id().fabric_id())
+                .ok_or_else(|| {
+                    FabricConfigError::FabricDoesNotExist(node.id().fabric_id().to_string())
+                })?
+                .add_node(node)?;
+        }
+
+        let config = Self { fabrics };
+        config.into_valid()
+    }
+
+    /// Constructs a valid [`FabricConfig`] from the raw section-config file content.
+    ///
+    /// This will call the [`Section::parse_section_config`] function to parse the raw string into a
+    /// [`SectionConfigData<Section>`] struct. Then construct the valid [`FabricConfig`] with
+    /// [`Self::from_section_config`].
+    pub fn parse_section_config(config: &str) -> Result<Valid<Self>, Error> {
+        let data = Section::parse_section_config("fabrics.cfg", config)?;
+        Self::from_section_config(data).map_err(anyhow::Error::from)
+    }
+
+    /// Validate [`FabricConfig`] and write the raw config to a String.
+    ///
+    /// Validates the config and calls [`Valid<FabricConfig>::write_section_config`].
+    pub fn write_section_config(&self) -> Result<String, Error> {
+        self.clone().into_valid()?.write_section_config()
+    }
+}
+
+impl Valid<FabricConfig> {
+    /// Converts a valid [`FabricConfig`] into a [`SectionConfigData<Section>`].
+    ///
+    /// This function is implemented on [`Valid<FabricConfig>`], ensuring that only a valid
+    /// [`FabricConfig`] can be written to the file.
+    pub fn into_section_config(self) -> SectionConfigData<Section> {
+        let config = self.into_inner();
+
+        let mut section_config = SectionConfigData::default();
+
+        for (fabric_id, fabric_entry) in config.fabrics {
+            let (fabric, fabric_nodes) = fabric_entry.into_section_config();
+
+            section_config.insert(fabric_id.to_string(), Section::from(fabric));
+
+            for node in fabric_nodes {
+                section_config.insert(node.id().to_string(), Section::from(node));
+            }
+        }
+
+        section_config
+    }
+
+    /// Consumes the [`Valid<FabricConfig>`] and writes the raw section-config content to a String.
+    ///
+    /// This function is implemented on [`Valid<FabricConfig>`], ensuring that only a valid
+    /// [`FabricConfig`] can be written to the file.
+    pub fn write_section_config(self) -> Result<String, Error> {
+        Section::write_section_config("fabrics.cfg", &self.into_section_config())
     }
 }
