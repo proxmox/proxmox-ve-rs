@@ -64,10 +64,10 @@ Provides:
  librust-proxmox-ve-config+default-dev (= ${binary:Version}),
  librust-proxmox-ve-config-0-dev (= ${binary:Version}),
  librust-proxmox-ve-config-0+default-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3+default-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3.1-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3.1+default-dev (= ${binary:Version})
+ librust-proxmox-ve-config-0.4-dev (= ${binary:Version}),
+ librust-proxmox-ve-config-0.4+default-dev (= ${binary:Version}),
+ librust-proxmox-ve-config-0.4.0-dev (= ${binary:Version}),
+ librust-proxmox-ve-config-0.4.0+default-dev (= ${binary:Version})
 Description: Rust crate "proxmox-ve-config" - Rust source code
  Source code for Debianized Rust crate "proxmox-ve-config"
 
@@ -80,8 +80,8 @@ Depends:
  librust-proxmox-frr-0.1+default-dev
 Provides:
  librust-proxmox-ve-config-0+frr-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3+frr-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.3.0+frr-dev (= ${binary:Version})
+ librust-proxmox-ve-config-0.4+frr-dev (= ${binary:Version}),
+ librust-proxmox-ve-config-0.4.0+frr-dev (= ${binary:Version})
 Description: Rust crate "proxmox-ve-config" - feature "frr"
  This metapackage enables feature "frr" for the Rust proxmox-ve-config crate, by
  pulling in any additional dependencies needed by that feature.

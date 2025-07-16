@@ -1,3 +1,20 @@
+rust-proxmox-ve-config (0.4.0) trixie; urgency=medium
+
+  * move IP/Network related types to new proxmox-network-types crate.
+
+  * sdn: add various section types for fabrics.
+
+  * sdn: fabrics: add openfabric and ospf properties.
+
+  * sdn: fabrics: add api types.
+
+  * sdn: add various fabric related section configs.
+
+  * add integrations tests for the full cycle from section-config to FRR
+    config file for both openfabric and ospf.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Jul 2025 23:43:05 +0200
+
 rust-proxmox-ve-config (0.3.1) trixie; urgency=medium
 
   * use proxmox_serde perl helpers.
