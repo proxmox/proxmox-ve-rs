@@ -13,6 +13,10 @@ impl Vmid {
     pub fn new(id: u32) -> Self {
         Vmid(id)
     }
+
+    pub fn raw_value(&self) -> u32 {
+        self.0
+    }
 }
 
 impl From<u32> for Vmid {
