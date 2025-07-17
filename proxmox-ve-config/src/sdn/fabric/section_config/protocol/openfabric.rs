@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use serde::{Deserialize, Serialize};
@@ -72,11 +72,18 @@ pub struct OpenfabricNodeProperties {
 }
 
 impl OpenfabricNodeProperties {
-    /// Returns an interator over all the interfaces.
+    /// Returns an iterator over all the interfaces.
     pub fn interfaces(&self) -> impl Iterator<Item = &OpenfabricInterfaceProperties> {
         self.interfaces
             .iter()
             .map(|property_string| property_string.deref())
+    }
+
+    /// Returns an iterator over all the interfaces (mutable).
+    pub fn interfaces_mut(&mut self) -> impl Iterator<Item = &mut OpenfabricInterfaceProperties> {
+        self.interfaces
+            .iter_mut()
+            .map(|property_string| property_string.deref_mut())
     }
 }
 
@@ -125,6 +132,11 @@ impl OpenfabricInterfaceProperties {
     /// Get the name of the interface.
     pub fn name(&self) -> &InterfaceName {
         &self.name
+    }
+
+    /// Set the name of the interface.
+    pub fn set_name(&mut self, name: InterfaceName) {
+        self.name = name
     }
 
     /// Get the IPv4 of the interface.

@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::Ipv4Cidr;
 use proxmox_sdn_types::area::Area;
@@ -75,10 +75,18 @@ pub struct OspfNodeProperties {
 }
 
 impl OspfNodeProperties {
+    /// Returns an iterator over all the interfaces.
     pub fn interfaces(&self) -> impl Iterator<Item = &OspfInterfaceProperties> {
         self.interfaces
             .iter()
             .map(|property_string| property_string.deref())
+    }
+
+    /// Returns an iterator over all the interfaces (mutable).
+    pub fn interfaces_mut(&mut self) -> impl Iterator<Item = &mut OspfInterfaceProperties> {
+        self.interfaces
+            .iter_mut()
+            .map(|property_string| property_string.deref_mut())
     }
 }
 
@@ -122,6 +130,11 @@ impl OspfInterfaceProperties {
     /// Get the name of the OSPF interface.
     pub fn name(&self) -> &InterfaceName {
         &self.name
+    }
+
+    /// Set the name of the interface.
+    pub fn set_name(&mut self, name: InterfaceName) {
+        self.name = name
     }
 
     /// Get the ip (IPv4) of the OSPF interface.

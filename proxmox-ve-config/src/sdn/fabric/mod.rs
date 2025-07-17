@@ -611,6 +611,11 @@ impl FabricConfig {
             .ok_or_else(|| FabricConfigError::FabricDoesNotExist(id.to_string()))
     }
 
+    /// Returns an iterator over mutable references to all [`FabricEntry`] in the config
+    pub fn get_fabrics_mut(&mut self) -> impl Iterator<Item = &mut FabricEntry> {
+        self.fabrics.values_mut()
+    }
+
     /// Delete a fabric with the specified fabric_id from the [`FabricConfig`].
     pub fn delete_fabric(&mut self, id: &FabricId) -> Result<FabricEntry, FabricConfigError> {
         self.fabrics
