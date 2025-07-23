@@ -186,6 +186,16 @@ impl Fabric {
         }
     }
 
+    /// Set the ip-prefix (IPv4 CIDR) of the [`Fabric`].
+    ///
+    /// This is a common property for all protocols.
+    pub fn set_ip_prefix(&mut self, ipv4_cidr: Ipv4Cidr) {
+        match self {
+            Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
+            Fabric::Ospf(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
+        }
+    }
+
     /// Get the ip6-prefix (IPv6 CIDR) of the [`Fabric`].
     ///
     /// This is a common property for all protocols.
@@ -193,6 +203,16 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix(),
+        }
+    }
+
+    /// Set the ip6-prefix (IPv6 CIDR) of the [`Fabric`].
+    ///
+    /// This is a common property for all protocols.
+    pub fn set_ip6_prefix(&mut self, ipv6_cidr: Ipv6Cidr) {
+        match self {
+            Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
+            Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
         }
     }
 }

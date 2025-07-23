@@ -587,9 +587,16 @@ impl FabricConfig {
     /// Add a fabric to the [`FabricConfig`].
     ///
     /// Returns an error if a fabric with the same name exists.
-    pub fn add_fabric(&mut self, fabric: Fabric) -> Result<(), FabricConfigError> {
+    pub fn add_fabric(&mut self, mut fabric: Fabric) -> Result<(), FabricConfigError> {
         if self.fabrics.contains_key(fabric.id()) {
             return Err(FabricConfigError::DuplicateFabric(fabric.id().to_string()));
+        }
+
+        if let Some(prefix) = fabric.ip_prefix() {
+            fabric.set_ip_prefix(prefix.canonical());
+        }
+        if let Some(prefix) = fabric.ip6_prefix() {
+            fabric.set_ip6_prefix(prefix.canonical());
         }
 
         self.fabrics.insert(fabric.id().clone(), fabric.into());
