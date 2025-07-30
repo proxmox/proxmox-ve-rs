@@ -7,7 +7,7 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  rustc:native (>= 1.82) <!nocheck>,
  libstd-rust-dev <!nocheck>,
  librust-anyhow-1+default-dev <!nocheck>,
- librust-proxmox-network-types-0.1+default-dev <!nocheck>,
+ librust-proxmox-network-types-0.1+default-dev (>= 0.1.1-~~) <!nocheck>,
  librust-proxmox-sdn-types-0.1+default-dev <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
  librust-tracing-0.1+default-dev <!nocheck>
@@ -25,7 +25,7 @@ Multi-Arch: same
 Depends:
  ${misc:Depends},
  librust-anyhow-1+default-dev,
- librust-proxmox-network-types-0.1+default-dev,
+ librust-proxmox-network-types-0.1+default-dev (>= 0.1.1-~~),
  librust-proxmox-sdn-types-0.1+default-dev,
  librust-thiserror-2+default-dev,
  librust-tracing-0.1+default-dev
