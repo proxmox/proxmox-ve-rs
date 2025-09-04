@@ -35,7 +35,7 @@ Provides:
  librust-proxmox-frr-0+default-dev (= ${binary:Version}),
  librust-proxmox-frr-0.1-dev (= ${binary:Version}),
  librust-proxmox-frr-0.1+default-dev (= ${binary:Version}),
- librust-proxmox-frr-0.1.0-dev (= ${binary:Version}),
- librust-proxmox-frr-0.1.0+default-dev (= ${binary:Version})
+ librust-proxmox-frr-0.1.1-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.1.1+default-dev (= ${binary:Version})
 Description: Rust types for the FRR configuration file - Rust source code
  Source code for Debianized Rust crate "proxmox-frr"
