@@ -53,6 +53,10 @@ impl Config {
         &self.config.ipsets
     }
 
+    pub fn ipset(&self, name: &str) -> Option<&Ipset> {
+        self.config.ipsets.get(name)
+    }
+
     pub fn alias(&self, name: &str) -> Option<&Alias> {
         self.config.alias(name)
     }

@@ -108,6 +108,10 @@ impl Config {
         self.vmid
     }
 
+    pub fn ipset(&self, name: &str) -> Option<&Ipset> {
+        self.config.ipset(name)
+    }
+
     pub fn alias(&self, name: &str) -> Option<&Alias> {
         self.config.alias(name)
     }

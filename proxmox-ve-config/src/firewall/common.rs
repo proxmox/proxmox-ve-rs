@@ -189,6 +189,10 @@ where
         &self.ipsets
     }
 
+    pub fn ipset(&self, name: &str) -> Option<&Ipset> {
+        self.ipsets.get(name)
+    }
+
     pub fn alias(&self, name: &str) -> Option<&Alias> {
         self.aliases.get(name)
     }

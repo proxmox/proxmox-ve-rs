@@ -10,6 +10,7 @@ use crate::guest::vm::NetworkConfig;
 
 use super::alias::RuleAliasName;
 
+/// The scope of an ipset.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum IpsetScope {
     Datacenter,
@@ -42,8 +43,47 @@ impl Display for IpsetScope {
     }
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+/// An ipset name in the firewall rules without any scope identifier.
+///
+/// Legacy ipset names start with a +, followed by an alphabetic character and only contain
+/// alphanumeric characters or hyphens and underscores.
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct LegacyIpsetName(String);
+
+impl AsRef<str> for LegacyIpsetName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for LegacyIpsetName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(name) = s.strip_prefix("+") {
+            if let Some((name, "")) = match_name(name) {
+                return Ok(Self(name.to_string()));
+            }
+
+            bail!("not a valid ipset name: {s}");
+        }
+
+        bail!("ipset name does not start with '+': {s}");
+    }
+}
+
+impl Display for LegacyIpsetName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+/// The new format of ipset names in firewall rules (with scope).
+///
+/// It starts with a plus sign, then a scope [`IpsetScope`], followed by a slash, and then has the
+/// same format as [`LegacyIpsetName`].
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IpsetName {
     pub scope: IpsetScope,
     pub name: String,
@@ -87,6 +127,39 @@ impl FromStr for IpsetName {
 impl Display for IpsetName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/{}", self.scope, self.name)
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum RuleIpsetName {
+    Scoped(IpsetName),
+    Legacy(LegacyIpsetName),
+}
+
+proxmox_serde::forward_deserialize_to_from_str!(RuleIpsetName);
+
+impl FromStr for RuleIpsetName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(scoped_name) = s.parse() {
+            return Ok(Self::Scoped(scoped_name));
+        }
+
+        if let Ok(legacy_name) = s.parse() {
+            return Ok(Self::Legacy(legacy_name));
+        }
+
+        bail!("is neither a valid scoped nor legacy ipset name: {s}");
+    }
+}
+
+impl Display for RuleIpsetName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Scoped(ipset_name) => ipset_name.fmt(f),
+            Self::Legacy(ipset_name) => ipset_name.fmt(f),
+        }
     }
 }
 
@@ -301,6 +374,26 @@ mod tests {
 
         for name in ["+dc/", "+guests/proxmox_123", "guest/proxmox_123"] {
             name.parse::<IpsetName>().expect_err("invalid ipset name");
+        }
+    }
+
+    #[test]
+    fn test_parse_legacy_ipset_name() {
+        for test_case in [
+            ("+proxmox_123", "proxmox_123"),
+            ("+proxmox_---123", "proxmox_---123"),
+        ] {
+            let ipset_name = test_case
+                .0
+                .parse::<LegacyIpsetName>()
+                .expect("valid ipset name");
+
+            assert_eq!(ipset_name, LegacyIpsetName(test_case.1.to_string(),))
+        }
+
+        for name in ["guest/proxmox_123", "+-qwe", "+1qwe"] {
+            name.parse::<LegacyIpsetName>()
+                .expect_err("invalid ipset name");
         }
     }
 

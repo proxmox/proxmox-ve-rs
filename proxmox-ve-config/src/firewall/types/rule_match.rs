@@ -13,7 +13,7 @@ use proxmox_sortable_macro::sortable;
 use crate::firewall::parse::{match_name, match_non_whitespace, SomeStr};
 use crate::firewall::types::address::IpList;
 use crate::firewall::types::alias::RuleAliasName;
-use crate::firewall::types::ipset::IpsetName;
+use crate::firewall::types::ipset::RuleIpsetName;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::port::PortList;
 use crate::firewall::types::rule::{Direction, Verdict};
@@ -253,7 +253,7 @@ impl IpMatch {
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum IpAddrMatch {
     Ip(IpList),
-    Set(IpsetName),
+    Set(RuleIpsetName),
     Alias(RuleAliasName),
 }
 
