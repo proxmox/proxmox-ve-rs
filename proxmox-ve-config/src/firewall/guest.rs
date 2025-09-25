@@ -4,7 +4,7 @@ use std::io;
 use crate::guest::types::Vmid;
 use crate::guest::vm::NetworkConfig;
 
-use crate::firewall::types::alias::{Alias, AliasName};
+use crate::firewall::types::alias::Alias;
 use crate::firewall::types::ipset::IpsetScope;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::rule::{Direction, Rule, Verdict};
@@ -108,8 +108,8 @@ impl Config {
         self.vmid
     }
 
-    pub fn alias(&self, name: &AliasName) -> Option<&Alias> {
-        self.config.alias(name.name())
+    pub fn alias(&self, name: &str) -> Option<&Alias> {
+        self.config.alias(name)
     }
 
     pub fn iface_name_by_key(&self, key: &str) -> Result<String, Error> {

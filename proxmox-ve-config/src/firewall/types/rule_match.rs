@@ -12,7 +12,7 @@ use proxmox_sortable_macro::sortable;
 
 use crate::firewall::parse::{match_name, match_non_whitespace, SomeStr};
 use crate::firewall::types::address::IpList;
-use crate::firewall::types::alias::AliasName;
+use crate::firewall::types::alias::RuleAliasName;
 use crate::firewall::types::ipset::IpsetName;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::port::PortList;
@@ -254,7 +254,7 @@ impl IpMatch {
 pub enum IpAddrMatch {
     Ip(IpList),
     Set(IpsetName),
-    Alias(AliasName),
+    Alias(RuleAliasName),
 }
 
 impl IpAddrMatch {
@@ -771,7 +771,7 @@ impl fmt::Display for Icmpv6Code {
 
 #[cfg(test)]
 mod tests {
-    use crate::firewall::types::alias::AliasScope::Guest;
+    use crate::firewall::types::alias::{AliasName, AliasScope::Guest};
     use proxmox_network_types::ip_address::Cidr;
 
     use super::*;
@@ -844,7 +844,7 @@ mod tests {
 
         IpMatch::new(
             IpAddrMatch::Ip(IpList::from(Cidr::new_v4([10, 0, 0, 0], 8).unwrap())),
-            IpAddrMatch::Alias(AliasName::new(Guest, "test")),
+            IpAddrMatch::Alias(RuleAliasName::Scoped(AliasName::new(Guest, "test"))),
         )
         .expect("valid ip match");
 
@@ -893,7 +893,7 @@ mod tests {
         options = RuleOptions {
             proto: Some("tcp".to_string()),
             sport: Some("qwe".to_string()),
-            source: Some("qwe".to_string()),
+            source: Some("_qwe".to_string()),
             ..Default::default()
         };
 

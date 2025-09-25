@@ -5,9 +5,10 @@ use std::str::FromStr;
 use anyhow::{bail, format_err, Error};
 use proxmox_network_types::ip_address::{Cidr, IpRange};
 
-use crate::firewall::parse::match_non_whitespace;
-use crate::firewall::types::alias::AliasName;
+use crate::firewall::parse::{match_name, match_non_whitespace};
 use crate::guest::vm::NetworkConfig;
+
+use super::alias::RuleAliasName;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum IpsetScope {
@@ -92,7 +93,7 @@ impl Display for IpsetName {
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum IpsetAddress {
-    Alias(AliasName),
+    Alias(RuleAliasName),
     Cidr(Cidr),
     Range(IpRange),
 }

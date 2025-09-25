@@ -6,8 +6,7 @@ use proxmox_network_types::ip_address::Cidr;
 
 use crate::firewall::parse::{match_name, match_non_whitespace};
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum AliasScope {
     Datacenter,
     Guest,
@@ -34,10 +33,51 @@ impl Display for AliasScope {
     }
 }
 
-/// Represents the name of an alias in a firewall rule in the RULES section of the firewall
-/// configuration.
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(Eq, PartialEq))]
+/// An alias name in the firewall rules without any scope identifier.
+///
+/// It starts with an alphabetic character, followed by alphanumeric characters or
+/// hyphens/underscores.
+///
+/// When parsing the name, this will convert any ASCII characters contained in the name into
+/// lowercase. This is for maintaining backwards-compatibility with pve-firewall, where all aliases
+/// are lowercased when reading from the config.
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct LegacyAliasName(String);
+
+impl AsRef<str> for LegacyAliasName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for LegacyAliasName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((name, "")) = match_name(s) {
+            return Ok(Self(name.to_lowercase()));
+        }
+
+        bail!("not a valid alias name: {s}");
+    }
+}
+
+impl Display for LegacyAliasName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+/// An alias name in the firewall rules with scope identifier
+///
+/// It starts with a scope ([`AliasScope`]), followed by a slash, and then has the same format as
+/// [`LegacyAliasName`]
+///
+/// When parsing the name, this will convert any ASCII characters contained in the name into
+/// lowercase. This is for maintaining backwards-compatibility with pve-firewall, where all aliases
+/// are lowercased when reading from the config.
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AliasName {
     scope: AliasScope,
     name: String,
@@ -87,6 +127,40 @@ impl AliasName {
 
     pub fn scope(&self) -> &AliasScope {
         &self.scope
+    }
+}
+
+/// The name of an alias in a firewall rule.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum RuleAliasName {
+    Scoped(AliasName),
+    Legacy(LegacyAliasName),
+}
+
+proxmox_serde::forward_deserialize_to_from_str!(RuleAliasName);
+
+impl FromStr for RuleAliasName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(scoped_name) = s.parse() {
+            return Ok(Self::Scoped(scoped_name));
+        }
+
+        if let Ok(legacy_name) = s.parse() {
+            return Ok(Self::Legacy(legacy_name));
+        }
+
+        bail!("invalid alias name: {s}");
+    }
+}
+
+impl Display for RuleAliasName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Scoped(alias_name) => alias_name.fmt(f),
+            Self::Legacy(legacy_name) => legacy_name.fmt(f),
+        }
     }
 }
 
@@ -187,6 +261,18 @@ mod tests {
             &Cidr::new_v4([10, 0, 0, 0], 32).expect("valid CIDR")
         );
         assert_eq!(alias.comment(), Some("a comment"));
+    }
+
+    #[test]
+    fn test_parse_legacy_alias_name() {
+        for name in ["proxmox_123", "proxmox-123"] {
+            name.parse::<LegacyAliasName>().expect("valid alias name");
+        }
+
+        for name in ["1proxmox_123", "-proxmox-123"] {
+            name.parse::<LegacyAliasName>()
+                .expect_err("invalid alias name");
+        }
     }
 
     #[test]

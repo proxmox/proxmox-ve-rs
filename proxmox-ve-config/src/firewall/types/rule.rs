@@ -251,8 +251,8 @@ mod tests {
 
     use crate::firewall::types::{
         address::{IpEntry, IpList},
-        alias::{AliasName, AliasScope},
         ipset::{IpsetName, IpsetScope},
+        alias::{AliasName, AliasScope, RuleAliasName},
         log::LogLevel,
         rule_match::{Icmp, IcmpCode, IpAddrMatch, IpMatch, Ports, Protocol, Udp},
     };
@@ -381,7 +381,10 @@ mod tests {
                     verdict: Verdict::Accept,
                     ip: Some(
                         IpMatch::new(
-                            IpAddrMatch::Alias(AliasName::new(AliasScope::Datacenter, "test")),
+                            IpAddrMatch::Alias(RuleAliasName::Scoped(AliasName::new(
+                                AliasScope::Datacenter,
+                                "test"
+                            ))),
                             IpAddrMatch::Set(IpsetName::new(IpsetScope::Datacenter, "test"),),
                         )
                         .unwrap()

@@ -138,7 +138,7 @@ mod tests {
 
     use crate::firewall::types::{
         address::IpList,
-        alias::{AliasName, AliasScope},
+        alias::{AliasName, AliasScope, RuleAliasName},
         ipset::{IpsetAddress, IpsetEntry},
         log::{LogLevel, LogRateLimitTimescale},
         rule::{Kind, RuleGroup},
@@ -250,12 +250,18 @@ IN BGP(REJECT) -log crit -source 1.2.3.4
             },
             IpsetEntry {
                 nomatch: false,
-                address: IpsetAddress::Alias(AliasName::new(AliasScope::Datacenter, "analias")),
+                address: IpsetAddress::Alias(RuleAliasName::Scoped(AliasName::new(
+                    AliasScope::Datacenter,
+                    "analias",
+                ))),
                 comment: Some("a comment".to_string()),
             },
             IpsetEntry {
                 nomatch: false,
-                address: IpsetAddress::Alias(AliasName::new(AliasScope::Datacenter, "wide")),
+                address: IpsetAddress::Alias(RuleAliasName::Scoped(AliasName::new(
+                    AliasScope::Datacenter,
+                    "wide",
+                ))),
                 comment: None,
             },
             IpsetEntry {
