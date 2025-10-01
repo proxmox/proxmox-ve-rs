@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io;
 use std::str::FromStr;
 
@@ -278,7 +278,7 @@ impl FromStr for NetworkDevice {
 #[derive(Debug, Default)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct NetworkConfig {
-    network_devices: HashMap<i64, NetworkDevice>,
+    network_devices: BTreeMap<i64, NetworkDevice>,
 }
 
 impl NetworkConfig {
@@ -300,12 +300,12 @@ impl NetworkConfig {
         bail!("No index found in net key string: {key}")
     }
 
-    pub fn network_devices(&self) -> &HashMap<i64, NetworkDevice> {
+    pub fn network_devices(&self) -> &BTreeMap<i64, NetworkDevice> {
         &self.network_devices
     }
 
     pub fn parse<R: io::BufRead>(input: R) -> Result<Self, Error> {
-        let mut network_devices = HashMap::new();
+        let mut network_devices = BTreeMap::new();
 
         for line in input.lines() {
             let line = line?;
