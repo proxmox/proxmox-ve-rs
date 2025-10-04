@@ -27,11 +27,10 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
  librust-tracing-0.1+default-dev (>= 0.1.37-~~) <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Standards-Version: 4.7.0
+Standards-Version: 4.7.2
 Vcs-Git: git://git.proxmox.com/git/proxmox-ve-rs.git
 Vcs-Browser: https://git.proxmox.com/?p=proxmox-ve-rs.git
 X-Cargo-Crate: proxmox-ve-config
-Rules-Requires-Root: no
 
 Package: librust-proxmox-ve-config-dev
 Architecture: any
@@ -66,8 +65,8 @@ Provides:
  librust-proxmox-ve-config-0+default-dev (= ${binary:Version}),
  librust-proxmox-ve-config-0.4-dev (= ${binary:Version}),
  librust-proxmox-ve-config-0.4+default-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.4.3-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.4.3+default-dev (= ${binary:Version})
+ librust-proxmox-ve-config-0.4.4-dev (= ${binary:Version}),
+ librust-proxmox-ve-config-0.4.4+default-dev (= ${binary:Version})
 Description: Rust crate "proxmox-ve-config" - Rust source code
  Source code for Debianized Rust crate "proxmox-ve-config"
 
@@ -81,7 +80,7 @@ Depends:
 Provides:
  librust-proxmox-ve-config-0+frr-dev (= ${binary:Version}),
  librust-proxmox-ve-config-0.4+frr-dev (= ${binary:Version}),
- librust-proxmox-ve-config-0.4.3+frr-dev (= ${binary:Version})
+ librust-proxmox-ve-config-0.4.4+frr-dev (= ${binary:Version})
 Description: Rust crate "proxmox-ve-config" - feature "frr"
  This metapackage enables feature "frr" for the Rust proxmox-ve-config crate, by
  pulling in any additional dependencies needed by that feature.

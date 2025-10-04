@@ -1,4 +1,11 @@
-rust-proxmox-ve-config (0.4.3-1) trixie; urgency=medium
+rust-proxmox-ve-config (0.4.4) trixie; urgency=medium
+
+  * firewall: add support for legacy alias and ipset names.
+  * guest: store network devices in BTreeMap.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 04 Oct 2025 14:29:35 +0200
+
+rust-proxmox-ve-config (0.4.3) trixie; urgency=medium
 
   * update proxmox-schema to 5.0.0
   * move network types to proxmox-network-api
