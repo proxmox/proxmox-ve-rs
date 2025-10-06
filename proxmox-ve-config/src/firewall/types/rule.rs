@@ -254,7 +254,7 @@ mod tests {
         alias::{AliasName, AliasScope, RuleAliasName},
         ipset::{IpsetName, IpsetScope, RuleIpsetName},
         log::LogLevel,
-        rule_match::{Icmp, IcmpCode, IpAddrMatch, IpMatch, Ports, Protocol, Udp},
+        rule_match::{Icmp, IcmpCode, IcmpType, IpAddrMatch, IpMatch, Ports, Protocol, Udp},
     };
 
     use super::*;
@@ -338,9 +338,10 @@ mod tests {
                         ),
                     )
                     .ok(),
-                    proto: Some(Protocol::Icmp(Icmp::new_code(IcmpCode::Named(
-                        "port-unreachable"
-                    )))),
+                    proto: Some(Protocol::Icmp(Icmp::new_ty_and_code(
+                        IcmpType::Numeric(3),
+                        IcmpCode::Numeric(3)
+                    ))),
                     log: Some(LogLevel::Nolog),
                     ..Default::default()
                 }),

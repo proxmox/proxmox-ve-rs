@@ -463,10 +463,10 @@ impl Icmp {
         }
     }
 
-    pub fn new_code(code: IcmpCode) -> Self {
+    pub fn new_ty_and_code(ty: IcmpType, code: IcmpCode) -> Self {
         Self {
+            ty: Some(ty),
             code: Some(code),
-            ..Default::default()
         }
     }
 
@@ -487,19 +487,61 @@ impl Icmp {
     }
 }
 
+/// Some icmp_types are not supported by nftables. See:
+/// https://wiki.nftables.org/wiki-nftables/index.php/Supported_features_compared_to_xtables#icmp
+/// Some have an exact equivalent in nftables and for some others we need to set a custom type and
+/// code combination.
+#[sortable]
+const IPTABLES_ICMP_TYPES_MAPPING: [(&str, IcmpTypeMap); 23] = sorted!([
+    ("network-unreachable", IcmpTypeMap::Custom((3, 0))),
+    ("host-unreachable", IcmpTypeMap::Custom((3, 1))),
+    ("protocol-unreachable", IcmpTypeMap::Custom((3, 2))),
+    ("port-unreachable", IcmpTypeMap::Custom((3, 3))),
+    ("fragmentation-needed", IcmpTypeMap::Custom((3, 4))),
+    ("source-route-failed", IcmpTypeMap::Custom((3, 5))),
+    ("network-unknown", IcmpTypeMap::Custom((3, 6))),
+    ("host-unknown", IcmpTypeMap::Custom((3, 7))),
+    ("network-prohibited", IcmpTypeMap::Custom((3, 9))),
+    ("host-prohibited", IcmpTypeMap::Custom((3, 10))),
+    ("TOS-network-unreachable", IcmpTypeMap::Custom((3, 11))),
+    ("TOS-host-unreachable", IcmpTypeMap::Custom((3, 12))),
+    ("communication-prohibited", IcmpTypeMap::Custom((3, 13))),
+    ("host-precedence-violation", IcmpTypeMap::Custom((3, 14))),
+    ("precedence-cutoff", IcmpTypeMap::Custom((3, 15))),
+    ("network-redirect", IcmpTypeMap::Custom((5, 0))),
+    ("host-redirect", IcmpTypeMap::Custom((5, 1))),
+    ("TOS-network-redirect", IcmpTypeMap::Custom((5, 2))),
+    ("TOS-host-redirect", IcmpTypeMap::Custom((5, 3))),
+    ("ttl-zero-during-transit", IcmpTypeMap::Custom((11, 0))),
+    ("ttl-zero-during-reassembly", IcmpTypeMap::Custom((11, 1))),
+    ("ip-header-bad", IcmpTypeMap::Custom((12, 0))),
+    ("required-option-missing", IcmpTypeMap::Custom((12, 1))),
+]);
+
 impl FromStr for Icmp {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut this = Self::default();
 
-        if let Ok(ty) = s.parse() {
-            this.ty = Some(ty);
-            return Ok(this);
+        // Some icmp types exist in iptables, but do not in nftables. Some of these map exactly
+        // onto other types, for others we need to use a custom type/code combination.
+        if let Ok(index) = IPTABLES_ICMP_TYPES_MAPPING.binary_search_by(|v| v.0.cmp(s)) {
+            match IPTABLES_ICMP_TYPES_MAPPING[index].1 {
+                IcmpTypeMap::Map(mapped_nftables_type) => {
+                    this.ty = Some(IcmpType::Named(mapped_nftables_type));
+                    return Ok(this);
+                }
+                IcmpTypeMap::Custom((ty, code)) => {
+                    this.ty = Some(IcmpType::Numeric(ty));
+                    this.code = Some(IcmpCode::Numeric(code));
+                    return Ok(this);
+                }
+            }
         }
 
-        if let Ok(code) = s.parse() {
-            this.code = Some(code);
+        if let Ok(ty) = s.parse() {
+            this.ty = Some(ty);
             return Ok(this);
         }
 
@@ -644,6 +686,13 @@ impl Icmpv6 {
     pub fn code(&self) -> Option<&Icmpv6Code> {
         self.code.as_ref()
     }
+}
+
+enum IcmpTypeMap {
+    /// This icmp type can be mapped exactly to an equivalent nftables type
+    Map(&'static str),
+    /// This icmp type needs to be represented using a custom type and code combination
+    Custom((u8, u8)),
 }
 
 impl FromStr for Icmpv6 {
@@ -938,8 +987,8 @@ mod tests {
         assert_eq!(
             icmp,
             Icmp {
-                ty: None,
-                code: Some(IcmpCode::Named("port-unreachable"))
+                ty: Some(IcmpType::Numeric(3)),
+                code: Some(IcmpCode::Numeric(3))
             }
         );
     }
