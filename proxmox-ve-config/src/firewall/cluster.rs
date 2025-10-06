@@ -147,7 +147,7 @@ mod tests {
         log::{LogLevel, LogRateLimitTimescale},
         rule::{Kind, RuleGroup},
         rule_match::{
-            Icmpv6, Icmpv6Code, IpAddrMatch, IpMatch, Ports, Protocol, RuleMatch, Tcp, Udp,
+            Icmpv6, Icmpv6Code, Icmpv6Type, IpAddrMatch, IpMatch, Ports, Protocol, RuleMatch, Tcp, Udp
         },
     };
 
@@ -341,9 +341,10 @@ IN BGP(REJECT) -log crit -source 1.2.3.4
                             .unwrap()
                         ))),
                     }),
-                    proto: Some(Protocol::Icmpv6(Icmpv6::new_code(Icmpv6Code::Named(
-                        "port-unreachable"
-                    )))),
+                    proto: Some(Protocol::Icmpv6(Icmpv6::new_ty_and_code(
+                        Icmpv6Type::Numeric(1),
+                        Icmpv6Code::Numeric(4)
+                    ))),
                     log: Some(LogLevel::Nolog),
                     ..Default::default()
                 }),

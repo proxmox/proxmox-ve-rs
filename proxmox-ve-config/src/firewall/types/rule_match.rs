@@ -664,10 +664,10 @@ impl Icmpv6 {
         }
     }
 
-    pub fn new_code(code: Icmpv6Code) -> Self {
+    pub fn new_ty_and_code(ty: Icmpv6Type, code: Icmpv6Code) -> Self {
         Self {
+            ty: Some(ty),
             code: Some(code),
-            ..Default::default()
         }
     }
 
@@ -695,23 +695,73 @@ enum IcmpTypeMap {
     Custom((u8, u8)),
 }
 
+/// Some icmp_types are not supported by nftables. See:
+/// https://wiki.nftables.org/wiki-nftables/index.php/Supported_features_compared_to_xtables#icmp6
+/// Some have an exact equivalent in nftables and for some others we need to set a custom type and
+/// code combination.
+#[sortable]
+const IPTABLES_ICMPV6_TYPES_MAPPING: [(&str, IcmpTypeMap); 19] = sorted!([
+    ("no-route", IcmpTypeMap::Custom((1, 0))),
+    ("communication-prohibited", IcmpTypeMap::Custom((1, 1))),
+    ("beyond-scope", IcmpTypeMap::Custom((1, 2))),
+    ("address-unreachable", IcmpTypeMap::Custom((1, 3))),
+    ("port-unreachable", IcmpTypeMap::Custom((1, 4))),
+    ("failed-policy", IcmpTypeMap::Custom((1, 5))),
+    ("reject-route'", IcmpTypeMap::Custom((1, 6))),
+    ("ttl-zero-during-transit", IcmpTypeMap::Custom((3, 0))),
+    ("ttl-zero-during-reassembly", IcmpTypeMap::Custom((3, 1))),
+    ("bad-header", IcmpTypeMap::Custom((4, 0))),
+    ("unknown-header-type", IcmpTypeMap::Custom((4, 1))),
+    ("unknown-option", IcmpTypeMap::Custom((4, 2))),
+    ("router-solicitation", IcmpTypeMap::Map("nd-router-solicit")),
+    ("router-advertisement", IcmpTypeMap::Map("nd-router-advert")),
+    (
+        "neighbor-solicitation",
+        IcmpTypeMap::Map("nd-neighbor-solicit")
+    ),
+    (
+        "neighbour-solicitation",
+        IcmpTypeMap::Map("nd-neighbor-solicit")
+    ),
+    (
+        "neighbor-advertisement",
+        IcmpTypeMap::Map("nd-neighbor-advert")
+    ),
+    (
+        "neighbour-advertisement",
+        IcmpTypeMap::Map("nd-neighbor-advert")
+    ),
+    ("redirect", IcmpTypeMap::Map("nd-redirect")),
+]);
+
 impl FromStr for Icmpv6 {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut this = Self::default();
 
+        // Some icmpv6 types exist in iptables, but do not in nftables. Some of these map exactly
+        // onto other types, for others we need to use a custom type/code combination.
+        if let Ok(index) = IPTABLES_ICMPV6_TYPES_MAPPING.binary_search_by(|v| v.0.cmp(s)) {
+            match IPTABLES_ICMPV6_TYPES_MAPPING[index].1 {
+                IcmpTypeMap::Map(mapped_nftables_type) => {
+                    this.ty = Some(Icmpv6Type::Named(mapped_nftables_type));
+                    return Ok(this);
+                }
+                IcmpTypeMap::Custom((ty, code)) => {
+                    this.ty = Some(Icmpv6Type::Numeric(ty));
+                    this.code = Some(Icmpv6Code::Numeric(code));
+                    return Ok(this);
+                }
+            }
+        }
+
         if let Ok(ty) = s.parse() {
             this.ty = Some(ty);
             return Ok(this);
         }
 
-        if let Ok(code) = s.parse() {
-            this.code = Some(code);
-            return Ok(this);
-        }
-
-        bail!("supplied string is neither a valid icmpv6 type nor code");
+        bail!("supplied string is not a valid icmpv6 type");
     }
 }
 
@@ -1015,13 +1065,13 @@ mod tests {
             }
         );
 
-        icmp = "admin-prohibited".parse().expect("valid icmpv6 code");
+        icmp = "unknown-header-type".parse().expect("valid icmpv6 type");
 
         assert_eq!(
             icmp,
             Icmpv6 {
-                ty: None,
-                code: Some(Icmpv6Code::Named("admin-prohibited"))
+                ty: Some(Icmpv6Type::Numeric(4)),
+                code: Some(Icmpv6Code::Numeric(1))
             }
         );
     }
