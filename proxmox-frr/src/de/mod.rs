@@ -3,6 +3,7 @@ use std::{collections::HashMap, net::IpAddr};
 use proxmox_network_types::ip_address::Cidr;
 use serde::{Deserialize, Serialize};
 
+pub mod evpn;
 pub mod openfabric;
 pub mod ospf;
 
