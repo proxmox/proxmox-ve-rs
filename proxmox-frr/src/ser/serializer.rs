@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-use crate::{
+use crate::ser::{
     openfabric::{OpenfabricInterface, OpenfabricRouter},
     ospf::{OspfInterface, OspfRouter},
     route_map::{AccessList, AccessListName, ProtocolRouteMap, RouteMap},

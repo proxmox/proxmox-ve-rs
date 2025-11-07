@@ -1,12 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 use tracing;
 
-use proxmox_frr::ospf::{self, NetworkType};
-use proxmox_frr::route_map::{
-    AccessAction, AccessList, AccessListName, AccessListRule, ProtocolRouteMap, ProtocolType,
-    RouteMap, RouteMapMatch, RouteMapMatchInner, RouteMapName, RouteMapSet,
-};
-use proxmox_frr::{FrrConfig, FrrWord, Interface, InterfaceName, Router, RouterName};
+use proxmox_frr::ser::{self};
 use proxmox_network_types::ip_address::Cidr;
 use proxmox_sdn_types::net::Net;
 
@@ -26,7 +21,7 @@ use crate::sdn::fabric::{FabricConfig, FabricEntry};
 pub fn build_fabric(
     current_node: NodeId,
     config: Valid<FabricConfig>,
-    frr_config: &mut FrrConfig,
+    frr_config: &mut ser::FrrConfig,
 ) -> Result<(), anyhow::Error> {
     let mut routemap_seq = 100;
     let mut current_router_id: Option<Ipv4Addr> = None;
@@ -93,27 +88,31 @@ pub fn build_fabric(
                 }
 
                 if let Some(ipv4cidr) = fabric.ip_prefix() {
-                    let rule = AccessListRule {
-                        action: AccessAction::Permit,
+                    let rule = ser::route_map::AccessListRule {
+                        action: ser::route_map::AccessAction::Permit,
                         network: Cidr::from(ipv4cidr),
                         seq: None,
                     };
-                    let access_list_name =
-                        AccessListName::new(format!("pve_openfabric_{}_ips", fabric_id));
-                    frr_config.access_lists.push(AccessList {
+                    let access_list_name = ser::route_map::AccessListName::new(format!(
+                        "pve_openfabric_{}_ips",
+                        fabric_id
+                    ));
+                    frr_config.access_lists.push(ser::route_map::AccessList {
                         name: access_list_name,
                         rules: vec![rule],
                     });
                 }
                 if let Some(ipv6cidr) = fabric.ip6_prefix() {
-                    let rule = AccessListRule {
-                        action: AccessAction::Permit,
+                    let rule = ser::route_map::AccessListRule {
+                        action: ser::route_map::AccessAction::Permit,
                         network: Cidr::from(ipv6cidr),
                         seq: None,
                     };
-                    let access_list_name =
-                        AccessListName::new(format!("pve_openfabric_{}_ip6s", fabric_id));
-                    frr_config.access_lists.push(AccessList {
+                    let access_list_name = ser::route_map::AccessListName::new(format!(
+                        "pve_openfabric_{}_ip6s",
+                        fabric_id
+                    ));
+                    frr_config.access_lists.push(ser::route_map::AccessList {
                         name: access_list_name,
                         rules: vec![rule],
                     });
@@ -128,10 +127,12 @@ pub fn build_fabric(
                     ));
                     routemap_seq += 10;
 
-                    let protocol_routemap = ProtocolRouteMap {
+                    let protocol_routemap = ser::route_map::ProtocolRouteMap {
                         is_ipv6: false,
-                        protocol: ProtocolType::Openfabric,
-                        routemap_name: RouteMapName::new("pve_openfabric".to_owned()),
+                        protocol: ser::route_map::ProtocolType::Openfabric,
+                        routemap_name: ser::route_map::RouteMapName::new(
+                            "pve_openfabric".to_owned(),
+                        ),
                     };
 
                     frr_config.protocol_routemaps.insert(protocol_routemap);
@@ -145,10 +146,12 @@ pub fn build_fabric(
                     ));
                     routemap_seq += 10;
 
-                    let protocol_routemap = ProtocolRouteMap {
+                    let protocol_routemap = ser::route_map::ProtocolRouteMap {
                         is_ipv6: true,
-                        protocol: ProtocolType::Openfabric,
-                        routemap_name: RouteMapName::new("pve_openfabric6".to_owned()),
+                        protocol: ser::route_map::ProtocolType::Openfabric,
+                        routemap_name: ser::route_map::RouteMapName::new(
+                            "pve_openfabric6".to_owned(),
+                        ),
                     };
 
                     frr_config.protocol_routemaps.insert(protocol_routemap);
@@ -164,8 +167,8 @@ pub fn build_fabric(
 
                 let fabric = ospf_entry.fabric_section();
 
-                let frr_word_area = FrrWord::new(fabric.properties().area.to_string())?;
-                let frr_area = ospf::Area::new(frr_word_area)?;
+                let frr_word_area = ser::FrrWord::new(fabric.properties().area.to_string())?;
+                let frr_area = ser::ospf::Area::new(frr_word_area)?;
                 let (router_name, router_item) = build_ospf_router(*router_id)?;
                 frr_config.router.insert(router_name, router_item);
 
@@ -196,17 +199,18 @@ pub fn build_fabric(
                     }
                 }
 
-                let access_list_name = AccessListName::new(format!("pve_ospf_{}_ips", fabric_id));
+                let access_list_name =
+                    ser::route_map::AccessListName::new(format!("pve_ospf_{}_ips", fabric_id));
 
-                let rule = AccessListRule {
-                    action: AccessAction::Permit,
+                let rule = ser::route_map::AccessListRule {
+                    action: ser::route_map::AccessAction::Permit,
                     network: Cidr::from(
                         fabric.ip_prefix().expect("fabric must have a ipv4 prefix"),
                     ),
                     seq: None,
                 };
 
-                frr_config.access_lists.push(AccessList {
+                frr_config.access_lists.push(ser::route_map::AccessList {
                     name: access_list_name,
                     rules: vec![rule],
                 });
@@ -220,10 +224,10 @@ pub fn build_fabric(
                 routemap_seq += 10;
                 frr_config.routemaps.push(routemap);
 
-                let protocol_routemap = ProtocolRouteMap {
+                let protocol_routemap = ser::route_map::ProtocolRouteMap {
                     is_ipv6: false,
-                    protocol: ProtocolType::Ospf,
-                    routemap_name: RouteMapName::new("pve_ospf".to_owned()),
+                    protocol: ser::route_map::ProtocolType::Ospf,
+                    routemap_name: ser::route_map::RouteMapName::new("pve_ospf".to_owned()),
                 };
 
                 frr_config.protocol_routemaps.insert(protocol_routemap);
@@ -234,10 +238,10 @@ pub fn build_fabric(
 }
 
 /// Helper that builds a OSPF router with a the router_id.
-fn build_ospf_router(router_id: Ipv4Addr) -> Result<(RouterName, Router), anyhow::Error> {
-    let ospf_router = proxmox_frr::ospf::OspfRouter { router_id };
-    let router_item = Router::Ospf(ospf_router);
-    let router_name = RouterName::Ospf(proxmox_frr::ospf::OspfRouterName);
+fn build_ospf_router(router_id: Ipv4Addr) -> Result<(ser::RouterName, ser::Router), anyhow::Error> {
+    let ospf_router = ser::ospf::OspfRouter { router_id };
+    let router_item = ser::Router::Ospf(ospf_router);
+    let router_name = ser::RouterName::Ospf(ser::ospf::OspfRouterName);
     Ok((router_name, router_item))
 }
 
@@ -245,45 +249,45 @@ fn build_ospf_router(router_id: Ipv4Addr) -> Result<(RouterName, Router), anyhow
 fn build_openfabric_router(
     fabric_id: &FabricId,
     net: Net,
-) -> Result<(RouterName, Router), anyhow::Error> {
-    let ofr = proxmox_frr::openfabric::OpenfabricRouter { net };
-    let router_item = Router::Openfabric(ofr);
-    let frr_word_id = FrrWord::new(fabric_id.to_string())?;
-    let router_name = RouterName::Openfabric(frr_word_id.into());
+) -> Result<(ser::RouterName, ser::Router), anyhow::Error> {
+    let ofr = ser::openfabric::OpenfabricRouter { net };
+    let router_item = ser::Router::Openfabric(ofr);
+    let frr_word_id = ser::FrrWord::new(fabric_id.to_string())?;
+    let router_name = ser::RouterName::Openfabric(frr_word_id.into());
     Ok((router_name, router_item))
 }
 
 /// Helper that builds a OSPF interface from an [`ospf::Area`] and the [`OspfInterfaceProperties`].
 fn build_ospf_interface(
-    area: ospf::Area,
+    area: ser::ospf::Area,
     interface: &OspfInterfaceProperties,
-) -> Result<(Interface, InterfaceName), anyhow::Error> {
-    let frr_interface = proxmox_frr::ospf::OspfInterface {
+) -> Result<(ser::Interface, ser::InterfaceName), anyhow::Error> {
+    let frr_interface = ser::ospf::OspfInterface {
         area,
         // Interfaces are always none-passive
         passive: None,
         network_type: if interface.ip.is_some() {
             None
         } else {
-            Some(NetworkType::PointToPoint)
+            Some(ser::ospf::NetworkType::PointToPoint)
         },
     };
 
-    let interface_name = InterfaceName::Ospf(interface.name.as_str().try_into()?);
+    let interface_name = ser::InterfaceName::Ospf(interface.name.as_str().try_into()?);
     Ok((frr_interface.into(), interface_name))
 }
 
 /// Helper that builds the OSPF dummy interface using the [`FabricId`] and the [`ospf::Area`].
 fn build_ospf_dummy_interface(
     fabric_id: &FabricId,
-    area: ospf::Area,
-) -> Result<(Interface, InterfaceName), anyhow::Error> {
-    let frr_interface = proxmox_frr::ospf::OspfInterface {
+    area: ser::ospf::Area,
+) -> Result<(ser::Interface, ser::InterfaceName), anyhow::Error> {
+    let frr_interface = ser::ospf::OspfInterface {
         area,
         passive: Some(true),
         network_type: None,
     };
-    let interface_name = InterfaceName::Openfabric(format!("dummy_{}", fabric_id).try_into()?);
+    let interface_name = ser::InterfaceName::Openfabric(format!("dummy_{}", fabric_id).try_into()?);
     Ok((frr_interface.into(), interface_name))
 }
 
@@ -297,9 +301,9 @@ fn build_openfabric_interface(
     fabric_config: &OpenfabricProperties,
     is_ipv4: bool,
     is_ipv6: bool,
-) -> Result<(Interface, InterfaceName), anyhow::Error> {
-    let frr_word = FrrWord::new(fabric_id.to_string())?;
-    let mut frr_interface = proxmox_frr::openfabric::OpenfabricInterface {
+) -> Result<(ser::Interface, ser::InterfaceName), anyhow::Error> {
+    let frr_word = ser::FrrWord::new(fabric_id.to_string())?;
+    let mut frr_interface = ser::openfabric::OpenfabricInterface {
         fabric_id: frr_word.into(),
         // Every interface is not passive by default
         passive: None,
@@ -315,7 +319,7 @@ fn build_openfabric_interface(
     if frr_interface.hello_interval.is_none() {
         frr_interface.hello_interval = fabric_config.hello_interval;
     }
-    let interface_name = InterfaceName::Openfabric(interface.name.as_str().try_into()?);
+    let interface_name = ser::InterfaceName::Openfabric(interface.name.as_str().try_into()?);
     Ok((frr_interface.into(), interface_name))
 }
 
@@ -324,9 +328,9 @@ fn build_openfabric_dummy_interface(
     fabric_id: &FabricId,
     is_ipv4: bool,
     is_ipv6: bool,
-) -> Result<(Interface, InterfaceName), anyhow::Error> {
-    let frr_word = FrrWord::new(fabric_id.to_string())?;
-    let frr_interface = proxmox_frr::openfabric::OpenfabricInterface {
+) -> Result<(ser::Interface, ser::InterfaceName), anyhow::Error> {
+    let frr_word = ser::FrrWord::new(fabric_id.to_string())?;
+    let frr_interface = ser::openfabric::OpenfabricInterface {
         fabric_id: frr_word.into(),
         hello_interval: None,
         passive: Some(true),
@@ -335,29 +339,37 @@ fn build_openfabric_dummy_interface(
         is_ipv4,
         is_ipv6,
     };
-    let interface_name = InterfaceName::Openfabric(format!("dummy_{}", fabric_id).try_into()?);
+    let interface_name = ser::InterfaceName::Openfabric(format!("dummy_{}", fabric_id).try_into()?);
     Ok((frr_interface.into(), interface_name))
 }
 
 /// Helper that builds a RouteMap for the OpenFabric protocol.
-fn build_openfabric_routemap(fabric_id: &FabricId, router_ip: IpAddr, seq: u32) -> RouteMap {
+fn build_openfabric_routemap(
+    fabric_id: &FabricId,
+    router_ip: IpAddr,
+    seq: u32,
+) -> ser::route_map::RouteMap {
     let routemap_name = match router_ip {
-        IpAddr::V4(_) => RouteMapName::new("pve_openfabric".to_owned()),
-        IpAddr::V6(_) => RouteMapName::new("pve_openfabric6".to_owned()),
+        IpAddr::V4(_) => ser::route_map::RouteMapName::new("pve_openfabric".to_owned()),
+        IpAddr::V6(_) => ser::route_map::RouteMapName::new("pve_openfabric6".to_owned()),
     };
-    RouteMap {
+    ser::route_map::RouteMap {
         name: routemap_name.clone(),
         seq,
-        action: AccessAction::Permit,
+        action: ser::route_map::AccessAction::Permit,
         matches: vec![match router_ip {
-            IpAddr::V4(_) => RouteMapMatch::V4(RouteMapMatchInner::IpAddress(AccessListName::new(
-                format!("pve_openfabric_{fabric_id}_ips"),
-            ))),
-            IpAddr::V6(_) => RouteMapMatch::V6(RouteMapMatchInner::IpAddress(AccessListName::new(
-                format!("pve_openfabric_{fabric_id}_ip6s"),
-            ))),
+            IpAddr::V4(_) => {
+                ser::route_map::RouteMapMatch::V4(ser::route_map::RouteMapMatchInner::IpAddress(
+                    ser::route_map::AccessListName::new(format!("pve_openfabric_{fabric_id}_ips")),
+                ))
+            }
+            IpAddr::V6(_) => {
+                ser::route_map::RouteMapMatch::V6(ser::route_map::RouteMapMatchInner::IpAddress(
+                    ser::route_map::AccessListName::new(format!("pve_openfabric_{fabric_id}_ip6s")),
+                ))
+            }
         }],
-        sets: vec![RouteMapSet::IpSrc(router_ip)],
+        sets: vec![ser::route_map::RouteMapSet::IpSrc(router_ip)],
     }
 }
 
@@ -366,17 +378,19 @@ fn build_ospf_dummy_routemap(
     fabric_id: &FabricId,
     router_ip: Ipv4Addr,
     seq: u32,
-) -> Result<RouteMap, anyhow::Error> {
-    let routemap_name = RouteMapName::new("pve_ospf".to_owned());
+) -> Result<ser::route_map::RouteMap, anyhow::Error> {
+    let routemap_name = ser::route_map::RouteMapName::new("pve_ospf".to_owned());
     // create route-map
-    let routemap = RouteMap {
+    let routemap = ser::route_map::RouteMap {
         name: routemap_name.clone(),
         seq,
-        action: AccessAction::Permit,
-        matches: vec![RouteMapMatch::V4(RouteMapMatchInner::IpAddress(
-            AccessListName::new(format!("pve_ospf_{fabric_id}_ips")),
-        ))],
-        sets: vec![RouteMapSet::IpSrc(IpAddr::from(router_ip))],
+        action: ser::route_map::AccessAction::Permit,
+        matches: vec![ser::route_map::RouteMapMatch::V4(
+            ser::route_map::RouteMapMatchInner::IpAddress(ser::route_map::AccessListName::new(
+                format!("pve_ospf_{fabric_id}_ips"),
+            )),
+        )],
+        sets: vec![ser::route_map::RouteMapSet::IpSrc(IpAddr::from(router_ip))],
     };
 
     Ok(routemap)

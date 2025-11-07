@@ -1,5 +1,5 @@
 #![cfg(feature = "frr")]
-use proxmox_frr::serializer::dump;
+use proxmox_frr::ser::serializer::dump;
 use proxmox_ve_config::sdn::{
     fabric::{section_config::node::NodeId, FabricConfig},
     frr::FrrConfigBuilder,

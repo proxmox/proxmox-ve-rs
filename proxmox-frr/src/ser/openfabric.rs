@@ -5,8 +5,8 @@ use proxmox_sdn_types::net::Net;
 
 use thiserror::Error;
 
-use crate::FrrWord;
-use crate::FrrWordError;
+use crate::ser::FrrWord;
+use crate::ser::FrrWordError;
 
 /// The name of a OpenFabric router. Is an FrrWord.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]

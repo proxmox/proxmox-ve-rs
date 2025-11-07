@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use proxmox_frr::FrrConfig;
+use proxmox_frr::ser::FrrConfig;
 
 use crate::common::valid::Valid;
 use crate::sdn::fabric::{section_config::node::NodeId, FabricConfig};

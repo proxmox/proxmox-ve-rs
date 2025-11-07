@@ -4,7 +4,7 @@ use std::net::Ipv4Addr;
 
 use thiserror::Error;
 
-use crate::{FrrWord, FrrWordError};
+use crate::ser::{FrrWord, FrrWordError};
 
 /// The name of the ospf frr router.
 ///
