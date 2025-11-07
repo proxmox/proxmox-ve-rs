@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// State of the adjacency of a OpenFabric neighbor
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AdjacencyState {
     Initializing,
     Up,
@@ -12,7 +12,7 @@ pub enum AdjacencyState {
 /// Neighbor Interface
 ///
 /// Interface used to communicate with a specific neighbor
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NeighborInterface {
     /// The name of the interface
     pub name: String,
@@ -26,7 +26,7 @@ pub struct NeighborInterface {
 /// Adjacency information
 ///
 /// Circuits are Layer-2 Broadcast domains (Either point-to-point or LAN).
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Circuit {
     /// The hostname of the adjacency peer
     pub adj: Option<String>,
@@ -35,7 +35,7 @@ pub struct Circuit {
 }
 
 /// An openfabric area the same as SDN fabric.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Area {
     /// The are name, this is the same as the fabric_id, so the name of the fabric.
     pub area: String,
@@ -47,14 +47,14 @@ pub struct Area {
 ///
 /// This models the output of:
 /// `vtysh -c 'show openfabric neighbor json'`.
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Neighbors {
     /// Every sdn fabric is also an openfabric 'area'
     pub areas: Vec<Area>,
 }
 
 /// The NetworkType of a OpenFabric interface
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum NetworkType {
     #[serde(rename(deserialize = "p2p", serialize = "Point-To-Point"))]
     PointToPoint,
@@ -67,7 +67,7 @@ pub enum NetworkType {
 }
 
 /// The State of a OpenFabric interface
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CircuitState {
     Init,
     Config,
@@ -75,7 +75,7 @@ pub enum CircuitState {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct Interface {
     pub name: String,
@@ -84,18 +84,18 @@ pub struct Interface {
     pub ty: NetworkType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InterfaceCircuits {
     pub interface: Interface,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct InterfaceArea {
     pub area: String,
     pub circuits: Vec<InterfaceCircuits>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Interfaces {
     pub areas: Vec<InterfaceArea>,
 }

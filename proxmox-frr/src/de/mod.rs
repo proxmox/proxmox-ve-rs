@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr};
+use std::{collections::BTreeMap, net::IpAddr};
 
 use proxmox_network_types::ip_address::Cidr;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ pub mod openfabric;
 pub mod ospf;
 
 /// A nexthop of a route
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct NextHop {
     /// IP of the nexthop
     pub ip: Option<IpAddr>,
@@ -24,7 +24,7 @@ pub struct NextHop {
 }
 
 /// route
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Route {
     /// Array of all the nexthops associated with this route. When you have e.g. two
     /// connections between two nodes, there is going to be one route, but two nexthops.
@@ -45,5 +45,5 @@ pub struct Route {
 /// routes we simply ask zebra which routes have been inserted and filter them by protocol.
 /// The following command is used to accomplish this: `show ip route <protocol> json`.
 /// This struct can be used the deserialize the output of that command.
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Routes(pub HashMap<Cidr, Vec<Route>>);
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct Routes(pub BTreeMap<Cidr, Vec<Route>>);

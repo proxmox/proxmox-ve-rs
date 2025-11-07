@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
 /// Information about the Neighbor (Peer) of the Adjacency.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Neighbor {
     /// The full state of the neighbor. This is "{converged}/{role}".
@@ -25,14 +25,14 @@ pub struct Neighbor {
 }
 
 /// The parsed OSPF neighbors
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 pub struct Neighbors {
     /// The OSPF neighbors. This is nearly always a ip-address - neighbor mapping.
-    pub neighbors: HashMap<String, Vec<Neighbor>>,
+    pub neighbors: BTreeMap<String, Vec<Neighbor>>,
 }
 
 /// All possible OSPF network-types that can be returned from frr
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum NetworkType {
     #[serde(rename = "Null")]
     Null,
@@ -50,7 +50,7 @@ pub enum NetworkType {
     Loopback,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Interface {
     /// The interface state
@@ -64,7 +64,7 @@ pub struct Interface {
     pub network_type: NetworkType,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 pub struct Interfaces {
-    pub interfaces: HashMap<String, Interface>,
+    pub interfaces: BTreeMap<String, Interface>,
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::IpAddr};
+use std::{collections::BTreeMap, net::IpAddr};
 
 use proxmox_network_types::mac_address::MacAddress;
 use serde::Deserialize;
@@ -6,7 +6,7 @@ use serde_repr::Deserialize_repr;
 
 /// All EVPN routes
 #[derive(Debug, Default, Deserialize)]
-pub struct Routes(pub HashMap<String, Entry>);
+pub struct Routes(pub BTreeMap<String, Entry>);
 
 /// The evpn routes a stored in a hashtable, which has a numPrefix and numPath key at
 /// the end which stores the number of paths and prefixes. These two keys have a i32
