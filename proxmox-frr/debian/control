@@ -9,6 +9,8 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-anyhow-1+default-dev <!nocheck>,
  librust-proxmox-network-types-0.1+default-dev (>= 0.1.1-~~) <!nocheck>,
  librust-proxmox-sdn-types-0.1+default-dev <!nocheck>,
+ librust-serde-1+default-dev <!nocheck>,
+ librust-serde-1+derive-dev <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
  librust-tracing-0.1+default-dev <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
@@ -27,6 +29,8 @@ Depends:
  librust-anyhow-1+default-dev,
  librust-proxmox-network-types-0.1+default-dev (>= 0.1.1-~~),
  librust-proxmox-sdn-types-0.1+default-dev,
+ librust-serde-1+default-dev,
+ librust-serde-1+derive-dev,
  librust-thiserror-2+default-dev,
  librust-tracing-0.1+default-dev
 Provides:
