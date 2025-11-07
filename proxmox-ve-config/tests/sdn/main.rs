@@ -25,8 +25,9 @@ fn parse_running_config() {
         ZoneName::from_str("zone0").unwrap(),
         ZoneType::Simple,
         [
-            VnetConfig::from_subnets(
+            VnetConfig::from_subnets_and_tag(
                 VnetName::from_str("vnet0").unwrap(),
+                Some(100),
                 [
                     SubnetConfig::new(
                         SubnetName::from_str("zone0-fd80::-64").unwrap(),
@@ -84,7 +85,7 @@ fn sdn_config() {
     let zone0 = ZoneConfig::new(zone0_name.clone(), ZoneType::Qinq);
     sdn_config.add_zone(zone0).unwrap();
 
-    let vnet0 = VnetConfig::new(vnet0_name.clone());
+    let vnet0 = VnetConfig::new(vnet0_name.clone(), None);
     assert_eq!(
         sdn_config.add_vnet(&zone1_name, vnet0.clone()),
         Err(SdnConfigError::ZoneNotFound)

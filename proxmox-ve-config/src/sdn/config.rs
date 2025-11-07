@@ -196,6 +196,7 @@ pub struct SubnetsRunningConfig {
 /// Struct for deserializing a vnet entry of the SDN running config
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VnetRunningConfig {
+    tag: Option<u32>,
     zone: ZoneName,
 }
 
@@ -295,14 +296,16 @@ impl SubnetConfig {
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VnetConfig {
     name: VnetName,
+    tag: Option<u32>,
     subnets: BTreeMap<Cidr, SubnetConfig>,
 }
 
 impl VnetConfig {
-    pub fn new(name: VnetName) -> Self {
+    pub fn new(name: VnetName, tag: Option<u32>) -> Self {
         Self {
             name,
             subnets: BTreeMap::default(),
+            tag,
         }
     }
 
@@ -310,7 +313,18 @@ impl VnetConfig {
         name: VnetName,
         subnets: impl IntoIterator<Item = SubnetConfig>,
     ) -> Result<Self, SdnConfigError> {
-        let mut config = Self::new(name);
+        let mut config = Self::new(name, None);
+        config.add_subnets(subnets)?;
+        Ok(config)
+    }
+
+    pub fn from_subnets_and_tag(
+        name: VnetName,
+        tag: Option<u32>,
+        subnets: impl IntoIterator<Item = SubnetConfig>,
+    ) -> Result<Self, SdnConfigError> {
+        let mut config = Self::new(name, None);
+        config.tag = tag;
         config.add_subnets(subnets)?;
         Ok(config)
     }
@@ -341,6 +355,10 @@ impl VnetConfig {
 
     pub fn name(&self) -> &VnetName {
         &self.name
+    }
+
+    pub fn tag(&self) -> &Option<u32> {
+        &self.tag
     }
 }
 
@@ -617,7 +635,10 @@ impl TryFrom<RunningConfig> for SdnConfig {
 
         if let Some(running_vnets) = value.vnets.take() {
             for (name, running_config) in running_vnets.ids {
-                config.add_vnet(&running_config.zone, VnetConfig::new(name))?;
+                config.add_vnet(
+                    &running_config.zone,
+                    VnetConfig::new(name, running_config.tag),
+                )?;
             }
         }
 

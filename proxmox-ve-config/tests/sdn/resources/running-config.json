@@ -43,6 +43,7 @@
     "ids": {
       "vnet0": {
         "type": "vnet",
+        "tag": 100,
         "zone": "zone0"
       },
       "vnet1": {
