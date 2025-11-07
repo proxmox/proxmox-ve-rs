@@ -9,23 +9,15 @@ pub mod ospf;
 /// A nexthop of a route
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NextHop {
-    #[serde(rename = "interfaceIndex")]
-    pub interface_index: i32,
-    #[serde(rename = "interfaceName")]
+    /// IP of the nexthop
+    pub ip: Option<IpAddr>,
     /// Name of the outgoing interface
-    pub interface_name: String,
+    #[serde(rename = "interfaceName")]
+    pub interface_name: Option<String>,
     /// If the nexthop is active
-    pub active: bool,
-    /// If the route has the onlink flag. Onlink means that we pretend that the nexthop is
-    /// directly attached to this link, even if it does not match any interface prefix.
-    #[serde(rename = "onLink")]
-    pub on_link: bool,
-    /// Remap-Source, this rewrites the source address to the following address, if this
-    /// nexthop is used.
-    #[serde(rename = "rmapSource")]
-    pub remap_source: Option<IpAddr>,
-    /// Weight of the nexthop
-    pub weight: i32,
+    pub active: Option<bool>,
+    /// If this nexthop entry is reachable from this host
+    pub unreachable: Option<bool>,
     /// If this nexthop entry is a duplicate of another (the first one has this unset)
     pub duplicate: Option<bool>,
 }
