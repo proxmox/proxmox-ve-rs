@@ -618,6 +618,11 @@ impl FabricConfig {
             .ok_or_else(|| FabricConfigError::FabricDoesNotExist(id.to_string()))
     }
 
+    /// Get an iterator over all the nodes in all fabrics.
+    pub fn all_nodes(&self) -> impl Iterator<Item = (&NodeId, &Node)> + '_ {
+        self.values().flat_map(|entry| entry.nodes())
+    }
+
     /// Returns an iterator over mutable references to all [`FabricEntry`] in the config
     pub fn get_fabrics_mut(&mut self) -> impl Iterator<Item = &mut FabricEntry> {
         self.fabrics.values_mut()
