@@ -1,7 +1,7 @@
 [package]
 name = "proxmox-frr"
 description = "Rust types for the FRR configuration file"
-version = "0.1.1"
+version = "0.2.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

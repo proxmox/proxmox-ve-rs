@@ -1,3 +1,11 @@
+rust-proxmox-frr (0.2.0-1) trixie; urgency=medium
+
+  * add deserialization types for openfabric and ospf
+  * rework NextHop struct's members.
+  * add deserialization types for EVPN.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 12 Nov 2025 22:10:47 +0100
+
 rust-proxmox-frr (0.1.1-1) trixie; urgency=medium
 
   * update proxmox-schema to 5.0.0
