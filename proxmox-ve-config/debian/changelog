@@ -1,3 +1,11 @@
+rust-proxmox-ve-config (0.4.5) trixie; urgency=medium
+
+  * add helper function to iterate over all nodes in all fabrics.
+
+  * add optional tag property to vnet.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 12 Nov 2025 22:14:41 +0100
+
 rust-proxmox-ve-config (0.4.4) trixie; urgency=medium
 
   * firewall: add support for legacy alias and ipset names.
