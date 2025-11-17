@@ -1,3 +1,10 @@
+rust-proxmox-ve-config (0.4.6) trixie; urgency=medium
+
+  * firewall: introduce iptables to nftables mapping for icmp-types and
+    icmpv6-types.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 17 Nov 2025 15:58:24 +0100
+
 rust-proxmox-ve-config (0.4.5) trixie; urgency=medium
 
   * add helper function to iterate over all nodes in all fabrics.
