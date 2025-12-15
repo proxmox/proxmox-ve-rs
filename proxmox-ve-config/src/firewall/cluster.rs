@@ -395,4 +395,67 @@ IN BGP(REJECT) -log crit -source 1.2.3.4
         assert!(empty_config.config.ipsets.is_empty());
         assert!(empty_config.config.groups.is_empty());
     }
+
+    #[test]
+    fn test_parse_config_comments() {
+        const CONFIG: &str = r#"
+# ignore lines that start with a # symbol
+[OPTIONS]
+[ALIASES]
+
+alias1 192.168.0.1 # comment # on alias1
+
+[IPSET ipset1] # comment # on ipset1
+
+dc/alias1 # comment # on ipset1 #1
+
+[RULES]
+
+GROUP testgroup # comment # on rule #1
+IN ACCEPT -p udp -dport 1234 -log nolog # comment # on rule #2
+
+[group testgroup] # comment # on testgroup
+
+IN ACCEPT -source dc/alias1 -p tcp -sport 1111 -log nolog # comment # on testgroup #1
+
+"#;
+
+        let mut config = CONFIG.as_bytes();
+        let config = Config::parse(&mut config).unwrap();
+
+        assert_eq!(config.config.aliases.len(), 1);
+        assert_eq!(
+            config.config.aliases["alias1"].comment(),
+            Some("comment # on alias1")
+        );
+
+        assert_eq!(config.config.ipsets.len(), 1);
+
+        let ipset1 = &config.config.ipsets["ipset1"];
+        assert_eq!(ipset1.comment.as_deref(), Some("comment # on ipset1"));
+
+        assert_eq!(ipset1.len(), 1);
+        assert_eq!(ipset1[0].comment.as_deref(), Some("comment # on ipset1 #1"));
+
+        assert_eq!(config.config.rules.len(), 2);
+        assert_eq!(
+            config.config.rules[0].comment.as_deref(),
+            Some("comment # on rule #1")
+        );
+        assert_eq!(
+            config.config.rules[1].comment.as_deref(),
+            Some("comment # on rule #2")
+        );
+
+        assert_eq!(config.config.groups.len(), 1);
+
+        let entry = &config.config.groups["testgroup"];
+        assert_eq!(entry.comment(), Some("comment # on testgroup"));
+
+        assert_eq!(entry.rules().len(), 1);
+        assert_eq!(
+            entry.rules()[0].comment.as_deref(),
+            Some("comment # on testgroup #1")
+        );
+    }
 }

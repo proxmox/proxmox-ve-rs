@@ -115,7 +115,7 @@ impl FromStr for Rule {
             bail!("rule must not contain any newlines!");
         }
 
-        let (line, comment) = match input.rsplit_once('#') {
+        let (line, comment) = match input.split_once('#') {
             Some((line, comment)) if !comment.is_empty() => (line.trim(), Some(comment.trim())),
             _ => (input.trim(), None),
         };
@@ -261,13 +261,15 @@ mod tests {
 
     #[test]
     fn test_parse_rule() {
-        let mut rule: Rule = "|GROUP tgr -i eth0 # acomm".parse().expect("valid rule");
+        let mut rule: Rule = "|GROUP tgr -i eth0 # acomm #comment"
+            .parse()
+            .expect("valid rule");
 
         assert_eq!(
             rule,
             Rule {
                 disabled: true,
-                comment: Some("acomm".to_string()),
+                comment: Some("acomm #comment".to_string()),
                 kind: Kind::Group(RuleGroup {
                     group: "tgr".to_string(),
                     iface: Some("eth0".to_string()),
