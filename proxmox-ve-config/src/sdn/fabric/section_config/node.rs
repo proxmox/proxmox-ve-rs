@@ -79,7 +79,9 @@ impl std::str::FromStr for NodeSectionId {
     type Err = anyhow::Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (fabric_id, node_id) = value.split_once("_").unwrap();
+        let (fabric_id, node_id) = value
+            .split_once("_")
+            .ok_or_else(|| anyhow::anyhow!("node id must be <fabric>_<node>"))?;
 
         Ok(Self {
             fabric_id: FabricId::from_string(fabric_id.to_string())?,
