@@ -18,7 +18,8 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-serde-1+derive-dev <!nocheck>,
  librust-serde-repr-0.1+default-dev <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
- librust-tracing-0.1+default-dev <!nocheck>
+ librust-tracing-0.1+default-dev <!nocheck>,
+ proxmox-frr-templates <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.7.2
 Vcs-Git: git://git.proxmox.com/git/proxmox-ve-rs.git
@@ -43,7 +44,8 @@ Depends:
  librust-serde-1+derive-dev,
  librust-serde-repr-0.1+default-dev,
  librust-thiserror-2+default-dev,
- librust-tracing-0.1+default-dev
+ librust-tracing-0.1+default-dev,
+ proxmox-frr-templates
 Provides:
  librust-proxmox-frr+default-dev (= ${binary:Version}),
  librust-proxmox-frr-0-dev (= ${binary:Version}),
