@@ -1,3 +1,23 @@
+rust-proxmox-frr (0.4.0-1) trixie; urgency=medium
+
+  * add constructor to prefix list name.
+
+  * change order type to u16. The order in a route map entry is an u16, not an
+    u32 - adapt this here to match the actual type inside FRR.
+
+  * implement routemap match/set statements via adjacent tagging, avoiding a
+    mix of adjacent / internal tagging and a nesting of types to represent
+    match and set statements. This way a single enum can be used to represent
+    match / set statements and all variants can be rendered the same by simply
+    printing the keys / values.
+
+  * implement support for call and exit action. They're required internally
+    for implementing route maps for EVPN zones with an exit node configured,
+    but users can also utilize them to create complex route maps via the
+    pve-network API / section-config format.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 00:30:12 +0200
+
 rust-proxmox-frr (0.3.0-1) trixie; urgency=medium
 
   * switch FRR config serialization from line-by-line Rust code to jinja

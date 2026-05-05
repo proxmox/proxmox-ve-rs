@@ -19,8 +19,7 @@ Build-Depends-Arch: cargo:native <!nocheck>,
  librust-serde-1+derive-dev <!nocheck>,
  librust-serde-repr-0.1+default-dev <!nocheck>,
  librust-thiserror-2+default-dev <!nocheck>,
- librust-tracing-0.1+default-dev <!nocheck>,
- proxmox-frr-templates <!nocheck>
+ librust-tracing-0.1+default-dev <!nocheck>
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Standards-Version: 4.7.2
 Vcs-Git: git://git.proxmox.com/git/proxmox-ve-rs.git
@@ -46,15 +45,14 @@ Depends:
  librust-serde-1+derive-dev,
  librust-serde-repr-0.1+default-dev,
  librust-thiserror-2+default-dev,
- librust-tracing-0.1+default-dev,
- proxmox-frr-templates
+ librust-tracing-0.1+default-dev
 Provides:
  librust-proxmox-frr+default-dev (= ${binary:Version}),
  librust-proxmox-frr-0-dev (= ${binary:Version}),
  librust-proxmox-frr-0+default-dev (= ${binary:Version}),
- librust-proxmox-frr-0.3-dev (= ${binary:Version}),
- librust-proxmox-frr-0.3+default-dev (= ${binary:Version}),
- librust-proxmox-frr-0.3.0-dev (= ${binary:Version}),
- librust-proxmox-frr-0.3.0+default-dev (= ${binary:Version})
+ librust-proxmox-frr-0.4-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.4+default-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.4.0-dev (= ${binary:Version}),
+ librust-proxmox-frr-0.4.0+default-dev (= ${binary:Version})
 Description: Rust types for the FRR configuration file - Rust source code
  Source code for Debianized Rust crate "proxmox-frr"
