@@ -50,7 +50,7 @@ impl Validatable for FabricSection<OspfProperties> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum OspfDeletableProperties {}
 
 #[api(
