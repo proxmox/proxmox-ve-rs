@@ -120,7 +120,7 @@ impl RouteMapName {
 /// address or adding a metric, bgp community, or local preference.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteMapEntry {
-    pub seq: u32,
+    pub seq: u16,
     pub action: AccessAction,
     #[serde(default)]
     pub matches: Vec<RouteMapMatch>,
