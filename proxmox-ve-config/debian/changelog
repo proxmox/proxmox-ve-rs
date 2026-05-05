@@ -1,3 +1,27 @@
+rust-proxmox-ve-config (0.6.0) trixie; urgency=medium
+
+  * fix #6399: firewall: treat everything after the first hash sign in a rule
+    line as the comment, matching the perl parser. Previously the firewall
+    failed to start when a rule comment contained a hash sign.
+
+  * fabrics: adapt frr config generation to match the changed representation
+    of match and set statements in proxmox-frr.
+
+  * add prefix list section config.
+
+  * implement frr config generation for prefix lists.
+
+  * add route map section config.
+
+  * implement frr config generation for route maps.
+
+  * fabrics: ospf, openfabric: allow specifying a user-defined route filter
+    that overrides the auto-generated prefix list used to filter routes
+    installed into the kernel routing table by zebra. Does not affect which
+    routes get announced via OSPF or OpenFabric.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 00:53:15 +0200
+
 rust-proxmox-ve-config (0.5.0) trixie; urgency=medium
 
   * frr: replace FrrConfigBuilder with direct build_fabric call that takes a
