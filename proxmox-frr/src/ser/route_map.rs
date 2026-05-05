@@ -39,6 +39,12 @@ pub struct AccessListName(String);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrefixListName(String);
 
+impl PrefixListName {
+    pub fn new(name: String) -> PrefixListName {
+        PrefixListName(name)
+    }
+}
+
 impl AccessListName {
     pub fn new(name: String) -> AccessListName {
         AccessListName(name)
