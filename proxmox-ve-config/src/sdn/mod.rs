@@ -1,6 +1,7 @@
 pub mod config;
 pub mod fabric;
 pub mod ipam;
+pub mod prefix_list;
 
 use std::{error::Error, fmt::Display, str::FromStr};
 
