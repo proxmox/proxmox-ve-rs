@@ -1,3 +1,11 @@
+rust-proxmox-sdn-types (0.2.1-1) trixie; urgency=medium
+
+  * add common route-map helper types. They will be used in proxmox-frr for
+    generating the FRR configuration as well as proxmox-ve-config for
+    utilizing them in the section config types.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 00:36:51 +0200
+
 rust-proxmox-sdn-types (0.2.0-1) trixie; urgency=medium
 
   * support variable-length NET area identifier (0-13 bytes per ISO 10589),
