@@ -17,7 +17,7 @@ serde = { workspace = true, features = [ "derive" ] }
 serde_repr = "0.1"
 minijinja = { version = "2.5", features = [ "multi_template", "loader" ] }
 
-proxmox-network-types = { workspace = true }
+proxmox-network-types = { workspace = true, features = ["api-types"] }
 proxmox-sdn-types = { workspace = true }
 proxmox-serde = { workspace = true }
 proxmox-sortable-macro = "1"

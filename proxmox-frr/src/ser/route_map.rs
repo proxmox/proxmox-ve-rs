@@ -1,6 +1,10 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use proxmox_network_types::ip_address::Cidr;
+use proxmox_sdn_types::{
+    bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
+    ModifyNumber, Vni,
+};
 use serde::{Deserialize, Serialize};
 
 /// The action for a [`AccessListRule`].
@@ -68,27 +72,36 @@ pub struct PrefixListRule {
 /// execute its actions. If we match on an IP, there are two different syntaxes: `match ip ...` or
 /// `match ipv6 ...`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "protocol_type")]
+#[serde(tag = "key", content = "value")]
 pub enum RouteMapMatch {
-    #[serde(rename = "ip")]
-    V4(RouteMapMatchInner),
-    #[serde(rename = "ipv6")]
-    V6(RouteMapMatchInner),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "list_type", content = "list_name", rename_all = "lowercase")]
-pub enum AccessListOrPrefixList {
-    PrefixList(PrefixListName),
-    AccessList(AccessListName),
-}
-
-/// A route-map match statement generic on the IP-version.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "match_type", content = "value", rename_all = "kebab-case")]
-pub enum RouteMapMatchInner {
-    Address(AccessListOrPrefixList),
-    NextHop(String),
+    #[serde(rename = "evpn route-type")]
+    RouteType(EvpnRouteType),
+    #[serde(rename = "evpn vni")]
+    Vni(Vni),
+    #[serde(rename = "ip address")]
+    IpAddressAccessList(AccessListName),
+    #[serde(rename = "ipv6 address")]
+    Ip6AddressAccessList(AccessListName),
+    #[serde(rename = "ip address prefix-list")]
+    IpAddressPrefixList(PrefixListName),
+    #[serde(rename = "ipv6 address prefix-list")]
+    Ip6AddressPrefixList(PrefixListName),
+    #[serde(rename = "ip next-hop prefix-list")]
+    IpNextHopPrefixList(PrefixListName),
+    #[serde(rename = "ipv6 next-hop prefix-list")]
+    Ip6NextHopPrefixList(PrefixListName),
+    #[serde(rename = "ip next-hop address")]
+    IpNextHopAddress(Ipv4Addr),
+    #[serde(rename = "ipv6 next-hop address")]
+    Ip6NextHopAddress(Ipv6Addr),
+    #[serde(rename = "metric")]
+    Metric(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
+    #[serde(rename = "local-preference")]
+    LocalPreference(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
+    #[serde(rename = "peer")]
+    Peer(String),
+    #[serde(rename = "tag")]
+    Tag(SetTagValue),
 }
 
 /// Defines the Action a route-map takes when it matches on a route.
@@ -96,11 +109,31 @@ pub enum RouteMapMatchInner {
 /// If the route matches the [`RouteMapMatch`], then a [`RouteMapSet`] action will be executed.
 /// We currently only use the IpSrc command which changes the source address of the route.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "set_type", content = "value", rename_all = "kebab-case")]
+#[serde(tag = "key", content = "value")]
 pub enum RouteMapSet {
-    LocalPreference(u32),
+    #[serde(rename = "ip next-hop peer-address")]
+    IpNextHopPeerAddress,
+    #[serde(rename = "ip next-hop unchanged")]
+    IpNextHopUnchanged,
+    #[serde(rename = "ip next-hop")]
+    IpNextHop(Ipv4Addr),
+    #[serde(rename = "ipv6 next-hop peer-address")]
+    Ip6NextHopPeerAddress,
+    #[serde(rename = "ipv6 next-hop prefer-global")]
+    Ip6NextHopPreferGlobal,
+    #[serde(rename = "ipv6 next-hop global")]
+    Ip6NextHop(Ipv6Addr),
+    #[serde(rename = "local-preference")]
+    LocalPreference(ModifyNumber),
+    #[serde(rename = "tag")]
+    Tag(SetTagValue),
+    #[serde(rename = "weight")]
+    Weight(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
+    #[serde(rename = "metric")]
+    Metric(SetMetricValue),
+    #[serde(rename = "src")]
     Src(IpAddr),
-    Metric(u32),
+    #[serde(rename = "community")]
     Community(String),
 }
 
