@@ -137,6 +137,21 @@ pub enum RouteMapSet {
     Community(String),
 }
 
+/// The exit action for a route map.
+///
+/// This can be optionally specified to override the default behavior of FRR to terminate
+/// evaluating the route map if an entry matches.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "key", content = "value")]
+pub enum RouteMapExitAction {
+    #[serde(rename = "on-match next")]
+    OnMatchNext,
+    #[serde(rename = "on-match goto")]
+    OnMatchGoto(u16),
+    #[serde(rename = "continue")]
+    Continue(u16),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RouteMapName(String);
 
@@ -159,6 +174,10 @@ pub struct RouteMapEntry {
     pub matches: Vec<RouteMapMatch>,
     #[serde(default)]
     pub sets: Vec<RouteMapSet>,
+    #[serde(default)]
+    pub call: Option<RouteMapName>,
+    #[serde(default)]
+    pub exit_action: Option<RouteMapExitAction>,
     #[serde(default)]
     pub custom_frr_config: Vec<String>,
 }
