@@ -4,12 +4,8 @@ use tracing;
 
 use proxmox_frr::ser::openfabric::{OpenfabricInterface, OpenfabricRouter, OpenfabricRouterName};
 use proxmox_frr::ser::ospf::{self, OspfInterface, OspfRouter};
-use proxmox_frr::ser::route_map::{
-    AccessAction, AccessListName, RouteMapEntry, RouteMapMatch, RouteMapName, RouteMapSet,
-};
-use proxmox_frr::ser::{
-    self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName, IpProtocolRouteMap,
-};
+use proxmox_frr::ser::route_map::{AccessListName, RouteMapEntry, RouteMapMatch, RouteMapSet};
+use proxmox_frr::ser::{self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName};
 use proxmox_network_types::ip_address::Cidr;
 use proxmox_sdn_types::net::Net;
 
@@ -104,89 +100,92 @@ pub fn build_fabric(
                     }
                 }
 
-                if let Some(ipv4cidr) = fabric.ip_prefix() {
-                    let rule = ser::route_map::AccessListRule {
-                        action: ser::route_map::AccessAction::Permit,
-                        network: Cidr::from(ipv4cidr),
-                        is_ipv6: false,
-                        seq: None,
-                    };
-                    let access_list_name =
-                        AccessListName::new(format!("pve_openfabric_{}_ips", fabric_id));
-                    frr_config.access_lists.insert(access_list_name, vec![rule]);
-                }
-                if let Some(ipv6cidr) = fabric.ip6_prefix() {
-                    let rule = ser::route_map::AccessListRule {
-                        action: ser::route_map::AccessAction::Permit,
-                        network: Cidr::from(ipv6cidr),
-                        is_ipv6: true,
-                        seq: None,
-                    };
-                    let access_list_name =
-                        AccessListName::new(format!("pve_openfabric_{}_ip6s", fabric_id));
-                    frr_config.access_lists.insert(access_list_name, vec![rule]);
-                }
+                if let Some(ip) = node.ip() {
+                    let routemap_name =
+                        ser::route_map::RouteMapName::new("pve_openfabric".to_owned());
+                    let routemap = frr_config
+                        .routemaps
+                        .entry(routemap_name.clone())
+                        .or_default();
 
-                if let Some(ipv4) = node.ip() {
-                    // create route-map
-                    let (routemap_name, routemap_rule) =
-                        build_openfabric_routemap(fabric_id, IpAddr::V4(ipv4), routemap_seq);
-
-                    if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
-                        routemap.push(routemap_rule)
-                    } else {
-                        frr_config
-                            .routemaps
-                            .insert(routemap_name.clone(), vec![routemap_rule]);
-                    }
-
+                    let mut routemap_entry = build_source_routemap(ip.into(), routemap_seq);
                     routemap_seq += 10;
 
-                    if let Some(routemap) = frr_config
-                        .protocol_routemaps
-                        .get_mut(&FrrProtocol::Openfabric)
-                    {
-                        routemap.v4 = Some(routemap_name);
-                    } else {
-                        frr_config.protocol_routemaps.insert(
-                            FrrProtocol::Openfabric,
-                            IpProtocolRouteMap {
-                                v4: Some(routemap_name),
-                                v6: None,
-                            },
-                        );
+                    if let Some(prefix_list_id) = &fabric.properties().route_filter {
+                        routemap_entry.matches = vec![RouteMapMatch::IpAddressPrefixList(
+                            prefix_list_id.clone().into(),
+                        )];
+                    } else if let Some(cidr) = fabric.ip_prefix() {
+                        let access_list_name =
+                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ips"));
+
+                        let rule = ser::route_map::AccessListRule {
+                            action: ser::route_map::AccessAction::Permit,
+                            network: Cidr::from(cidr),
+                            is_ipv6: false,
+                            seq: None,
+                        };
+
+                        frr_config
+                            .access_lists
+                            .insert(access_list_name.clone(), vec![rule]);
+
+                        routemap_entry.matches =
+                            vec![RouteMapMatch::IpAddressAccessList(access_list_name)];
                     }
+
+                    routemap.push(routemap_entry);
+
+                    let protocol_routemap = frr_config
+                        .protocol_routemaps
+                        .entry(FrrProtocol::Openfabric)
+                        .or_default();
+
+                    protocol_routemap.v4 = Some(routemap_name)
                 }
 
-                if let Some(ipv6) = node.ip6() {
-                    // create route-map
-                    let (routemap_name, routemap_rule) =
-                        build_openfabric_routemap(fabric_id, IpAddr::V6(ipv6), routemap_seq);
+                if let Some(ip) = node.ip6() {
+                    let routemap_name =
+                        ser::route_map::RouteMapName::new("pve_openfabric6".to_owned());
+                    let routemap = frr_config
+                        .routemaps
+                        .entry(routemap_name.clone())
+                        .or_default();
 
-                    if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
-                        routemap.push(routemap_rule)
-                    } else {
-                        frr_config
-                            .routemaps
-                            .insert(routemap_name.clone(), vec![routemap_rule]);
-                    }
-
+                    let mut routemap_entry = build_source_routemap(ip.into(), routemap_seq);
                     routemap_seq += 10;
 
-                    if let Some(routemap) = frr_config
-                        .protocol_routemaps
-                        .get_mut(&FrrProtocol::Openfabric)
-                    {
-                        routemap.v6 = Some(routemap_name);
-                    } else {
-                        frr_config.protocol_routemaps.insert(
-                            FrrProtocol::Openfabric,
-                            IpProtocolRouteMap {
-                                v4: None,
-                                v6: Some(routemap_name),
-                            },
-                        );
+                    if let Some(prefix_list_id) = &fabric.properties().route_filter {
+                        routemap_entry.matches = vec![RouteMapMatch::Ip6AddressPrefixList(
+                            prefix_list_id.clone().into(),
+                        )];
+                    } else if let Some(cidr) = fabric.ip6_prefix() {
+                        let access_list_name =
+                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ip6s"));
+
+                        let rule = ser::route_map::AccessListRule {
+                            action: ser::route_map::AccessAction::Permit,
+                            network: Cidr::from(cidr),
+                            is_ipv6: true,
+                            seq: None,
+                        };
+
+                        frr_config
+                            .access_lists
+                            .insert(access_list_name.clone(), vec![rule]);
+
+                        routemap_entry.matches =
+                            vec![RouteMapMatch::Ip6AddressAccessList(access_list_name)];
                     }
+
+                    routemap.push(routemap_entry);
+
+                    let protocol_routemap = frr_config
+                        .protocol_routemaps
+                        .entry(FrrProtocol::Openfabric)
+                        .or_default();
+
+                    protocol_routemap.v6 = Some(routemap_name)
                 }
             }
             FabricEntry::Ospf(ospf_entry) => {
@@ -235,47 +234,49 @@ pub fn build_fabric(
                     }
                 }
 
-                let access_list_name =
-                    ser::route_map::AccessListName::new(format!("pve_ospf_{}_ips", fabric_id));
+                let routemap_name = ser::route_map::RouteMapName::new("pve_ospf".to_owned());
+                let routemap = frr_config
+                    .routemaps
+                    .entry(routemap_name.clone())
+                    .or_default();
 
-                let rule = ser::route_map::AccessListRule {
-                    action: ser::route_map::AccessAction::Permit,
-                    network: Cidr::from(
-                        fabric.ip_prefix().expect("fabric must have a ipv4 prefix"),
-                    ),
-                    is_ipv6: false,
-                    seq: None,
-                };
+                let source_ip = node
+                    .ip()
+                    .ok_or_else(|| anyhow::anyhow!("node must have an ipv4 address"))?;
 
-                frr_config.access_lists.insert(access_list_name, vec![rule]);
-
-                let (routemap_name, routemap_rule) = build_ospf_dummy_routemap(
-                    fabric_id,
-                    node.ip().expect("node must have an ipv4 address"),
-                    routemap_seq,
-                )?;
-
+                let mut routemap_entry = build_source_routemap(source_ip.into(), routemap_seq);
                 routemap_seq += 10;
 
-                if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
-                    routemap.push(routemap_rule)
-                } else {
+                if let Some(prefix_list_id) = &fabric.properties().route_filter {
+                    routemap_entry.matches = vec![RouteMapMatch::IpAddressPrefixList(
+                        prefix_list_id.clone().into(),
+                    )];
+                } else if let Some(ipv4cidr) = fabric.ip_prefix() {
+                    let access_list_name = AccessListName::new(format!("pve_ospf_{fabric_id}_ips"));
+
+                    let rule = ser::route_map::AccessListRule {
+                        action: ser::route_map::AccessAction::Permit,
+                        network: Cidr::from(ipv4cidr),
+                        is_ipv6: false,
+                        seq: None,
+                    };
+
                     frr_config
-                        .routemaps
-                        .insert(routemap_name.clone(), vec![routemap_rule]);
+                        .access_lists
+                        .insert(access_list_name.clone(), vec![rule]);
+
+                    routemap_entry.matches =
+                        vec![RouteMapMatch::IpAddressAccessList(access_list_name)];
                 }
 
-                if let Some(routemap) = frr_config.protocol_routemaps.get_mut(&FrrProtocol::Ospf) {
-                    routemap.v4 = Some(routemap_name);
-                } else {
-                    frr_config.protocol_routemaps.insert(
-                        FrrProtocol::Ospf,
-                        IpProtocolRouteMap {
-                            v4: Some(routemap_name),
-                            v6: None,
-                        },
-                    );
-                }
+                routemap.push(routemap_entry);
+
+                let protocol_routemap = frr_config
+                    .protocol_routemaps
+                    .entry(FrrProtocol::Ospf)
+                    .or_default();
+
+                protocol_routemap.v4 = Some(routemap_name);
             }
         }
     }
@@ -386,55 +387,14 @@ fn build_openfabric_dummy_interface(
 }
 
 /// Helper that builds a RouteMap for the OpenFabric protocol.
-fn build_openfabric_routemap(
-    fabric_id: &FabricId,
-    router_ip: IpAddr,
-    seq: u16,
-) -> (RouteMapName, RouteMapEntry) {
-    let routemap_name = match router_ip {
-        IpAddr::V4(_) => ser::route_map::RouteMapName::new("pve_openfabric".to_owned()),
-        IpAddr::V6(_) => ser::route_map::RouteMapName::new("pve_openfabric6".to_owned()),
-    };
-    (
-        routemap_name,
-        RouteMapEntry {
-            seq,
-            action: ser::route_map::AccessAction::Permit,
-            matches: vec![match router_ip {
-                IpAddr::V4(_) => RouteMapMatch::IpAddressAccessList(AccessListName::new(format!(
-                    "pve_openfabric_{fabric_id}_ips"
-                ))),
-                IpAddr::V6(_) => RouteMapMatch::Ip6AddressAccessList(AccessListName::new(format!(
-                    "pve_openfabric_{fabric_id}_ip6s"
-                ))),
-            }],
-            sets: vec![RouteMapSet::Src(router_ip)],
-            custom_frr_config: Vec::new(),
-            call: None,
-            exit_action: None,
-        },
-    )
-}
-
-/// Helper that builds a RouteMap for the OSPF protocol.
-fn build_ospf_dummy_routemap(
-    fabric_id: &FabricId,
-    router_ip: Ipv4Addr,
-    seq: u16,
-) -> Result<(RouteMapName, RouteMapEntry), anyhow::Error> {
-    let routemap_name = ser::route_map::RouteMapName::new("pve_ospf".to_owned());
-    // create route-map
-    let routemap = RouteMapEntry {
+fn build_source_routemap(router_ip: IpAddr, seq: u16) -> RouteMapEntry {
+    RouteMapEntry {
         seq,
-        action: AccessAction::Permit,
-        matches: vec![RouteMapMatch::IpAddressAccessList(AccessListName::new(
-            format!("pve_ospf_{fabric_id}_ips"),
-        ))],
-        sets: vec![RouteMapSet::Src(IpAddr::from(router_ip))],
+        action: ser::route_map::AccessAction::Permit,
+        matches: Vec::new(),
+        sets: vec![RouteMapSet::Src(router_ip)],
         custom_frr_config: Vec::new(),
         call: None,
         exit_action: None,
-    };
-
-    Ok((routemap_name, routemap))
+    }
 }
