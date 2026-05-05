@@ -11,6 +11,7 @@ use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
 use crate::sdn::fabric::FabricConfigError;
+use crate::sdn::prefix_list::PrefixListId;
 
 /// Protocol-specific options for an OpenFabric Fabric.
 #[api]
@@ -26,6 +27,12 @@ pub struct OpenfabricProperties {
     /// Packets (CSNP) interval in seconds. The interval range is 1 to 600.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) csnp_interval: Option<CsnpInterval>,
+
+    /// By default only routes from the configured IP prefix are imported into the local routing
+    /// table. This setting can be used to override the allowed IPs and import additional routes
+    /// besides the configured IP prefix.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) route_filter: Option<PrefixListId>,
 }
 
 impl Validatable for FabricSection<OpenfabricProperties> {
@@ -48,6 +55,7 @@ impl Validatable for FabricSection<OpenfabricProperties> {
 pub enum OpenfabricDeletableProperties {
     HelloInterval,
     CsnpInterval,
+    RouteFilter,
 }
 
 /// Properties for an OpenFabric node

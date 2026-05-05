@@ -655,6 +655,7 @@ impl FabricConfig {
                         OpenfabricPropertiesUpdater {
                             hello_interval,
                             csnp_interval,
+                            route_filter,
                         },
                     delete,
                 } = updater;
@@ -675,6 +676,10 @@ impl FabricConfig {
                     fabric_section.properties.csnp_interval = Some(csnp_interval);
                 }
 
+                if let Some(route_filter) = route_filter {
+                    fabric_section.properties.route_filter = Some(route_filter);
+                }
+
                 for property in delete {
                     match property {
                         FabricDeletableProperties::IpPrefix => {
@@ -689,6 +694,9 @@ impl FabricConfig {
                         FabricDeletableProperties::Protocol(
                             OpenfabricDeletableProperties::HelloInterval,
                         ) => fabric_section.properties.hello_interval = None,
+                        FabricDeletableProperties::Protocol(
+                            OpenfabricDeletableProperties::RouteFilter,
+                        ) => fabric_section.properties.route_filter = None,
                     }
                 }
 
@@ -698,7 +706,7 @@ impl FabricConfig {
                 let FabricSectionUpdater::<OspfPropertiesUpdater, OspfDeletableProperties> {
                     ip_prefix,
                     ip6_prefix,
-                    properties: OspfPropertiesUpdater { area },
+                    properties: OspfPropertiesUpdater { area, route_filter },
                     delete,
                 } = updater;
 
@@ -714,6 +722,10 @@ impl FabricConfig {
                     fabric_section.properties.area = area;
                 }
 
+                if let Some(route_filter) = route_filter {
+                    fabric_section.properties.route_filter = Some(route_filter);
+                }
+
                 for property in delete {
                     match property {
                         FabricDeletableProperties::IpPrefix => {
@@ -721,6 +733,11 @@ impl FabricConfig {
                         }
                         FabricDeletableProperties::Ip6Prefix => {
                             fabric_section.ip6_prefix = None;
+                        }
+                        FabricDeletableProperties::Protocol(
+                            OspfDeletableProperties::RouteFilter,
+                        ) => {
+                            fabric_section.properties.route_filter = None;
                         }
                     }
                 }

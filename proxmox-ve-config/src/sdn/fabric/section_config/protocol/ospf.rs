@@ -11,6 +11,7 @@ use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
 use crate::sdn::fabric::FabricConfigError;
+use crate::sdn::prefix_list::PrefixListId;
 
 #[api]
 #[derive(Debug, Clone, Serialize, Deserialize, Updater, Hash)]
@@ -18,6 +19,12 @@ use crate::sdn::fabric::FabricConfigError;
 pub struct OspfProperties {
     /// OSPF area
     pub(crate) area: Area,
+
+    /// By default only routes from the configured IP prefix are imported into the local routing
+    /// table. This setting can be used to override the allowed IPs and import additional routes
+    /// besides the configured IP prefix.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) route_filter: Option<PrefixListId>,
 }
 
 impl OspfProperties {
@@ -51,7 +58,9 @@ impl Validatable for FabricSection<OspfProperties> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum OspfDeletableProperties {}
+pub enum OspfDeletableProperties {
+    RouteFilter,
+}
 
 #[api(
     properties: {
