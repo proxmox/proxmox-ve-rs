@@ -441,6 +441,153 @@ impl ApiType for MatchAction {
     .schema();
 }
 
+#[cfg(feature = "frr")]
+pub mod frr {
+    //! Route Map Entry FRR types
+    //!
+    //! This module contains implementations of conversion traits for the section config types, so
+    //! they can be converted to the respective proxmox-frr types. This enables easy conversion to
+    //! the proxmox-frr types and makes it possible to generate the FRR configuration for the Route
+    //! Map entries.
+
+    use super::*;
+
+    use std::collections::HashMap;
+
+    use proxmox_frr::ser::{
+        route_map::{
+            RouteMapEntry as FrrRouteMapEntry, RouteMapExitAction as FrrRouteMapExitAction,
+            RouteMapMatch as FrrRouteMapMatch, RouteMapName as FrrRouteMapName,
+            RouteMapSet as FrrRouteMapSet,
+        },
+        FrrConfig,
+    };
+
+    use crate::sdn::route_map::RouteMapAction;
+
+    impl From<MatchAction> for FrrRouteMapMatch {
+        fn from(value: MatchAction) -> Self {
+            match value {
+                MatchAction::RouteType(evpn_route_type) => Self::RouteType(evpn_route_type),
+                MatchAction::Vni(vni) => Self::Vni(vni),
+                MatchAction::IpAddressPrefixList(prefix_list_name) => {
+                    Self::IpAddressPrefixList(prefix_list_name.into())
+                }
+                MatchAction::Ip6AddressPrefixList(prefix_list_name) => {
+                    Self::Ip6AddressPrefixList(prefix_list_name.into())
+                }
+                MatchAction::IpNextHopPrefixList(prefix_list_name) => {
+                    Self::IpNextHopPrefixList(prefix_list_name.into())
+                }
+                MatchAction::Ip6NextHopPrefixList(prefix_list_name) => {
+                    Self::Ip6NextHopPrefixList(prefix_list_name.into())
+                }
+                MatchAction::IpNextHopAddress(ipv4_addr) => Self::IpNextHopAddress(*ipv4_addr),
+                MatchAction::Ip6NextHopAddress(ipv6_addr) => Self::Ip6NextHopAddress(*ipv6_addr),
+                MatchAction::Metric(metric) => Self::Metric(metric),
+                MatchAction::LocalPreference(local_preference) => {
+                    Self::LocalPreference(local_preference)
+                }
+                MatchAction::Peer(ip_addr) => Self::Peer(ip_addr),
+                MatchAction::Tag(tag) => Self::Tag(tag),
+            }
+        }
+    }
+
+    impl From<SetAction> for FrrRouteMapSet {
+        fn from(value: SetAction) -> Self {
+            match value {
+                SetAction::IpNextHopPeerAddress => Self::IpNextHopPeerAddress,
+                SetAction::IpNextHopUnchanged => Self::IpNextHopUnchanged,
+                SetAction::IpNextHop(ipv4_addr) => Self::IpNextHop(*ipv4_addr),
+                SetAction::Ip6NextHopPeerAddress => Self::Ip6NextHopPeerAddress,
+                SetAction::Ip6NextHopPreferGlobal => Self::Ip6NextHopPreferGlobal,
+                SetAction::Ip6NextHop(ipv6_addr) => Self::Ip6NextHop(*ipv6_addr),
+                SetAction::LocalPreference(local_preference) => {
+                    Self::LocalPreference(local_preference)
+                }
+                SetAction::Tag(tag) => Self::Tag(tag),
+                SetAction::Weight(weight) => Self::Weight(weight),
+                SetAction::Metric(metric) => Self::Metric(metric),
+                SetAction::Src(src) => Self::Src(src),
+            }
+        }
+    }
+
+    impl From<ExitAction> for FrrRouteMapExitAction {
+        fn from(value: ExitAction) -> Self {
+            match value {
+                ExitAction::OnMatchNext => FrrRouteMapExitAction::OnMatchNext,
+                ExitAction::OnMatchGoto(n) => FrrRouteMapExitAction::OnMatchGoto(n),
+                ExitAction::Continue(n) => FrrRouteMapExitAction::Continue(n),
+            }
+        }
+    }
+
+    impl From<RouteMapId> for FrrRouteMapName {
+        fn from(value: RouteMapId) -> Self {
+            FrrRouteMapName::new(value.0)
+        }
+    }
+
+    impl From<RouteMapEntry> for FrrRouteMapEntry {
+        fn from(value: RouteMapEntry) -> FrrRouteMapEntry {
+            FrrRouteMapEntry {
+                seq: value.id.order,
+                action: match value.action {
+                    RouteMapAction::Permit => proxmox_frr::ser::route_map::AccessAction::Permit,
+                    RouteMapAction::Deny => proxmox_frr::ser::route_map::AccessAction::Deny,
+                },
+                matches: value
+                    .match_actions
+                    .into_iter()
+                    .map(|match_action| match_action.into_inner().into())
+                    .collect(),
+                sets: value
+                    .set_actions
+                    .into_iter()
+                    .map(|set_action| set_action.into_inner().into())
+                    .collect(),
+                call: value.call.map(FrrRouteMapName::from),
+                exit_action: value.exit_action.map(|value| value.into_inner().into()),
+                custom_frr_config: Default::default(),
+            }
+        }
+    }
+
+    /// Add a list of Route Map Entries to a [`FrrConfig`].
+    ///
+    /// This method takes a list of Route Map Entries and adds them to given FRR configuration.
+    /// If a route map with the same name as at least one entry in the config exists in the FRR
+    /// configuration, then the *whole* route map will get overwritten with the route map from the
+    /// configuration.
+    pub fn build_frr_route_maps(
+        config: impl IntoIterator<Item = RouteMap>,
+        frr_config: &mut FrrConfig,
+    ) -> Result<(), anyhow::Error> {
+        let mut config_route_map: HashMap<FrrRouteMapName, Vec<FrrRouteMapEntry>> = HashMap::new();
+
+        for route_map in config.into_iter() {
+            let RouteMap::RouteMapEntry(route_map) = route_map;
+            let route_map_name = FrrRouteMapName::new(route_map.id.route_map_id.to_string());
+
+            if let Some(frr_route_map) = config_route_map.get_mut(&route_map_name) {
+                let idx =
+                    frr_route_map.partition_point(|element| element.seq <= route_map.id().order());
+                frr_route_map.insert(idx, route_map.into());
+            } else {
+                config_route_map.insert(route_map_name, vec![route_map.into()]);
+            }
+        }
+
+        for (name, entries) in config_route_map {
+            frr_config.routemaps.insert(name, entries);
+        }
+
+        Ok(())
+    }
+}
+
 pub mod api {
     //! API type for Route Map Entries.
     //!
