@@ -310,10 +310,15 @@ fn build_ospf_interface(
         area,
         // Interfaces are always non-passive
         passive: None,
-        network_type: if interface.ip.is_some() {
-            None
-        } else {
-            Some(ser::ospf::NetworkType::PointToPoint)
+        network_type: match interface.network_type {
+            None => {
+                if interface.ip.is_some() {
+                    None
+                } else {
+                    Some(proxmox_sdn_types::ospf::NetworkType::PointToPoint)
+                }
+            }
+            Some(network_type) => Some(network_type),
         },
     };
 

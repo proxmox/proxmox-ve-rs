@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::Ipv4Cidr;
-use proxmox_sdn_types::area::Area;
+use proxmox_sdn_types::ospf::Area;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater};
@@ -133,6 +133,12 @@ pub struct OspfInterfaceProperties {
     /// If IP is unset, then this is an unnumbered interface
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) ip: Option<Ipv4Cidr>,
+
+    /// Network Type of the interface. Contains all the NetworkTypes from FRR, but also includes a
+    /// `None` variant which enables us to decide the network-type automatically depending on if a
+    /// ip is given or not. (This also enables this change to be backwards-compatible).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) network_type: Option<proxmox_sdn_types::ospf::NetworkType>,
 }
 
 impl OspfInterfaceProperties {

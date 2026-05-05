@@ -1,3 +1,5 @@
+use proxmox_schema::api;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::Ipv4Addr};
 
 use anyhow::Error;
@@ -60,4 +62,27 @@ impl Area {
             Area::IpAddress(ip) => *ip,
         }
     }
+}
+
+/// The NetworkType of the interface.
+///
+/// The most important options here are Broadcast (which is the default) and PointToPoint.
+/// When PointToPoint is set, then the interface has to have a /32 address and will be treated as
+/// unnumbered.
+#[api]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkType {
+    /// Broadcast
+    Broadcast,
+    /// Non-Broadcast
+    NonBroadcast,
+    /// If the interface is unnumbered (i.e. the router-id /32 ip-address is set on the interface).
+    ///
+    /// If OSPF is used in an unnumbered way, you don't need to configure peer-to-peer (e.g. /31)
+    /// addresses at every interface, but you just need to set the router-id at the interface
+    /// (/32). You also need to configure the `ip ospf network point-to-point` FRR option.
+    PointToPoint,
+    /// Point-to-Multipoint
+    PointToMultipoint,
 }
