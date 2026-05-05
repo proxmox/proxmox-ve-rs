@@ -125,6 +125,66 @@ pub enum PrefixList {
     PrefixList(PrefixListSection),
 }
 
+#[cfg(feature = "frr")]
+pub mod frr {
+    use super::*;
+
+    use proxmox_frr::ser::{
+        route_map::{
+            self, PrefixListName as FrrPrefixListName, PrefixListRule as FrrPrefixListRule,
+        },
+        FrrConfig,
+    };
+
+    impl From<PrefixListId> for FrrPrefixListName {
+        fn from(value: PrefixListId) -> Self {
+            FrrPrefixListName::new(value.0)
+        }
+    }
+
+    impl From<PrefixListEntry> for FrrPrefixListRule {
+        fn from(value: PrefixListEntry) -> Self {
+            FrrPrefixListRule {
+                action: match value.action {
+                    PrefixListAction::Permit => route_map::AccessAction::Permit,
+                    PrefixListAction::Deny => route_map::AccessAction::Deny,
+                },
+                network: value.prefix,
+                seq: value.seq,
+                le: value.le,
+                ge: value.ge,
+                is_ipv6: value.prefix.is_ipv6(),
+            }
+        }
+    }
+
+    /// Add a list of Prefix Lists to an [`FrrConfig`].
+    ///
+    /// This will overwrite existing Prefix Lists in the [`FrrConfig`]. Since this will be used for
+    /// generating the FRR configuration from the SDN stack, this enables users to override Prefix
+    /// Lists that are predefined by our stack.
+    pub fn build_frr_prefix_lists(
+        prefix_lists: impl IntoIterator<Item = PrefixList>,
+        frr_config: &mut FrrConfig,
+    ) -> Result<(), anyhow::Error> {
+        for prefix_list in prefix_lists {
+            let PrefixList::PrefixList(prefix_list) = prefix_list;
+            let prefix_list_name = FrrPrefixListName::new(prefix_list.id.0);
+
+            frr_config.prefix_lists.insert(
+                prefix_list_name,
+                prefix_list
+                    .entries
+                    .into_iter()
+                    .map(|prefix_list| prefix_list.into_inner().into())
+                    .collect(),
+            );
+        }
+
+        Ok(())
+    }
+}
+
 pub mod api {
     use super::*;
 
