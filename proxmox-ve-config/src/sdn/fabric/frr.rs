@@ -5,8 +5,7 @@ use tracing;
 use proxmox_frr::ser::openfabric::{OpenfabricInterface, OpenfabricRouter, OpenfabricRouterName};
 use proxmox_frr::ser::ospf::{self, OspfInterface, OspfRouter};
 use proxmox_frr::ser::route_map::{
-    AccessAction, AccessListName, AccessListOrPrefixList, RouteMapEntry, RouteMapMatch,
-    RouteMapMatchInner, RouteMapName, RouteMapSet,
+    AccessAction, AccessListName, RouteMapEntry, RouteMapMatch, RouteMapName, RouteMapSet,
 };
 use proxmox_frr::ser::{
     self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName, IpProtocolRouteMap,
@@ -390,7 +389,7 @@ fn build_openfabric_dummy_interface(
 fn build_openfabric_routemap(
     fabric_id: &FabricId,
     router_ip: IpAddr,
-    seq: u32,
+    seq: u16,
 ) -> (RouteMapName, RouteMapEntry) {
     let routemap_name = match router_ip {
         IpAddr::V4(_) => ser::route_map::RouteMapName::new("pve_openfabric".to_owned()),
@@ -402,19 +401,17 @@ fn build_openfabric_routemap(
             seq,
             action: ser::route_map::AccessAction::Permit,
             matches: vec![match router_ip {
-                IpAddr::V4(_) => RouteMapMatch::V4(RouteMapMatchInner::Address(
-                    AccessListOrPrefixList::AccessList(AccessListName::new(format!(
-                        "pve_openfabric_{fabric_id}_ips"
-                    ))),
-                )),
-                IpAddr::V6(_) => RouteMapMatch::V6(RouteMapMatchInner::Address(
-                    AccessListOrPrefixList::AccessList(AccessListName::new(format!(
-                        "pve_openfabric_{fabric_id}_ip6s"
-                    ))),
-                )),
+                IpAddr::V4(_) => RouteMapMatch::IpAddressAccessList(AccessListName::new(format!(
+                    "pve_openfabric_{fabric_id}_ips"
+                ))),
+                IpAddr::V6(_) => RouteMapMatch::Ip6AddressAccessList(AccessListName::new(format!(
+                    "pve_openfabric_{fabric_id}_ip6s"
+                ))),
             }],
             sets: vec![RouteMapSet::Src(router_ip)],
             custom_frr_config: Vec::new(),
+            call: None,
+            exit_action: None,
         },
     )
 }
@@ -423,20 +420,20 @@ fn build_openfabric_routemap(
 fn build_ospf_dummy_routemap(
     fabric_id: &FabricId,
     router_ip: Ipv4Addr,
-    seq: u32,
+    seq: u16,
 ) -> Result<(RouteMapName, RouteMapEntry), anyhow::Error> {
     let routemap_name = ser::route_map::RouteMapName::new("pve_ospf".to_owned());
     // create route-map
     let routemap = RouteMapEntry {
         seq,
         action: AccessAction::Permit,
-        matches: vec![RouteMapMatch::V4(RouteMapMatchInner::Address(
-            AccessListOrPrefixList::AccessList(AccessListName::new(format!(
-                "pve_ospf_{fabric_id}_ips"
-            ))),
+        matches: vec![RouteMapMatch::IpAddressAccessList(AccessListName::new(
+            format!("pve_ospf_{fabric_id}_ips"),
         ))],
         sets: vec![RouteMapSet::Src(IpAddr::from(router_ip))],
         custom_frr_config: Vec::new(),
+        call: None,
+        exit_action: None,
     };
 
     Ok((routemap_name, routemap))
