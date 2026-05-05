@@ -178,7 +178,7 @@ pub enum FrrProtocol {
     Bgp,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct IpProtocolRouteMap {
     pub v4: Option<RouteMapName>,
     pub v6: Option<RouteMapName>,
