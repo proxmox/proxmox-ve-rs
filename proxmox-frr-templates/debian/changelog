@@ -1,3 +1,13 @@
+proxmox-frr-templates (0.1.1) trixie; urgency=medium
+
+  * change route maps template to adapt to new frr types. Instead of defining
+    every potential match / set type manually under a different name,
+    proxmox-frr now uses the adjacently-tagged representation for serializing
+    key/value pairs for match/set actions. This allows simplifying the
+    route_maps template by simply rendering the respective key / value fields.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 00:18:31 +0200
+
 proxmox-frr-templates (0.1.0) trixie; urgency=medium
 
   * Initial release.
