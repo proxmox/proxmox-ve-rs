@@ -1,3 +1,12 @@
+rust-proxmox-ve-config (0.6.1) trixie; urgency=medium
+
+  * sdn: add doc-comment to PrefixList enum which the API macro requires for
+    use as description.
+
+  * avoid panicking if fabric node id does not match expected pattern.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 May 2026 12:10:23 +0200
+
 rust-proxmox-ve-config (0.6.0) trixie; urgency=medium
 
   * fix #6399: firewall: treat everything after the first hash sign in a rule
