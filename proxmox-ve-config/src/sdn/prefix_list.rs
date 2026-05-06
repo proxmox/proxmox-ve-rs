@@ -110,6 +110,7 @@ pub struct PrefixListEntry {
     seq: Option<u32>,
 }
 
+/// Prefix List section config entry.
 #[api(
     "id-property": "id",
     "id-schema": {
