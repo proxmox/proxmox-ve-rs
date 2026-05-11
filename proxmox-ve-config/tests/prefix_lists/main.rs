@@ -13,11 +13,11 @@ use proxmox_section_config::typed::ApiSectionDataEntry;
 fn test_build_prefix_list() -> Result<(), anyhow::Error> {
     let section_config = r#"
 prefix-list: example-1
-  entries action=permit,prefix=192.0.2.0/24
-  entries action=permit,prefix=192.0.2.0/24,le=32
+  entries action=permit,prefix=192.0.2.0/24,seq=1
+  entries action=permit,prefix=192.0.2.0/24,le=32,seq=4
   entries action=permit,prefix=192.0.2.0/24,le=32,ge=24,seq=123
-  entries action=permit,prefix=192.0.2.0/24,ge=24
-  entries action=permit,prefix=192.0.2.0/24,ge=24,le=31
+  entries action=permit,prefix=192.0.2.0/24,ge=24,seq=3
+  entries action=permit,prefix=192.0.2.0/24,ge=24,le=31,seq=2
 
 prefix-list: example-3
   entries action=permit,prefix=192.0.2.0/24,seq=333
@@ -25,8 +25,8 @@ prefix-list: example-3
   entries action=permit,prefix=203.0.113.0/24,seq=111
 
 prefix-list: example-2
-  entries action=deny,prefix=192.0.2.0/24,le=25
-  entries action=permit,prefix=192.0.2.0/24
+  entries action=deny,prefix=192.0.2.0/24,le=25,seq=111
+  entries action=permit,prefix=192.0.2.0/24,seq=121
 "#;
 
     let config = PrefixList::parse_section_config("prefix-lists.cfg", section_config)?;
@@ -42,14 +42,14 @@ prefix-list: example-2
     assert_eq!(
         dump(&frr_config)?,
         r#"!
-ip prefix-list example-1 permit 192.0.2.0/24
-ip prefix-list example-1 permit 192.0.2.0/24 le 32
+ip prefix-list example-1 seq 1 permit 192.0.2.0/24
+ip prefix-list example-1 seq 4 permit 192.0.2.0/24 le 32
 ip prefix-list example-1 seq 123 permit 192.0.2.0/24 le 32 ge 24
-ip prefix-list example-1 permit 192.0.2.0/24 ge 24
-ip prefix-list example-1 permit 192.0.2.0/24 le 31 ge 24
+ip prefix-list example-1 seq 3 permit 192.0.2.0/24 ge 24
+ip prefix-list example-1 seq 2 permit 192.0.2.0/24 le 31 ge 24
 !
-ip prefix-list example-2 deny 192.0.2.0/24 le 25
-ip prefix-list example-2 permit 192.0.2.0/24
+ip prefix-list example-2 seq 111 deny 192.0.2.0/24 le 25
+ip prefix-list example-2 seq 121 permit 192.0.2.0/24
 !
 ip prefix-list example-3 seq 333 permit 192.0.2.0/24
 ip prefix-list example-3 seq 222 permit 198.51.100.0/24
@@ -64,7 +64,7 @@ ip prefix-list example-3 seq 111 permit 203.0.113.0/24
 fn test_build_prefix_list_overwrite() -> Result<(), anyhow::Error> {
     let section_config = r#"
 prefix-list: example-1
-  entries action=permit,prefix=192.0.2.0/24
+  entries action=permit,prefix=192.0.2.0/24,seq=234
 "#;
 
     let config = PrefixList::parse_section_config("prefix-lists.cfg", section_config)?;
@@ -72,7 +72,7 @@ prefix-list: example-1
     let example_1_prefix_list = vec![FrrPrefixListRule {
         action: AccessAction::Deny,
         network: Cidr::new_v4([198, 51, 100, 0], 24).unwrap(),
-        seq: None,
+        seq: Some(234),
         le: None,
         ge: None,
         is_ipv6: false,
@@ -104,7 +104,7 @@ prefix-list: example-1
     assert_eq!(
         generated_frr_config,
         r#"!
-ip prefix-list example-1 permit 192.0.2.0/24
+ip prefix-list example-1 seq 234 permit 192.0.2.0/24
 "#
     );
 
