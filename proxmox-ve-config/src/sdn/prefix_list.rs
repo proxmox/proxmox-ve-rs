@@ -31,6 +31,8 @@ use proxmox_schema::{
     UpdaterType,
 };
 
+use crate::common::valid::Validatable;
+
 pub const PREFIX_LIST_ID_REGEX_STR: &str =
     r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-_]){0,30}(?:[a-zA-Z0-9]){0,1})";
 
@@ -82,7 +84,26 @@ pub struct PrefixListSection {
     pub(crate) entries: Vec<PropertyString<PrefixListEntry>>,
 }
 
+impl Validatable for PrefixListSection {
+    type Error = anyhow::Error;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        for entry in &self.entries {
+            entry.validate()?
+        }
+
+        Ok(())
+    }
+}
+
 impl PrefixListSection {
+    pub fn new(id: PrefixListId) -> Self {
+        Self {
+            id,
+            entries: Vec::new(),
+        }
+    }
+
     /// Return the ID of the Prefix List.
     pub fn id(&self) -> &PrefixListId {
         &self.id
@@ -202,6 +223,8 @@ impl PrefixListSection {
             anyhow::bail!("entry with sequence number {} already exists", entry.seq);
         }
 
+        entry.validate()?;
+
         self.entries.push(entry.into());
         Ok(())
     }
@@ -236,41 +259,48 @@ impl PrefixListSection {
             }
         }
 
-        let mut existing_entry = self.remove_entry(old_seq).ok_or_else(|| {
+        let original_entry = self.remove_entry(old_seq).ok_or_else(|| {
             anyhow::anyhow!("entry with sequence number {old_seq} does not exist!")
         })?;
+        let mut new_entry = original_entry.clone();
 
         if let Some(seq) = seq {
-            existing_entry.seq = seq;
+            new_entry.seq = seq;
         }
 
         if let Some(action) = action {
-            existing_entry.action = action;
+            new_entry.action = action;
         }
 
         if let Some(prefix) = prefix {
-            existing_entry.prefix = prefix;
+            new_entry.prefix = prefix;
         }
 
         if let Some(le) = le {
-            existing_entry.le = Some(le);
+            new_entry.le = Some(le);
         }
 
         if let Some(ge) = ge {
-            existing_entry.ge = Some(ge);
+            new_entry.ge = Some(ge);
         }
 
         for property in delete {
             match property {
-                api::PrefixListEntryDeletableProperties::Le => existing_entry.le = None,
-                api::PrefixListEntryDeletableProperties::Ge => existing_entry.ge = None,
+                api::PrefixListEntryDeletableProperties::Le => new_entry.le = None,
+                api::PrefixListEntryDeletableProperties::Ge => new_entry.ge = None,
                 api::PrefixListEntryDeletableProperties::Seq => {
-                    existing_entry.seq = self.next_seq_number()
+                    new_entry.seq = self.next_seq_number()
                 }
             }
         }
 
-        self.try_insert_entry(existing_entry)
+        if let Err(error) = self.try_insert_entry(new_entry) {
+            // Restore the original entry on failure; it was valid by construction.
+            self.entries.push(original_entry.into());
+            return Err(error);
+        }
+
+        Ok(())
     }
 }
 
@@ -294,6 +324,48 @@ pub struct PrefixListEntry {
     seq: u32,
 }
 
+impl Validatable for PrefixListEntry {
+    type Error = anyhow::Error;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        // Ensure that:
+        // prefixmask <= ge <= le
+
+        let (max_mask, current_mask) = match self.prefix {
+            Cidr::Ipv4(ipv4_cidr) => (32, ipv4_cidr.mask() as u32),
+            Cidr::Ipv6(ipv6_cidr) => (128, ipv6_cidr.mask() as u32),
+        };
+
+        if let Some(le) = self.le {
+            if le > max_mask {
+                anyhow::bail!("Prefix <= must not be greater than {max_mask}");
+            }
+
+            if current_mask > le {
+                anyhow::bail!("Prefix <= must not be less than {current_mask}");
+            }
+
+            if let Some(ge) = self.ge {
+                if ge > le {
+                    anyhow::bail!("Prefix >= ({ge}) must not be greater than Prefix <= ({le})");
+                }
+            }
+        }
+
+        if let Some(ge) = self.ge {
+            if ge > max_mask {
+                anyhow::bail!("Prefix >= must not be greater than {max_mask}");
+            }
+
+            if current_mask > ge {
+                anyhow::bail!("Prefix >= must not be less than {current_mask}");
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl PrefixListEntry {
     pub fn seq(&self) -> u32 {
         self.seq
@@ -315,6 +387,15 @@ impl PrefixListEntry {
 pub enum PrefixList {
     /// A prefix list.
     PrefixList(PrefixListSection),
+}
+
+impl Validatable for PrefixList {
+    type Error = anyhow::Error;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        let PrefixList::PrefixList(prefix_list_section) = self;
+        prefix_list_section.validate()
+    }
 }
 
 #[cfg(feature = "frr")]
@@ -490,6 +571,206 @@ prefix-list: somelist
 "#;
 
         PrefixList::parse_section_config("prefix-lists.cfg", section_config)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_prefix_list_seq_nr() -> Result<(), anyhow::Error> {
+        let mut prefix_list = PrefixListSection::new(
+            PrefixListId::from_string("test".to_string()).expect("valid prefix list id"),
+        );
+
+        assert_eq!(prefix_list.next_seq_number(), 5);
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: None,
+                seq: 100,
+            })
+            .expect("valid entry");
+
+        assert_eq!(prefix_list.next_seq_number(), 105);
+
+        prefix_list.remove_entry(100).expect("could be removed");
+        assert_eq!(prefix_list.next_seq_number(), 5);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_prefix_list_entry_update() -> Result<(), anyhow::Error> {
+        let mut prefix_list = PrefixListSection::new(
+            PrefixListId::from_string("test".to_string()).expect("valid prefix list id"),
+        );
+
+        assert_eq!(prefix_list.next_seq_number(), 5);
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: None,
+                seq: 100,
+            })
+            .expect("valid entry");
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: None,
+                seq: 200,
+            })
+            .expect("valid entry");
+
+        prefix_list
+            .try_update_entry(
+                100,
+                api::PrefixListEntryUpdater {
+                    action: None,
+                    prefix: None,
+                    le: None,
+                    ge: None,
+                    seq: Some(200),
+                },
+                Vec::new(),
+            )
+            .expect_err("seq nr already exists");
+
+        prefix_list
+            .try_update_entry(
+                150,
+                api::PrefixListEntryUpdater {
+                    action: None,
+                    prefix: None,
+                    le: None,
+                    ge: None,
+                    seq: Some(100),
+                },
+                Vec::new(),
+            )
+            .expect_err("old seq nr doesn't exist");
+
+        prefix_list
+            .try_update_entry(
+                100,
+                api::PrefixListEntryUpdater {
+                    action: None,
+                    prefix: None,
+                    le: None,
+                    ge: None,
+                    seq: Some(10),
+                },
+                Vec::new(),
+            )
+            .expect("changing sequence number from 100 to 10 works");
+
+        prefix_list
+            .entry(10)
+            .expect("entry has been successfully updated");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_prefix_list_entry() -> Result<(), anyhow::Error> {
+        let mut prefix_list = PrefixListSection::new(
+            PrefixListId::from_string("test".to_string()).expect("valid prefix list id"),
+        );
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: Some(23),
+                ge: None,
+                seq: 100,
+            })
+            .expect_err("le smaller than prefix mask");
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: Some(23),
+                seq: 100,
+            })
+            .expect_err("ge smaller than prefix mask");
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: Some(25),
+                ge: Some(27),
+                seq: 100,
+            })
+            .expect_err("ge greater than le");
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: None,
+                seq: 100,
+            })
+            .expect("valid entry");
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: None,
+                ge: None,
+                seq: 100,
+            })
+            .expect_err("entry with seq already exists");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_prefix_list_entry_update_rolls_back_on_validation_failure(
+    ) -> Result<(), anyhow::Error> {
+        let mut prefix_list = PrefixListSection::new(
+            PrefixListId::from_string("test".to_string()).expect("valid prefix list id"),
+        );
+
+        prefix_list
+            .try_insert_entry(PrefixListEntry {
+                action: PrefixListAction::Permit,
+                prefix: Cidr::new_v4([192, 0, 2, 0], 24).expect("valid cidr"),
+                le: Some(28),
+                ge: Some(25),
+                seq: 100,
+            })
+            .expect("valid entry");
+
+        prefix_list
+            .try_update_entry(
+                100,
+                api::PrefixListEntryUpdater {
+                    action: None,
+                    prefix: None,
+                    le: Some(23),
+                    ge: None,
+                    seq: None,
+                },
+                Vec::new(),
+            )
+            .expect_err("le smaller than prefix mask");
+
+        let entry = prefix_list.entry(100).expect("original entry preserved");
+        assert_eq!(entry.le, Some(28));
+        assert_eq!(entry.ge, Some(25));
+
         Ok(())
     }
 }
