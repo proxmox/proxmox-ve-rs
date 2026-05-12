@@ -162,65 +162,33 @@ where
     }
 }
 
-impl Entry<OpenfabricProperties, OpenfabricNodeProperties> {
-    /// Get the OpenFabric fabric config.
-    ///
-    /// This method is implemented for [`Entry<OpenfabricProperties, OpenfabricNodeProperties>`],
-    /// so it is guaranteed that a [`FabricSection<OpenfabricProperties>`] is returned.
-    pub fn fabric_section(&self) -> &FabricSection<OpenfabricProperties> {
-        if let Fabric::Openfabric(section) = &self.fabric {
-            return section;
+macro_rules! impl_entry {
+    ($variant:ident, $propty:ty, $nodepropty:ty) => {
+        impl Entry<$propty, $nodepropty> {
+            pub fn fabric_section(&self) -> &FabricSection<$propty> {
+                if let Fabric::$variant(section) = &self.fabric {
+                    return section;
+                }
+
+                unreachable!();
+            }
+
+            pub fn node_section(
+                &self,
+                id: &NodeId,
+            ) -> Result<&NodeSection<$nodepropty>, FabricConfigError> {
+                if let Node::$variant(section) = self.get_node(id)? {
+                    return Ok(section);
+                }
+
+                unreachable!();
+            }
         }
-
-        unreachable!();
-    }
-
-    /// Get the OpenFabric node config for the given node_id.
-    ///
-    /// This method is implemented for [`Entry<OpenfabricProperties, OpenfabricNodeProperties>`],
-    /// so it is guaranteed that a [`NodeSection<OpenfabricNodeProperties>`] is returned.
-    /// An error is returned if the node is not found.
-    pub fn node_section(
-        &self,
-        id: &NodeId,
-    ) -> Result<&NodeSection<OpenfabricNodeProperties>, FabricConfigError> {
-        if let Node::Openfabric(section) = self.get_node(id)? {
-            return Ok(section);
-        }
-
-        unreachable!();
-    }
+    };
 }
 
-impl Entry<OspfProperties, OspfNodeProperties> {
-    /// Get the OSPF fabric config.
-    ///
-    /// This method is implemented for [`Entry<OspfProperties, OspfNodeProperties>`],
-    /// so it is guaranteed that a [`FabricSection<OspfProperties>`] is returned.
-    pub fn fabric_section(&self) -> &FabricSection<OspfProperties> {
-        if let Fabric::Ospf(section) = &self.fabric {
-            return section;
-        }
-
-        unreachable!();
-    }
-
-    /// Get the OSPF node config for the given node_id.
-    ///
-    /// This method is implemented for [`Entry<OspfProperties, OspfNodeProperties>`],
-    /// so it is guaranteed that a [`NodeSection<OspfNodeProperties>`] is returned.
-    /// An error is returned if the node is not found.
-    pub fn node_section(
-        &self,
-        id: &NodeId,
-    ) -> Result<&NodeSection<OspfNodeProperties>, FabricConfigError> {
-        if let Node::Ospf(section) = self.get_node(id)? {
-            return Ok(section);
-        }
-
-        unreachable!();
-    }
-}
+impl_entry!(Openfabric, OpenfabricProperties, OpenfabricNodeProperties);
+impl_entry!(Ospf, OspfProperties, OspfNodeProperties);
 
 /// All possible entries in a [`FabricConfig`].
 ///
