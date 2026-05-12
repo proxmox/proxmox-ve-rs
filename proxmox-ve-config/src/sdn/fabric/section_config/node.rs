@@ -10,6 +10,7 @@ use proxmox_schema::{
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::section_config::protocol::wireguard::WireGuardNode;
 use crate::sdn::fabric::section_config::{
     fabric::{FabricId, FABRIC_ID_REGEX_STR},
     protocol::{openfabric::OpenfabricNodeProperties, ospf::OspfNodeProperties},
@@ -149,8 +150,8 @@ impl<T> NodeSection<T> {
     /// Get the IPv4 address (Router-ID) of the [`NodeSection`].
     ///
     /// Either the [`NodeSection::ip`] (IPv4) address or the [`NodeSection::ip6`] (IPv6) address *must*
-    /// be set. This is checked during the validation, so it's guaranteed. OpenFabric can also be
-    /// used dual-stack, so both IPv4 and IPv6 addresses can be set.
+    /// be set. This is checked during the validation, so it's guaranteed. OpenFabric and WireGuard
+    /// can also be used dual-stack, so both IPv4 and IPv6 addresses can be set.
     pub fn ip(&self) -> Option<std::net::Ipv4Addr> {
         self.ip.as_deref().copied()
     }
@@ -158,8 +159,8 @@ impl<T> NodeSection<T> {
     /// Get the IPv6 address (Router-ID) of the [`NodeSection`].
     ///
     /// Either the [`NodeSection::ip`] (IPv4) address or the [`NodeSection::ip6`] (IPv6) address *must*
-    /// be set. This is checked during the validation, so it's guaranteed. OpenFabric can also be
-    /// used dual-stack, so both IPv4 and IPv6 addresses can be set.
+    /// be set. This is checked during the validation, so it's guaranteed. OpenFabric and WireGuard
+    /// can also be used dual-stack, so both IPv4 and IPv6 addresses can be set.
     pub fn ip6(&self) -> Option<std::net::Ipv6Addr> {
         self.ip6.as_deref().copied()
     }
@@ -188,6 +189,8 @@ impl<T: ApiType> ApiType for NodeSection<T> {
 pub enum Node {
     Openfabric(NodeSection<OpenfabricNodeProperties>),
     Ospf(NodeSection<OspfNodeProperties>),
+    #[serde(rename = "wireguard")]
+    WireGuard(NodeSection<WireGuardNode>),
 }
 
 impl Node {
@@ -196,6 +199,7 @@ impl Node {
         match self {
             Node::Openfabric(node_section) => node_section.id(),
             Node::Ospf(node_section) => node_section.id(),
+            Node::WireGuard(node_section) => node_section.id(),
         }
     }
 
@@ -204,6 +208,7 @@ impl Node {
         match self {
             Node::Openfabric(node_section) => node_section.ip(),
             Node::Ospf(node_section) => node_section.ip(),
+            Node::WireGuard(node_section) => node_section.ip(),
         }
     }
 
@@ -212,6 +217,7 @@ impl Node {
         match self {
             Node::Openfabric(node_section) => node_section.ip6(),
             Node::Ospf(node_section) => node_section.ip6(),
+            Node::WireGuard(node_section) => node_section.ip6(),
         }
     }
 }
@@ -223,6 +229,7 @@ impl Validatable for Node {
         match self {
             Node::Openfabric(node_section) => node_section.validate(),
             Node::Ospf(node_section) => node_section.validate(),
+            Node::WireGuard(_node_section) => Ok(()),
         }
     }
 }
@@ -236,6 +243,12 @@ impl From<NodeSection<OpenfabricNodeProperties>> for Node {
 impl From<NodeSection<OspfNodeProperties>> for Node {
     fn from(value: NodeSection<OspfNodeProperties>) -> Self {
         Self::Ospf(value)
+    }
+}
+
+impl From<NodeSection<WireGuardNode>> for Node {
+    fn from(value: NodeSection<WireGuardNode>) -> Self {
+        Self::WireGuard(value)
     }
 }
 
@@ -265,6 +278,7 @@ pub mod api {
             OpenfabricNodePropertiesUpdater,
         },
         ospf::{OspfNodeDeletableProperties, OspfNodeProperties, OspfNodePropertiesUpdater},
+        wireguard::{WireGuardNodeDeletableProperties, WireGuardNodeUpdater},
     };
 
     use super::*;
@@ -322,6 +336,8 @@ pub mod api {
     pub enum Node {
         Openfabric(NodeData<OpenfabricNodeProperties>),
         Ospf(NodeData<OspfNodeProperties>),
+        #[serde(rename = "wireguard")]
+        WireGuard(NodeData<WireGuardNode>),
     }
 
     impl From<super::Node> for Node {
@@ -329,6 +345,7 @@ pub mod api {
             match value {
                 super::Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
                 super::Node::Ospf(node_section) => Self::Ospf(node_section.into()),
+                super::Node::WireGuard(node_section) => Self::WireGuard(node_section.into()),
             }
         }
     }
@@ -338,6 +355,7 @@ pub mod api {
             match value {
                 Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
                 Node::Ospf(node_section) => Self::Ospf(node_section.into()),
+                Node::WireGuard(node_section) => Self::WireGuard(node_section.into()),
             }
         }
     }
@@ -349,6 +367,10 @@ pub mod api {
 
     impl UpdaterType for NodeData<OspfNodeProperties> {
         type Updater = NodeDataUpdater<OspfNodePropertiesUpdater, OspfNodeDeletableProperties>;
+    }
+
+    impl UpdaterType for NodeData<WireGuardNode> {
+        type Updater = NodeDataUpdater<WireGuardNodeUpdater, WireGuardNodeDeletableProperties>;
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -386,6 +408,8 @@ pub mod api {
             NodeDataUpdater<OpenfabricNodePropertiesUpdater, OpenfabricNodeDeletableProperties>,
         ),
         Ospf(NodeDataUpdater<OspfNodePropertiesUpdater, OspfNodeDeletableProperties>),
+        #[serde(rename = "wireguard")]
+        WireGuard(NodeDataUpdater<WireGuardNodeUpdater, WireGuardNodeDeletableProperties>),
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]

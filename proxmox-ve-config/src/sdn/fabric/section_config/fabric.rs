@@ -16,6 +16,10 @@ use crate::sdn::fabric::section_config::protocol::ospf::{
 };
 use crate::sdn::fabric::FabricConfigError;
 
+use super::protocol::wireguard::{
+    WireGuardDeletableProperties, WireGuardProperties, WireGuardPropertiesUpdater,
+};
+
 pub const FABRIC_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9])(?:[a-zA-Z0-9\-]){0,6}(?:[a-zA-Z0-9])?";
 
 const_regex! {
@@ -139,6 +143,10 @@ impl UpdaterType for FabricSection<OspfProperties> {
     type Updater = FabricSectionUpdater<OspfPropertiesUpdater, OspfDeletableProperties>;
 }
 
+impl UpdaterType for FabricSection<WireGuardProperties> {
+    type Updater = FabricSectionUpdater<WireGuardPropertiesUpdater, WireGuardDeletableProperties>;
+}
+
 /// Enum containing all types of fabrics.
 ///
 /// It utilizes [`FabricSection<T>`] to define all possible types of fabrics. For parsing the
@@ -159,6 +167,8 @@ impl UpdaterType for FabricSection<OspfProperties> {
 pub enum Fabric {
     Openfabric(FabricSection<OpenfabricProperties>),
     Ospf(FabricSection<OspfProperties>),
+    #[serde(rename = "wireguard")]
+    WireGuard(FabricSection<WireGuardProperties>),
 }
 
 impl UpdaterType for Fabric {
@@ -173,6 +183,7 @@ impl Fabric {
         match self {
             Self::Openfabric(fabric_section) => fabric_section.id(),
             Self::Ospf(fabric_section) => fabric_section.id(),
+            Self::WireGuard(fabric_section) => fabric_section.id(),
         }
     }
 
@@ -183,6 +194,7 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip_prefix(),
+            Fabric::WireGuard(fabric_section) => fabric_section.ip_prefix(),
         }
     }
 
@@ -193,6 +205,7 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
             Fabric::Ospf(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
+            Fabric::WireGuard(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
         }
     }
 
@@ -203,6 +216,7 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix(),
+            Fabric::WireGuard(fabric_section) => fabric_section.ip6_prefix(),
         }
     }
 
@@ -213,6 +227,7 @@ impl Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
+            Fabric::WireGuard(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
         }
     }
 }
@@ -225,6 +240,7 @@ impl Validatable for Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.validate(),
             Fabric::Ospf(fabric_section) => fabric_section.validate(),
+            Fabric::WireGuard(_fabric_section) => Ok(()),
         }
     }
 }
@@ -241,12 +257,20 @@ impl From<FabricSection<OspfProperties>> for Fabric {
     }
 }
 
+impl From<FabricSection<WireGuardProperties>> for Fabric {
+    fn from(section: FabricSection<WireGuardProperties>) -> Self {
+        Fabric::WireGuard(section)
+    }
+}
+
 /// Enum containing all updater types for fabrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum FabricUpdater {
     Openfabric(<FabricSection<OpenfabricProperties> as UpdaterType>::Updater),
     Ospf(<FabricSection<OspfProperties> as UpdaterType>::Updater),
+    #[serde(rename = "wireguard")]
+    WireGuard(<FabricSection<WireGuardProperties> as UpdaterType>::Updater),
 }
 
 impl Updater for FabricUpdater {
@@ -254,6 +278,7 @@ impl Updater for FabricUpdater {
         match self {
             FabricUpdater::Openfabric(updater) => updater.is_empty(),
             FabricUpdater::Ospf(updater) => updater.is_empty(),
+            FabricUpdater::WireGuard(updater) => updater.is_empty(),
         }
     }
 }

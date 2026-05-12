@@ -278,6 +278,7 @@ pub fn build_fabric(
 
                 protocol_routemap.v4 = Some(routemap_name);
             }
+            FabricEntry::WireGuard(_) => {} // not a frr fabric
         }
     }
 

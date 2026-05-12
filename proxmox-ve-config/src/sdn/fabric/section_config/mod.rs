@@ -4,6 +4,7 @@ pub mod node;
 pub mod protocol;
 
 use const_format::concatcp;
+use protocol::wireguard::WireGuardProperties;
 use serde::{Deserialize, Serialize};
 
 use crate::sdn::fabric::section_config::{
@@ -12,6 +13,7 @@ use crate::sdn::fabric::section_config::{
     protocol::{
         openfabric::{OpenfabricNodeProperties, OpenfabricProperties},
         ospf::{OspfNodeProperties, OspfProperties},
+        wireguard::WireGuardNode,
     },
 };
 
@@ -31,8 +33,10 @@ impl From<Section> for FabricOrNode<Fabric, Node> {
         match section {
             Section::OpenfabricFabric(fabric_section) => Self::Fabric(fabric_section.into()),
             Section::OspfFabric(fabric_section) => Self::Fabric(fabric_section.into()),
+            Section::WireGuardFabric(fabric_section) => Self::Fabric(fabric_section.into()),
             Section::OpenfabricNode(node_section) => Self::Node(node_section.into()),
             Section::OspfNode(node_section) => Self::Node(node_section.into()),
+            Section::WireGuardNode(node_section) => Self::Node(node_section.into()),
         }
     }
 }
@@ -62,8 +66,12 @@ pub const SECTION_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SECTION
 pub enum Section {
     OpenfabricFabric(FabricSection<OpenfabricProperties>),
     OspfFabric(FabricSection<OspfProperties>),
+    #[serde(rename = "wireguard_fabric")]
+    WireGuardFabric(FabricSection<WireGuardProperties>),
     OpenfabricNode(NodeSection<OpenfabricNodeProperties>),
     OspfNode(NodeSection<OspfNodeProperties>),
+    #[serde(rename = "wireguard_node")]
+    WireGuardNode(NodeSection<WireGuardNode>),
 }
 
 impl From<FabricSection<OpenfabricProperties>> for Section {
@@ -75,6 +83,12 @@ impl From<FabricSection<OpenfabricProperties>> for Section {
 impl From<FabricSection<OspfProperties>> for Section {
     fn from(section: FabricSection<OspfProperties>) -> Self {
         Self::OspfFabric(section)
+    }
+}
+
+impl From<FabricSection<WireGuardProperties>> for Section {
+    fn from(section: FabricSection<WireGuardProperties>) -> Self {
+        Self::WireGuardFabric(section)
     }
 }
 
@@ -90,11 +104,18 @@ impl From<NodeSection<OspfNodeProperties>> for Section {
     }
 }
 
+impl From<NodeSection<WireGuardNode>> for Section {
+    fn from(section: NodeSection<WireGuardNode>) -> Self {
+        Self::WireGuardNode(section)
+    }
+}
+
 impl From<Fabric> for Section {
     fn from(fabric: Fabric) -> Self {
         match fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.into(),
             Fabric::Ospf(fabric_section) => fabric_section.into(),
+            Fabric::WireGuard(fabric_section) => fabric_section.into(),
         }
     }
 }
@@ -104,6 +125,43 @@ impl From<Node> for Section {
         match node {
             Node::Openfabric(node_section) => node_section.into(),
             Node::Ospf(node_section) => node_section.into(),
+            Node::WireGuard(node_section) => node_section.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sdn::fabric::FabricConfig;
+    use proxmox_section_config::typed::ApiSectionDataEntry;
+
+    use super::*;
+
+    #[test]
+    fn test_wireguard_fabric() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_external
+    role external
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+
+wireguard_node: wireg_pve1
+    role internal
+    endpoint 192.0.2.2
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    peers type=internal,node=pve2,node_iface=wg0,iface=wg0
+
+wireguard_node: wireg_pve2
+    role internal
+    endpoint 192.0.2.3
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    peers type=internal,node=pve1,node_iface=wg0,iface=wg0
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config).expect("valid wireguard configuration");
+
+        Ok(())
     }
 }

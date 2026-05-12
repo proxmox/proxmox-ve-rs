@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 
 use anyhow::Error;
+use section_config::protocol::wireguard::WireGuardProperties;
 use serde::{Deserialize, Serialize};
 
 use proxmox_section_config::typed::{ApiSectionDataEntry, SectionConfigData};
@@ -27,6 +28,10 @@ use crate::sdn::fabric::section_config::protocol::openfabric::{
 use crate::sdn::fabric::section_config::protocol::ospf::{
     OspfDeletableProperties, OspfNodeDeletableProperties, OspfNodeProperties,
     OspfNodePropertiesUpdater, OspfProperties, OspfPropertiesUpdater,
+};
+use crate::sdn::fabric::section_config::protocol::wireguard::{
+    WireGuardDeletableProperties, WireGuardNode, WireGuardNodeDeletableProperties,
+    WireGuardNodeUpdater, WireGuardPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::{FabricOrNode, Section};
 
@@ -189,6 +194,7 @@ macro_rules! impl_entry {
 
 impl_entry!(Openfabric, OpenfabricProperties, OpenfabricNodeProperties);
 impl_entry!(Ospf, OspfProperties, OspfNodeProperties);
+impl_entry!(WireGuard, WireGuardProperties, WireGuardNode);
 
 /// All possible entries in a [`FabricConfig`].
 ///
@@ -198,6 +204,7 @@ impl_entry!(Ospf, OspfProperties, OspfNodeProperties);
 pub enum FabricEntry {
     Openfabric(Entry<OpenfabricProperties, OpenfabricNodeProperties>),
     Ospf(Entry<OspfProperties, OspfNodeProperties>),
+    WireGuard(Entry<WireGuardProperties, WireGuardNode>),
 }
 
 impl FabricEntry {
@@ -209,6 +216,9 @@ impl FabricEntry {
                 entry.add_node(node_section)
             }
             (FabricEntry::Ospf(entry), Node::Ospf(node_section)) => entry.add_node(node_section),
+            (FabricEntry::WireGuard(entry), Node::WireGuard(node_section)) => {
+                entry.add_node(node_section)
+            }
             _ => Err(FabricConfigError::ProtocolMismatch),
         }
     }
@@ -219,6 +229,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => entry.get_node(id),
             FabricEntry::Ospf(entry) => entry.get_node(id),
+            FabricEntry::WireGuard(entry) => entry.get_node(id),
         }
     }
 
@@ -228,6 +239,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => entry.get_node_mut(id),
             FabricEntry::Ospf(entry) => entry.get_node_mut(id),
+            FabricEntry::WireGuard(entry) => entry.get_node_mut(id),
         }
     }
 
@@ -307,6 +319,109 @@ impl FabricEntry {
 
                 Ok(())
             }
+            (Node::WireGuard(node_section), NodeUpdater::WireGuard(updater)) => {
+                let NodeDataUpdater::<WireGuardNodeUpdater, WireGuardNodeDeletableProperties> {
+                    ip,
+                    ip6,
+                    properties,
+                    delete,
+                } = updater;
+
+                if let Some(ip) = ip {
+                    node_section.ip = Some(ip);
+                }
+
+                if let Some(ip) = ip6 {
+                    node_section.ip6 = Some(ip);
+                }
+
+                for property in &delete {
+                    match property {
+                        NodeDeletableProperties::Ip => node_section.ip = None,
+                        NodeDeletableProperties::Ip6 => node_section.ip6 = None,
+                        // handled below, since internal / external nodes have different properties
+                        NodeDeletableProperties::Protocol(_) => continue,
+                    }
+                }
+
+                match (node_section.properties_mut(), properties) {
+                    (
+                        WireGuardNode::Internal(internal_wireguard_node),
+                        WireGuardNodeUpdater::Internal(internal_wireguard_node_updater),
+                    ) => {
+                        if let Some(interfaces) = internal_wireguard_node_updater.interfaces {
+                            internal_wireguard_node.interfaces = interfaces;
+                        }
+
+                        if let Some(endpoint) = internal_wireguard_node_updater.endpoint {
+                            internal_wireguard_node.endpoint = Some(endpoint);
+                        }
+
+                        if let Some(peers) = internal_wireguard_node_updater.peers {
+                            internal_wireguard_node.peers = peers;
+                        }
+
+                        if let Some(allowed_ips) = internal_wireguard_node_updater.allowed_ips {
+                            internal_wireguard_node.allowed_ips = allowed_ips;
+                        }
+
+                        for property in &delete {
+                            match property {
+                                NodeDeletableProperties::Protocol(protocol_property) => {
+                                    match protocol_property {
+                                        WireGuardNodeDeletableProperties::Interfaces => {
+                                            internal_wireguard_node.interfaces = Vec::new()
+                                        }
+                                        WireGuardNodeDeletableProperties::Endpoint => {
+                                            internal_wireguard_node.endpoint = None
+                                        }
+                                        WireGuardNodeDeletableProperties::Peers => {
+                                            internal_wireguard_node.peers = Vec::new()
+                                        }
+                                        WireGuardNodeDeletableProperties::AllowedIps => {
+                                            internal_wireguard_node.allowed_ips = Vec::new()
+                                        }
+                                    }
+                                }
+                                _ => continue,
+                            }
+                        }
+                    }
+                    (
+                        WireGuardNode::External(external_wire_guard_node),
+                        WireGuardNodeUpdater::External(external_wire_guard_node_updater),
+                    ) => {
+                        if let Some(endpoint) = external_wire_guard_node_updater.endpoint {
+                            external_wire_guard_node.endpoint = endpoint;
+                        }
+
+                        if let Some(public_key) = external_wire_guard_node_updater.public_key {
+                            external_wire_guard_node.public_key = public_key;
+                        }
+
+                        if let Some(allowed_ips) = external_wire_guard_node_updater.allowed_ips {
+                            external_wire_guard_node.allowed_ips = allowed_ips;
+                        }
+
+                        for property in &delete {
+                            match property {
+                                NodeDeletableProperties::Protocol(protocol_property) => {
+                                    match protocol_property {
+                                        WireGuardNodeDeletableProperties::AllowedIps => {
+                                            external_wire_guard_node.allowed_ips = Vec::new()
+                                        }
+                                        _ => return Err(FabricConfigError::ProtocolMismatch),
+                                    }
+                                }
+                                _ => continue,
+                            }
+                        }
+                    }
+                    _ => return Err(FabricConfigError::ProtocolMismatch),
+                }
+
+                Ok(())
+            }
             _ => Err(FabricConfigError::ProtocolMismatch),
         }
     }
@@ -316,6 +431,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => entry.nodes.iter(),
             FabricEntry::Ospf(entry) => entry.nodes.iter(),
+            FabricEntry::WireGuard(entry) => entry.nodes.iter(),
         }
     }
 
@@ -324,6 +440,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => entry.delete_node(id),
             FabricEntry::Ospf(entry) => entry.delete_node(id),
+            FabricEntry::WireGuard(entry) => entry.delete_node(id),
         }
     }
 
@@ -333,6 +450,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => entry.into_pair(),
             FabricEntry::Ospf(entry) => entry.into_pair(),
+            FabricEntry::WireGuard(entry) => entry.into_pair(),
         }
     }
 
@@ -341,6 +459,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => &entry.fabric,
             FabricEntry::Ospf(entry) => &entry.fabric,
+            FabricEntry::WireGuard(entry) => &entry.fabric,
         }
     }
 
@@ -349,6 +468,7 @@ impl FabricEntry {
         match self {
             FabricEntry::Openfabric(entry) => &mut entry.fabric,
             FabricEntry::Ospf(entry) => &mut entry.fabric,
+            FabricEntry::WireGuard(entry) => &mut entry.fabric,
         }
     }
 }
@@ -360,6 +480,7 @@ impl From<Fabric> for FabricEntry {
                 FabricEntry::Openfabric(Entry::new(fabric_section))
             }
             Fabric::Ospf(fabric_section) => FabricEntry::Ospf(Entry::new(fabric_section)),
+            Fabric::WireGuard(fabric_section) => FabricEntry::WireGuard(Entry::new(fabric_section)),
         }
     }
 }
@@ -541,6 +662,9 @@ impl Validatable for FabricConfig {
                             return Err(FabricConfigError::DuplicateInterface);
                         }
                     }
+                    Node::WireGuard(_node_section) => {
+                        return Ok(());
+                    }
                 }
             }
 
@@ -706,6 +830,50 @@ impl FabricConfig {
                             OspfDeletableProperties::RouteFilter,
                         ) => {
                             fabric_section.properties.route_filter = None;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            (Fabric::WireGuard(fabric_section), FabricUpdater::WireGuard(updater)) => {
+                let FabricSectionUpdater::<
+                    WireGuardPropertiesUpdater,
+                    WireGuardDeletableProperties,
+                > {
+                    ip_prefix,
+                    ip6_prefix,
+                    properties:
+                        WireGuardPropertiesUpdater {
+                            persistent_keepalive,
+                        },
+                    delete,
+                } = updater;
+
+                if let Some(prefix) = ip_prefix {
+                    fabric_section.ip_prefix = Some(prefix);
+                }
+
+                if let Some(prefix) = ip6_prefix {
+                    fabric_section.ip6_prefix = Some(prefix);
+                }
+
+                if let Some(keepalive) = persistent_keepalive {
+                    fabric_section.properties.persistent_keepalive = Some(keepalive);
+                }
+
+                for property in delete {
+                    match property {
+                        FabricDeletableProperties::IpPrefix => {
+                            fabric_section.ip_prefix = None;
+                        }
+                        FabricDeletableProperties::Ip6Prefix => {
+                            fabric_section.ip6_prefix = None;
+                        }
+                        FabricDeletableProperties::Protocol(
+                            WireGuardDeletableProperties::PersistentKeepalive,
+                        ) => {
+                            fabric_section.properties.persistent_keepalive = None;
                         }
                     }
                 }
