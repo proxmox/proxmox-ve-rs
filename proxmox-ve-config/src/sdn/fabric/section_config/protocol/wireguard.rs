@@ -513,3 +513,237 @@ pub struct WireGuardInterfaceCreateProperties {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) ip6_ll: Option<bool>,
 }
+
+pub mod private_keys {
+    use std::collections::btree_map::Entry;
+    use std::collections::{BTreeMap, HashMap, HashSet};
+
+    use anyhow::Error;
+    use serde::{Deserialize, Serialize};
+
+    use proxmox_schema::{api, ApiStringFormat, PropertyString};
+    use proxmox_section_config::typed::SectionConfigData;
+    use proxmox_wireguard::{PrivateKey, PublicKey};
+
+    use crate::sdn::fabric::section_config::{
+        node::{Node, NodeId, NODE_ID_FORMAT},
+        protocol::wireguard::{WireGuardInterfaceName, WireGuardNode},
+    };
+    use crate::sdn::fabric::FabricConfig;
+
+    #[api()]
+    #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+    /// A private key for a wireguard interface
+    pub struct InterfacePrivateKey {
+        name: WireGuardInterfaceName,
+        key: PrivateKey,
+    }
+
+    impl InterfacePrivateKey {
+        pub fn new(name: WireGuardInterfaceName, key: PrivateKey) -> Self {
+            Self { name, key }
+        }
+    }
+
+    #[api(
+        properties: {
+            private_keys: {
+                type: Array,
+                description: "A list of private keys for this node.",
+                items: {
+                    type: String,
+                    description: "A private key for a wireguard interface.",
+                    format: &ApiStringFormat::PropertyString(&InterfacePrivateKey::API_SCHEMA),
+                }
+            }
+        }
+    )]
+    #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+    /// The private keys for a node in a wireguard fabric.
+    pub struct NodePrivateKeysSection {
+        private_keys: Vec<PropertyString<InterfacePrivateKey>>,
+    }
+
+    impl FromIterator<InterfacePrivateKey> for NodePrivateKeysSection {
+        fn from_iter<T: IntoIterator<Item = InterfacePrivateKey>>(iter: T) -> Self {
+            Self {
+                private_keys: iter.into_iter().map(PropertyString::new).collect(),
+            }
+        }
+    }
+
+    #[api(
+        "id-property": "id",
+        "id-schema": {
+            type: String,
+            description: "Route Map Section ID",
+            format: &NODE_ID_FORMAT,
+        },
+        "type-key": "type",
+    )]
+    #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+    /// The private key config for wireguard.
+    #[serde(tag = "type", rename_all = "kebab-case")]
+    pub enum FabricPrivateKeysSectionConfig {
+        /// Private keys for a node.
+        Node(NodePrivateKeysSection),
+    }
+
+    impl From<NodePrivateKeysSection> for FabricPrivateKeysSectionConfig {
+        fn from(value: NodePrivateKeysSection) -> Self {
+            Self::Node(value)
+        }
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+    pub struct WireGuardPrivateKeys(
+        pub(crate) BTreeMap<NodeId, BTreeMap<WireGuardInterfaceName, PrivateKey>>,
+    );
+
+    impl WireGuardPrivateKeys {
+        /// Creates a Private key for the given (node, interface) if it doesn't exist - then
+        /// returns the public key of the stored private key.
+        pub fn upsert(
+            &mut self,
+            node: NodeId,
+            interface: WireGuardInterfaceName,
+        ) -> Result<PublicKey, anyhow::Error> {
+            Ok(match self.0.entry(node).or_default().entry(interface) {
+                Entry::Vacant(vacant_entry) => {
+                    let private_key = PrivateKey::generate()?;
+                    let public_key = private_key.public_key();
+
+                    vacant_entry.insert(private_key);
+                    public_key
+                }
+                Entry::Occupied(occupied_entry) => occupied_entry.get().public_key(),
+            })
+        }
+
+        /// Removes a private key.
+        pub fn remove(
+            &mut self,
+            node: &NodeId,
+            interface: &WireGuardInterfaceName,
+        ) -> Option<PrivateKey> {
+            if let Some(node_config) = self.0.get_mut(node) {
+                let removed_interface = node_config.remove(interface);
+
+                if node_config.is_empty() {
+                    self.0.remove(node);
+                }
+
+                return removed_interface;
+            }
+
+            None
+        }
+
+        /// Return a private key.
+        pub fn get(
+            &self,
+            node: &NodeId,
+            interface: &WireGuardInterfaceName,
+        ) -> Option<&PrivateKey> {
+            self.0.get(node)?.get(interface)
+        }
+
+        /// Removes all entries in the private key configuration that do not exist in the given [`FabricConfig`].
+        pub fn cleanup(&mut self, fabric_config: &FabricConfig) -> Result<(), Error> {
+            let mut private_keys_nodes = HashSet::new();
+            let mut private_keys_interfaces = HashSet::new();
+
+            let mut fabric_config_nodes = HashSet::new();
+            let mut fabric_config_interfaces = HashSet::new();
+
+            for (node_id, node) in fabric_config.all_nodes() {
+                let Node::WireGuard(node) = node else {
+                    continue;
+                };
+
+                let WireGuardNode::Internal(node) = node.properties() else {
+                    continue;
+                };
+
+                fabric_config_nodes.insert(node_id.clone());
+
+                fabric_config_interfaces.extend(
+                    node.interfaces()
+                        .map(|interface| (node_id.clone(), interface.name().clone())),
+                );
+            }
+
+            for (node_id, interfaces) in &self.0 {
+                private_keys_nodes.insert(node_id.clone());
+
+                private_keys_interfaces.extend(
+                    interfaces
+                        .keys()
+                        .map(|interface_name| (node_id.clone(), interface_name.clone())),
+                );
+            }
+
+            for node_id in private_keys_nodes.difference(&fabric_config_nodes) {
+                self.0.remove(node_id);
+            }
+
+            for (node_id, interface_id) in
+                private_keys_interfaces.difference(&fabric_config_interfaces)
+            {
+                self.remove(node_id, interface_id);
+            }
+
+            Ok(())
+        }
+    }
+
+    impl From<WireGuardPrivateKeys> for SectionConfigData<FabricPrivateKeysSectionConfig> {
+        fn from(value: WireGuardPrivateKeys) -> Self {
+            let mut data = HashMap::new();
+
+            for (node_id, interfaces) in value.0.into_iter() {
+                data.insert(
+                    node_id.to_string(),
+                    NodePrivateKeysSection::from_iter(
+                        interfaces
+                            .into_iter()
+                            .map(|(name, key)| InterfacePrivateKey::new(name, key)),
+                    )
+                    .into(),
+                );
+            }
+
+            Self::from(data)
+        }
+    }
+
+    impl TryFrom<SectionConfigData<FabricPrivateKeysSectionConfig>> for WireGuardPrivateKeys {
+        type Error = anyhow::Error;
+
+        fn try_from(
+            value: SectionConfigData<FabricPrivateKeysSectionConfig>,
+        ) -> Result<Self, Self::Error> {
+            let mut data = BTreeMap::new();
+
+            for (section_id, FabricPrivateKeysSectionConfig::Node(node)) in value {
+                let node_id = NodeId::from_string(section_id)?;
+
+                let interfaces: &mut BTreeMap<WireGuardInterfaceName, PrivateKey> =
+                    data.entry(node_id.clone()).or_default();
+
+                for interface in node.private_keys {
+                    let interface = interface.into_inner();
+
+                    if interfaces
+                        .insert(interface.name.clone(), interface.key)
+                        .is_some()
+                    {
+                        anyhow::bail!("duplicate interface {} for node {node_id}", interface.name);
+                    }
+                }
+            }
+
+            Ok(Self(data))
+        }
+    }
+}
