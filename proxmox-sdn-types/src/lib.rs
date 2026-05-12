@@ -2,6 +2,7 @@ pub mod area;
 pub mod bgp;
 pub mod net;
 pub mod openfabric;
+pub mod wireguard;
 
 use serde::{Deserialize, Serialize};
 
