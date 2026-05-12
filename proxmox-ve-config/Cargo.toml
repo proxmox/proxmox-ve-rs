@@ -26,6 +26,7 @@ proxmox-section-config = { version = "3" }
 proxmox-serde = { workspace = true, features = [ "perl" ]}
 proxmox-sys = "1"
 proxmox-sortable-macro = "1"
+proxmox-wireguard = { version = "0.1", features = [ "api-types" ] }
 
 [features]
 frr = ["dep:proxmox-frr"]
