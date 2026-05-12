@@ -1,3 +1,18 @@
+rust-proxmox-ve-config (0.7.0) trixie; urgency=medium
+
+  * sdn: prefix lists: refactor section config and API format. Sequence
+    numbers are now required in the section config but remain optional in
+    the API; missing ones get auto-generated as the highest existing seq
+    plus 5 (or 5 if none exist). The Rust API splits dedicated types between
+    the section config and the API surface, with CRUD helpers on the section
+    that enforce invariants.
+
+  * sdn: prefix lists: validate entries to reject invalid prefix, le and ge
+    combinations before they reach FRR (which would otherwise reject them
+    and refuse to start).
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 12 May 2026 02:00:17 +0200
+
 rust-proxmox-ve-config (0.6.1) trixie; urgency=medium
 
   * sdn: add doc-comment to PrefixList enum which the API macro requires for
