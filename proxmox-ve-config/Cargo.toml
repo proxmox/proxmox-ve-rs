@@ -33,3 +33,4 @@ frr = ["dep:proxmox-frr"]
 
 [dev-dependencies]
 insta = "1.21"
+pretty_assertions = "1.4.0"

@@ -229,7 +229,7 @@ impl Validatable for Node {
         match self {
             Node::Openfabric(node_section) => node_section.validate(),
             Node::Ospf(node_section) => node_section.validate(),
-            Node::WireGuard(_node_section) => Ok(()),
+            Node::WireGuard(node_section) => node_section.validate(),
         }
     }
 }

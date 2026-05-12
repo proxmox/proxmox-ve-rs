@@ -28,6 +28,7 @@
 //! definition can be overridden in the peer definition, if e.g. a different endpoint is required
 //! for connecting to a node.
 
+use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 
 use anyhow::Result;
@@ -44,7 +45,10 @@ use proxmox_sdn_types::wireguard::PersistentKeepalive;
 use proxmox_wireguard::PublicKey;
 use serde::{Deserialize, Serialize};
 
-use crate::sdn::fabric::section_config::node::NodeId;
+use crate::common::valid::Validatable;
+use crate::sdn::fabric::section_config::fabric::FabricSection;
+use crate::sdn::fabric::section_config::node::{NodeId, NodeSection};
+use crate::sdn::fabric::FabricConfigError;
 
 pub const WIREGUARD_INTERFACE_NAME_REGEX_STR: &str = "[a-zA-Z0-9][a-zA-Z0-9-]{0,6}[a-zA-Z0-9]?";
 
@@ -77,6 +81,14 @@ pub struct WireGuardProperties {
     /// Persistent keepalive interval.
     #[serde(skip_serializing_if = "persistent_keepalive_is_off")]
     pub(crate) persistent_keepalive: Option<PersistentKeepalive>,
+}
+
+impl Validatable for FabricSection<WireGuardProperties> {
+    type Error = FabricConfigError;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -157,6 +169,18 @@ impl ApiType for WireGuardNode {
     // ObjectSchema with additional_properties until fixed in proxmox-schema.
     .additional_properties(true)
     .schema();
+}
+
+impl Validatable for NodeSection<WireGuardNode> {
+    type Error = FabricConfigError;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        if let WireGuardNode::Internal(node) = self.properties() {
+            return node.validate();
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -288,6 +312,43 @@ impl InternalWireGuardNode {
         self.interfaces
             .iter_mut()
             .map(|property_string| property_string.deref_mut())
+    }
+}
+
+impl Validatable for InternalWireGuardNode {
+    type Error = FabricConfigError;
+
+    /// Validates the [FabricSection<WireGuardNodeProperties>].
+    fn validate(&self) -> Result<(), Self::Error> {
+        let mut local_interfaces = HashSet::new();
+        let mut listen_ports = HashSet::new();
+
+        for interface in self.interfaces() {
+            // check if interface names are unique
+            if !local_interfaces.insert(&interface.name) {
+                return Err(FabricConfigError::DuplicateInterface);
+            }
+
+            // check if listen ports are unique
+            if !listen_ports.insert(interface.listen_port) {
+                return Err(FabricConfigError::DuplicatePort(
+                    interface.listen_port.to_string(),
+                ));
+            }
+        }
+
+        for peer in self.peers() {
+            if let WireGuardNodePeer::Internal(peer) = peer {
+                // check if referenced local interface exists
+                if !local_interfaces.contains(&peer.iface) {
+                    return Err(FabricConfigError::InvalidLocalInterfaceReference(
+                        peer.iface.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

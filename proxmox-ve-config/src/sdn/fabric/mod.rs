@@ -31,7 +31,7 @@ use crate::sdn::fabric::section_config::protocol::ospf::{
 };
 use crate::sdn::fabric::section_config::protocol::wireguard::{
     WireGuardDeletableProperties, WireGuardNode, WireGuardNodeDeletableProperties,
-    WireGuardNodeUpdater, WireGuardPropertiesUpdater,
+    WireGuardNodePeer, WireGuardNodeUpdater, WireGuardPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::{FabricOrNode, Section};
 
@@ -73,6 +73,14 @@ pub enum FabricConfigError {
     OverlappingIp4Prefix(String, String, String, String),
     #[error("IPv6 prefix {0} in fabric '{1}' overlaps with IPv6 prefix {2} in fabric '{3}'")]
     OverlappingIp6Prefix(String, String, String, String),
+    #[error("peer configuration references non-existing local interface '{0}'")]
+    InvalidLocalInterfaceReference(String),
+    #[error("peer configuration references non-existing interface '{0}' on node '{1}'")]
+    InvalidRemoteInterfaceReference(String, String),
+    #[error("peer configuration references non-existing external node '{0}'")]
+    InvalidExternalNodeReference(String),
+    #[error("WireGuard interface listen port duplicated in node configuration: {0}")]
+    DuplicatePort(String),
 }
 
 /// An entry in a [`FabricConfig`].
@@ -500,7 +508,92 @@ impl Validatable for FabricEntry {
         let mut ips = HashSet::new();
         let mut ip6s = HashSet::new();
 
+        if let FabricEntry::WireGuard(entry) = self {
+            // check if all interfaces referenced by the peer definitions exist inside the
+            // fabric
+            let mut all_interfaces = HashSet::new();
+            let mut all_external_nodes = HashSet::new();
+
+            let mut internal_peers = HashSet::new();
+            let mut external_peers = HashSet::new();
+
+            let mut ipv4_addresses = HashSet::new();
+            let mut ipv6_addresses = HashSet::new();
+
+            for node_id in entry.nodes.keys() {
+                let node_section = entry.node_section(node_id)?;
+
+                match node_section.properties() {
+                    WireGuardNode::Internal(node) => {
+                        for interface in node.interfaces() {
+                            all_interfaces.insert((&node_section.id.node_id, &interface.name));
+
+                            // reject any duplicate IPs on interfaces
+                            if !interface
+                                .ip()
+                                .map(|ip| ipv4_addresses.insert(ip))
+                                .unwrap_or(true)
+                            {
+                                return Err(FabricConfigError::DuplicateNodeIp(
+                                    fabric.id().to_string(),
+                                ));
+                            }
+
+                            if !interface
+                                .ip6()
+                                .map(|ip6| ipv6_addresses.insert(ip6))
+                                .unwrap_or(true)
+                            {
+                                return Err(FabricConfigError::DuplicateNodeIp(
+                                    fabric.id().to_string(),
+                                ));
+                            }
+                        }
+
+                        for peer in node.peers() {
+                            match peer {
+                                WireGuardNodePeer::Internal(peer) => {
+                                    internal_peers.insert((&peer.node, &peer.node_iface))
+                                }
+                                WireGuardNodePeer::External(peer) => {
+                                    external_peers.insert(&peer.node)
+                                }
+                            };
+                        }
+                    }
+                    WireGuardNode::External(_node) => {
+                        all_external_nodes.insert(node_section.id().node_id());
+                    }
+                }
+            }
+
+            for (node_id, interface) in internal_peers.difference(&all_interfaces) {
+                return Err(FabricConfigError::InvalidRemoteInterfaceReference(
+                    interface.to_string(),
+                    node_id.to_string(),
+                ));
+            }
+
+            for node_id in external_peers.difference(&all_external_nodes) {
+                return Err(FabricConfigError::InvalidExternalNodeReference(
+                    node_id.to_string(),
+                ));
+            }
+        }
+
         for (_id, node) in self.nodes() {
+            node.validate()?;
+
+            // Node IPs need to be unique inside a fabric
+            if !node.ip().map(|ip| ips.insert(ip)).unwrap_or(true) {
+                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
+            }
+
+            // Node IPs need to be unique inside a fabric
+            if !node.ip6().map(|ip| ip6s.insert(ip)).unwrap_or(true) {
+                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
+            }
+
             // Check IPv4 prefix and ip
             match (fabric.ip_prefix(), node.ip()) {
                 (None, Some(ip)) => {
@@ -554,18 +647,6 @@ impl Validatable for FabricEntry {
                 }
                 _ => {}
             }
-
-            // Node IPs need to be unique inside a fabric
-            if !node.ip().map(|ip| ips.insert(ip)).unwrap_or(true) {
-                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
-            }
-
-            // Node IPs need to be unique inside a fabric
-            if !node.ip6().map(|ip| ip6s.insert(ip)).unwrap_or(true) {
-                return Err(FabricConfigError::DuplicateNodeIp(fabric.id().to_string()));
-            }
-
-            node.validate()?;
         }
 
         fabric.validate()
@@ -600,6 +681,8 @@ impl Validatable for FabricConfig {
     /// - all the ospf fabrics have different areas
     /// - IP prefixes of fabrics do not overlap
     fn validate(&self) -> Result<(), FabricConfigError> {
+        let mut wireguard_interfaces = HashSet::new();
+        let mut wireguard_listen_ports = HashSet::new();
         let mut node_interfaces = HashSet::new();
         let mut ospf_area = HashSet::new();
 
@@ -634,6 +717,7 @@ impl Validatable for FabricConfig {
         }
 
         // validate that each (node, interface) combination exists only once across all fabrics
+        // additionally, for wireguard check the listen ports of the interfaces as well
         for entry in self.fabrics.values() {
             if let FabricEntry::Ospf(entry) = entry {
                 if !ospf_area.insert(
@@ -662,8 +746,22 @@ impl Validatable for FabricConfig {
                             return Err(FabricConfigError::DuplicateInterface);
                         }
                     }
-                    Node::WireGuard(_node_section) => {
-                        return Ok(());
+                    Node::WireGuard(node_section) => {
+                        if let WireGuardNode::Internal(internal_node) = node_section.properties() {
+                            if !internal_node.interfaces().all(|interface| {
+                                wireguard_interfaces.insert((node_id, interface.name.as_str()))
+                            }) {
+                                return Err(FabricConfigError::DuplicateInterface);
+                            }
+                            for interface in internal_node.interfaces() {
+                                if !wireguard_listen_ports.insert((node_id, interface.listen_port))
+                                {
+                                    return Err(FabricConfigError::DuplicatePort(
+                                        interface.listen_port.to_string(),
+                                    ));
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -967,5 +1065,121 @@ impl Valid<FabricConfig> {
     /// [`FabricConfig`] can be written to the file.
     pub fn write_section_config(self) -> Result<String, Error> {
         Section::write_section_config("fabrics.cfg", &self.into_section_config())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sdn::fabric::FabricConfig;
+    use proxmox_section_config::typed::ApiSectionDataEntry;
+
+    use super::*;
+
+    #[test]
+    fn test_wireguard_validation_duplicate_interface() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_internal
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51112,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("duplicate interface name on node");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wireguard_validation_duplicate_listen_port() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_internal
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg1,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("duplicate listen_port on node");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wireguard_validation_duplicate_listen_port_cross_fabric() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wirega
+
+wireguard_fabric: wiregb
+
+wireguard_node: wirega_pve1
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+
+wireguard_node: wiregb_pve1
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg1,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("two wireguard fabrics on the same node must not share a listen port");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wireguard_validation_node_interface_does_not_exist() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_internal
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    peers type=internal,node=invalid,node_iface=invalid,iface=wg0
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("interface referenced in peer definition does not exist");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wireguard_validation_local_interface_does_not_exist() -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_internal
+    role internal
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+
+wireguard_node: wireg_internal2
+    role internal
+    endpoint 192.0.2.2:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    peers type=internal,node=internal,node_iface=wg0,iface=wg1
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("local interface in peer definition does not exist");
+
+        Ok(())
     }
 }
