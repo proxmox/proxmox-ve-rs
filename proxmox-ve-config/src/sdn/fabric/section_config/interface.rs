@@ -1,9 +1,12 @@
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{api, api_string_type, const_regex, ApiStringFormat, UpdaterType};
 
+pub const INTERFACE_NAME_REGEX_STR: &str = "[[:ascii:]]+";
+
 const_regex! {
-    pub INTERFACE_NAME_REGEX = r"^[[:ascii:]]+$";
+    pub INTERFACE_NAME_REGEX = concatcp!(r"^", INTERFACE_NAME_REGEX_STR, r"$");
 }
 
 pub const INTERFACE_NAME_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&INTERFACE_NAME_REGEX);
