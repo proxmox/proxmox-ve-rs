@@ -18,6 +18,7 @@ tracing = "0.1.37"
 serde = { workspace = true, features = [ "derive" ] }
 serde_json = "1"
 
+proxmox-base64 = "1"
 proxmox-frr = { workspace = true, optional = true }
 proxmox-network-types = { workspace = true, features = [ "api-types" ] }
 proxmox-schema = { workspace = true, features = [ "api-types" ] }

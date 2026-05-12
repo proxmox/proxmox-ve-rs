@@ -3,6 +3,7 @@ pub mod fabric;
 pub mod ipam;
 pub mod prefix_list;
 pub mod route_map;
+pub mod wireguard;
 
 use std::{error::Error, fmt::Display, str::FromStr};
 
