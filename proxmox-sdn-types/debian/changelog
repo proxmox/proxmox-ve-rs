@@ -1,3 +1,10 @@
+rust-proxmox-sdn-types (0.2.2-1) trixie; urgency=medium
+
+  * add WireGuard-specific PersistentKeepalive api type, used by the WireGuard
+    fabric in proxmox-ve-config.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 13 May 2026 03:50:37 +0200
+
 rust-proxmox-sdn-types (0.2.1-1) trixie; urgency=medium
 
   * add common route-map helper types. They will be used in proxmox-frr for
