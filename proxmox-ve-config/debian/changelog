@@ -1,3 +1,31 @@
+rust-proxmox-ve-config (0.8.0) trixie; urgency=medium
+
+  * sdn: fabrics: add WireGuard as a fabric protocol. Two node sub-types
+    (internal for cluster members, external for arbitrary peers) share one
+    section type discriminated by the `role` key. Internal nodes carry the
+    wireguard interfaces they should create and the peer references for them;
+    external nodes act as reusable peer definitions.
+
+  * sdn: fabrics: validate the wireguard configuration. Reject duplicate
+    interface names per-node and across fabrics, duplicate listen ports
+    per-node and across fabrics, and peer references that point at a local or
+    remote interface (or external node) that does not exist.
+
+  * sdn: fabrics: add a configuration builder for wireguard that produces the
+    wg(8) configuration for the local node, composing AllowedIPs from the
+    referenced peer node's interface address, the peer-node-level and per-peer
+    allowed_ips lists.
+
+  * sdn: wireguard: add a section-config type for the cluster-replicated
+    private-key store under /etc/pve/priv/wg-keys.cfg, plus a cleanup helper
+    that drops orphaned keys for nodes or interfaces that no longer exist in
+    the fabric config.
+
+  * sdn: fabrics: refactor the per-protocol Entry impl block into a macro so
+    adding further fabric protocols requires less boilerplate.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 13 May 2026 04:38:01 +0200
+
 rust-proxmox-ve-config (0.7.0) trixie; urgency=medium
 
   * sdn: prefix lists: refactor section config and API format. Sequence
