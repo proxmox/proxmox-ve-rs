@@ -476,6 +476,20 @@ impl WireGuardNodePeer {
         }
         .unwrap_or_default()
     }
+
+    pub fn allowed_ips(&self) -> &[Cidr] {
+        match self {
+            WireGuardNodePeer::Internal(internal_peer) => &internal_peer.allowed_ips,
+            WireGuardNodePeer::External(external_peer) => &external_peer.allowed_ips,
+        }
+    }
+
+    pub fn node_iface(&self) -> Option<&WireGuardInterfaceName> {
+        match self {
+            WireGuardNodePeer::Internal(internal_peer) => Some(&internal_peer.node_iface),
+            WireGuardNodePeer::External(_) => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
