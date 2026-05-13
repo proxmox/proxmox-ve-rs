@@ -737,8 +737,8 @@ prefix-list: somelist
     }
 
     #[test]
-    fn test_prefix_list_entry_update_rolls_back_on_validation_failure(
-    ) -> Result<(), anyhow::Error> {
+    fn test_prefix_list_entry_update_rolls_back_on_validation_failure() -> Result<(), anyhow::Error>
+    {
         let mut prefix_list = PrefixListSection::new(
             PrefixListId::from_string("test".to_string()).expect("valid prefix list id"),
         );
