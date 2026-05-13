@@ -896,7 +896,12 @@ impl FabricConfig {
                 let FabricSectionUpdater::<OspfPropertiesUpdater, OspfDeletableProperties> {
                     ip_prefix,
                     ip6_prefix,
-                    properties: OspfPropertiesUpdater { area, route_filter },
+                    properties:
+                        OspfPropertiesUpdater {
+                            area,
+                            route_filter,
+                            redistribute,
+                        },
                     delete,
                 } = updater;
 
@@ -916,6 +921,10 @@ impl FabricConfig {
                     fabric_section.properties.route_filter = Some(route_filter);
                 }
 
+                if let Some(redistribute) = redistribute {
+                    fabric_section.properties.redistribute = redistribute;
+                }
+
                 for property in delete {
                     match property {
                         FabricDeletableProperties::IpPrefix => {
@@ -929,6 +938,9 @@ impl FabricConfig {
                         ) => {
                             fabric_section.properties.route_filter = None;
                         }
+                        FabricDeletableProperties::Protocol(
+                            OspfDeletableProperties::Redistribute,
+                        ) => fabric_section.properties.redistribute = Vec::new(),
                     }
                 }
 

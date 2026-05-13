@@ -14,6 +14,54 @@ use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::prefix_list::PrefixListId;
 
 #[api]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Copy)]
+#[serde(rename_all = "lowercase")]
+/// OSPF redistribution source protocols
+pub enum OspfRedistributionSource {
+    /// redistribute BGP routes
+    Bgp,
+    /// redistribute connected routes
+    Connected,
+    /// redistribute IS-IS routes
+    Isis,
+    /// redistribute kernel routes
+    Kernel,
+    /// redistribute Openfabric routes
+    Openfabric,
+    /// redistribute OSPF routes
+    Ospf,
+    /// redistribute static routes
+    Static,
+}
+
+#[api]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "kebab-case")]
+/// An OSPF redistribution
+pub struct OspfRedistribution {
+    /// The source protocol for this redistribution
+    pub(crate) source: OspfRedistributionSource,
+    /// The metric that should be applied to redistributed routes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) metric: Option<u32>,
+    /// The name of the route map used for filtering redistributed routes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) route_map: Option<String>,
+}
+
+#[api(
+    properties: {
+        redistribute: {
+            type: Array,
+            optional: true,
+            items: {
+                type: String,
+                description: "An OSPF redistribution source.",
+                format: &ApiStringFormat::PropertyString(&OspfRedistribution::API_SCHEMA),
+            }
+        }
+    }
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Updater, Hash)]
 /// Properties for an Ospf fabric.
 pub struct OspfProperties {
@@ -25,14 +73,24 @@ pub struct OspfProperties {
     /// besides the configured IP prefix.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) route_filter: Option<PrefixListId>,
+
+    /// Redistribution configuration
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[updater(serde(skip_serializing_if = "Option::is_none"))]
+    pub(crate) redistribute: Vec<PropertyString<OspfRedistribution>>,
 }
 
 impl OspfProperties {
     pub fn set_area(&mut self, value: Area) {
         self.area = value;
     }
+
     pub fn area(&self) -> &Area {
         &self.area
+    }
+
+    pub fn redistributions(&self) -> impl IntoIterator<Item = &OspfRedistribution> {
+        self.redistribute.iter().map(Deref::deref)
     }
 }
 
@@ -60,6 +118,7 @@ impl Validatable for FabricSection<OspfProperties> {
 #[serde(rename_all = "snake_case")]
 pub enum OspfDeletableProperties {
     RouteFilter,
+    Redistribute,
 }
 
 #[api(
