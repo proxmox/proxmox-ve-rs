@@ -1,10 +1,11 @@
+use std::fmt::Display;
 use std::net::{IpAddr, Ipv4Addr};
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use serde::{Deserialize, Serialize};
 
 use crate::ser::route_map::RouteMapName;
-use crate::ser::{FrrWord, InterfaceName, IpRoute};
+use crate::ser::{AccessAction, FrrWord, InterfaceName, IpRoute};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BgpRouterName {
@@ -194,4 +195,75 @@ pub struct BgpRouter {
     pub address_families: AddressFamilies,
     #[serde(default)]
     pub custom_frr_config: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct CommunityListName(String);
+
+impl Display for CommunityListName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl CommunityListName {
+    pub fn new(name: String) -> Self {
+        Self(name)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExtCommunityRouteTarget {
+    asn: u16,
+    value: u32,
+}
+
+impl std::str::FromStr for ExtCommunityRouteTarget {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if let Some((asn, value)) = value.split_once(':') {
+            return Ok(Self {
+                asn: asn.parse()?,
+                value: value.parse()?,
+            });
+        }
+
+        anyhow::bail!("can not parse route target: {value}")
+    }
+}
+
+impl Display for ExtCommunityRouteTarget {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}:{}", self.asn, self.value)
+    }
+}
+
+proxmox_serde::forward_serialize_to_display!(ExtCommunityRouteTarget);
+proxmox_serde::forward_deserialize_to_from_str!(ExtCommunityRouteTarget);
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
+pub enum StandardExtCommunityListMatch {
+    #[serde(rename = "rt")]
+    RouteTarget(ExtCommunityRouteTarget),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ExpandedExtCommunityListEntry {
+    pub action: AccessAction,
+    pub match_entry: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct StandardExtCommunityListEntry {
+    pub action: AccessAction,
+    pub match_entry: StandardExtCommunityListMatch,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(tag = "type", content = "entries", rename_all = "kebab-case")]
+pub enum ExtCommunityList {
+    Standard(Vec<StandardExtCommunityListEntry>),
+    Expanded(Vec<ExpandedExtCommunityListEntry>),
 }

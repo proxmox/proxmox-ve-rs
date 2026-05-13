@@ -7,16 +7,8 @@ use proxmox_sdn_types::{
 };
 use serde::{Deserialize, Serialize};
 
-/// The action for a [`AccessListRule`].
-///
-/// The default is Permit. Deny can be used to create a NOT match (e.g. match all routes that are
-/// NOT in 10.10.10.0/24 using `ip access-list TEST deny 10.10.10.0/24`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AccessAction {
-    Permit,
-    Deny,
-}
+use crate::ser::bgp::CommunityListName;
+pub use crate::ser::AccessAction;
 
 /// A single [`AccessList`] rule.
 ///
@@ -66,6 +58,35 @@ pub struct PrefixListRule {
     pub is_ipv6: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CommunityMatchMode {
+    ExactMatch,
+    Any,
+}
+
+proxmox_serde::forward_display_to_serialize!(CommunityMatchMode);
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
+pub struct ExtendedCommunityMatch {
+    pub name: CommunityListName,
+    pub mode: Option<CommunityMatchMode>,
+}
+
+impl std::fmt::Display for ExtendedCommunityMatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mode = self
+            .mode
+            .as_ref()
+            .map(|mode| format!(" {mode}"))
+            .unwrap_or_else(|| String::new());
+
+        write!(f, "{}{mode}", self.name)
+    }
+}
+
+proxmox_serde::forward_serialize_to_display!(ExtendedCommunityMatch);
+
 /// A match statement inside a route-map.
 ///
 /// A route-map has one or more match statements which decide on which routes the route-map will
@@ -102,6 +123,8 @@ pub enum RouteMapMatch {
     Peer(String),
     #[serde(rename = "tag")]
     Tag(SetTagValue),
+    #[serde(rename = "extcommunity")]
+    ExtendedCommunity(ExtendedCommunityMatch),
 }
 
 /// Defines the Action a route-map takes when it matches on a route.

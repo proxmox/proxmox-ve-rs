@@ -9,8 +9,11 @@ use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-use crate::ser::route_map::{
-    AccessListName, AccessListRule, PrefixListName, PrefixListRule, RouteMapEntry, RouteMapName,
+use crate::ser::{
+    bgp::{CommunityListName, ExtCommunityList},
+    route_map::{
+        AccessListName, AccessListRule, PrefixListName, PrefixListRule, RouteMapEntry, RouteMapName,
+    },
 };
 
 use proxmox_network_types::{
@@ -20,6 +23,19 @@ use proxmox_network_types::{
 use proxmox_serde::forward_deserialize_to_from_str;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+/// The action for a [`AccessListRule`] or [`ExtCommunityList`].
+///
+/// The default is Permit. Deny can be used to create a NOT match (e.g. match all routes that are
+/// NOT in 10.10.10.0/24 using `ip access-list TEST deny 10.10.10.0/24`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AccessAction {
+    Permit,
+    Deny,
+}
+
+proxmox_serde::forward_display_to_serialize!(AccessAction);
 
 #[derive(Error, Debug)]
 pub enum FrrWordError {
@@ -255,4 +271,7 @@ pub struct BgpFrrConfig {
 
     #[serde(default)]
     pub vrfs: BTreeMap<InterfaceName, bgp::Vrf>,
+
+    #[serde(default)]
+    pub ext_community_lists: BTreeMap<CommunityListName, ExtCommunityList>,
 }
