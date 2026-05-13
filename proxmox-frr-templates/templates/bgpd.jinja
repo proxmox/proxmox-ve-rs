@@ -33,3 +33,13 @@ router bgp {{ router_config.asn }} view {{ view_id }}
 {{ bgp_router(router_config) -}}
 exit
 {% endfor %}
+{% for community_list_name, community_list in bgp.ext_community_lists|items %}
+!
+{% for entry in community_list.entries %}
+{% if community_list.type == "expanded" %}
+bgp extcommunity-list {{ community_list.type }} {{ community_list_name }} {{ entry.action }} {{ entry.match_entry }}
+{% else %}
+bgp extcommunity-list {{ community_list.type }} {{ community_list_name }} {{ entry.action }} {{ entry.match_entry.type }} {{ entry.match_entry.value }}
+{% endif %}
+{% endfor %}
+{% endfor %}
