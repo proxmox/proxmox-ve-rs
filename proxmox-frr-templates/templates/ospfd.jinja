@@ -3,6 +3,10 @@
 !
 router ospf
  ospf router-id {{ ospf.router.router_id }}
+{% for redistribution in ospf.router.redistribute %}
+ redistribute {{ redistribution.source }}{% if redistribution.metric is defined %} metric {{ redistribution.metric }}{% endif %}{% if redistribution.route_map is defined %} route-map {{ redistribution.route_map }}{% endif %}
+
+{% endfor %}
 exit
 {% endif %}
 {% for interface_name, interface_config in ospf.interfaces|items %}
