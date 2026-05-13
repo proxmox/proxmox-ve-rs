@@ -27,11 +27,33 @@ pub enum NeighborRemoteAs {
     Asn(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
 }
 
+// Each flag requires the previous flag to be set. It is not possible to set replace-as without
+// no-prepend.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LocalAsFlags {
+    NoPrepend,
+    #[serde(rename = "no-prepend replace-as")]
+    ReplaceAs,
+    #[serde(rename = "no-prepend replace-as dual-as")]
+    DualAs,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub struct LocalAsSettings {
+    asn: u32,
+    #[serde(default)]
+    mode: Option<LocalAsFlags>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct NeighborGroup {
     pub name: FrrWord,
     #[serde(deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     pub bfd: bool,
+    #[serde(default)]
+    pub local_as: Option<LocalAsSettings>,
     pub remote_as: NeighborRemoteAs,
     #[serde(default)]
     pub ips: Vec<IpAddr>,
