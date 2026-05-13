@@ -338,13 +338,12 @@ impl Validatable for InternalWireGuardNode {
         }
 
         for peer in self.peers() {
-            if let WireGuardNodePeer::Internal(peer) = peer {
-                // check if referenced local interface exists
-                if !local_interfaces.contains(&peer.iface) {
-                    return Err(FabricConfigError::InvalidLocalInterfaceReference(
-                        peer.iface.to_string(),
-                    ));
-                }
+            // check if referenced local interface exists, both internal and
+            // external peers attach to a local interface via the iface field
+            if !local_interfaces.contains(peer.iface()) {
+                return Err(FabricConfigError::InvalidLocalInterfaceReference(
+                    peer.iface().to_string(),
+                ));
             }
         }
 

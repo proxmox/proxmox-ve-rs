@@ -1182,4 +1182,29 @@ wireguard_node: wireg_internal2
 
         Ok(())
     }
+
+    #[test]
+    fn test_wireguard_validation_local_interface_external_peer_does_not_exist(
+    ) -> Result<(), anyhow::Error> {
+        let section_config = r#"
+wireguard_fabric: wireg
+
+wireguard_node: wireg_external
+    role external
+    endpoint 192.0.2.1:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+
+wireguard_node: wireg_internal
+    role internal
+    endpoint 192.0.2.2:123
+    public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
+    peers type=external,node=wireg_external,iface=wg1
+"#;
+        let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
+        FabricConfig::from_section_config(parsed_config)
+            .expect_err("local interface in external peer definition does not exist");
+
+        Ok(())
+    }
 }
