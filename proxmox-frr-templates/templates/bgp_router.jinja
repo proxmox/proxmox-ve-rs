@@ -38,6 +38,10 @@
 {% for neighbor_group in router_config.neighbor_groups %}
  neighbor {{ neighbor_group.name }} peer-group
  neighbor {{ neighbor_group.name }} remote-as {{ neighbor_group.remote_as }}
+{% if neighbor_group.local_as %}
+ neighbor {{ neighbor_group.name }} local-as {{ neighbor_group.local_as.asn }}{% if neighbor_group.local_as.mode %}{{ " " ~ neighbor_group.local_as.mode }}{% endif %}
+
+{% endif %}
 {% if neighbor_group.bfd %}
  neighbor {{ neighbor_group.name }} bfd
 {% endif %}
