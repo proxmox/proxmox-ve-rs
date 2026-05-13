@@ -287,7 +287,7 @@ pub fn build_fabric(
 
 /// Helper that builds a OSPF router with a the router_id.
 fn build_ospf_router(router_id: Ipv4Addr) -> Result<OspfRouter, anyhow::Error> {
-    Ok(ser::ospf::OspfRouter { router_id })
+    Ok(OspfRouter::new(router_id))
 }
 
 /// Helper that builds a OpenFabric router from a fabric_id and a [`Net`].
