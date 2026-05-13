@@ -44,6 +44,35 @@ impl Area {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// OSPF redistribution source protocols
+pub enum OspfRedistributionSource {
+    /// redistribute BGP routes
+    Bgp,
+    /// redistribute connected routes
+    Connected,
+    /// redistribute IS-IS routes
+    Isis,
+    /// redistribute kernel routes
+    Kernel,
+    /// redistribute Openfabric routes
+    Openfabric,
+    /// redistribute OSPF routes
+    Ospf,
+    /// redistribute static routes
+    Static,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct OspfRedistribution {
+    pub source: OspfRedistributionSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_map: Option<String>,
+}
+
 /// The OSPF router properties.
 ///
 /// Currently the only property of a OSPF router is the router_id. The router_id is used to
@@ -53,11 +82,16 @@ impl Area {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct OspfRouter {
     pub router_id: Ipv4Addr,
+    #[serde(default)]
+    pub redistribute: Vec<OspfRedistribution>,
 }
 
 impl OspfRouter {
     pub fn new(router_id: Ipv4Addr) -> Self {
-        Self { router_id }
+        Self {
+            router_id,
+            redistribute: Vec::new(),
+        }
     }
 
     pub fn router_id(&self) -> &Ipv4Addr {
