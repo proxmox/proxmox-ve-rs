@@ -422,6 +422,7 @@ impl ApiType for MatchAction {
                             "Match the next-hop to an IPv6 address.",
                         ),
                         EnumEntry::new("metric", "Match the metric of the route."),
+                        EnumEntry::new("tag", "Match the tag of the route."),
                         EnumEntry::new("local-preference", "Match the local preference."),
                         EnumEntry::new(
                             "peer",
