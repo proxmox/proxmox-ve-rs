@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use tracing;
 
 use proxmox_frr::ser::openfabric::{OpenfabricInterface, OpenfabricRouter, OpenfabricRouterName};
-use proxmox_frr::ser::ospf::{self, OspfInterface, OspfRouter};
+use proxmox_frr::ser::ospf::{self, OspfInterface, OspfRedistribution, OspfRouter};
 use proxmox_frr::ser::route_map::{AccessListName, RouteMapEntry, RouteMapMatch, RouteMapSet};
 use proxmox_frr::ser::{self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName};
 use proxmox_network_types::ip_address::Cidr;
@@ -202,7 +202,17 @@ pub fn build_fabric(
                 let frr_area = ser::ospf::Area::new(frr_word_area)?;
 
                 if frr_config.ospf.router.is_none() {
-                    frr_config.ospf.router = Some(build_ospf_router(*router_id)?);
+                    let mut ospf_router = build_ospf_router(*router_id)?;
+
+                    ospf_router.redistribute = fabric
+                        .properties()
+                        .redistributions()
+                        .into_iter()
+                        .cloned()
+                        .map(OspfRedistribution::from)
+                        .collect();
+
+                    frr_config.ospf.router = Some(ospf_router);
                 }
 
                 // Add dummy interface

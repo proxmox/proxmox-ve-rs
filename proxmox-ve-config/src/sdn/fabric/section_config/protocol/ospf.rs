@@ -49,6 +49,38 @@ pub struct OspfRedistribution {
     pub(crate) route_map: Option<String>,
 }
 
+#[cfg(feature = "frr")]
+mod frr {
+    use proxmox_frr::ser::ospf::OspfRedistribution as FrrOspfRedistribution;
+    use proxmox_frr::ser::ospf::OspfRedistributionSource as FrrOspfRedistributionSource;
+
+    use super::*;
+
+    impl From<OspfRedistribution> for FrrOspfRedistribution {
+        fn from(value: OspfRedistribution) -> Self {
+            Self {
+                source: value.source.into(),
+                metric: value.metric,
+                route_map: value.route_map.into(),
+            }
+        }
+    }
+
+    impl From<OspfRedistributionSource> for FrrOspfRedistributionSource {
+        fn from(value: OspfRedistributionSource) -> Self {
+            match value {
+                OspfRedistributionSource::Bgp => FrrOspfRedistributionSource::Bgp,
+                OspfRedistributionSource::Connected => FrrOspfRedistributionSource::Connected,
+                OspfRedistributionSource::Isis => FrrOspfRedistributionSource::Isis,
+                OspfRedistributionSource::Kernel => FrrOspfRedistributionSource::Kernel,
+                OspfRedistributionSource::Openfabric => FrrOspfRedistributionSource::Openfabric,
+                OspfRedistributionSource::Ospf => FrrOspfRedistributionSource::Ospf,
+                OspfRedistributionSource::Static => FrrOspfRedistributionSource::Static,
+            }
+        }
+    }
+}
+
 #[api(
     properties: {
         redistribute: {
