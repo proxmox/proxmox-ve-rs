@@ -1,3 +1,22 @@
+rust-proxmox-frr (0.5.0-1) trixie; urgency=medium
+
+  * add local-as setting for BGP neighbors, allowing them to use a different
+    AS than the router's primary one when peering.
+
+  * add support for extcommunity lists, mirroring the existing community
+    list types.
+
+  * ospf: add `redistribute` setting to import routes from other protocols
+    (connected, kernel, static, ...) into OSPF.
+
+  * sdn: ospf: move the NetworkType enum (Broadcast, NonBroadcast,
+    PointToPoint, PointToMultipoint) to proxmox-sdn-types so it can be
+    shared with proxmox-ve-config without the latter pulling in the
+    optional `frr` feature. This is a breaking change for direct users of
+    the type.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 03:43:57 +0200
+
 rust-proxmox-frr (0.4.0-1) trixie; urgency=medium
 
   * add constructor to prefix list name.
