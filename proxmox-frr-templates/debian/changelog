@@ -1,3 +1,13 @@
+proxmox-frr-templates (0.1.2) trixie; urgency=medium
+
+  * render the new BGP local-as setting in the bgp template.
+
+  * render community and extcommunity lists in the route-map template.
+
+  * ospf: render the new redistribute setting.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 03:43:57 +0200
+
 proxmox-frr-templates (0.1.1) trixie; urgency=medium
 
   * change route maps template to adapt to new frr types. Instead of defining
