@@ -1,3 +1,14 @@
+rust-proxmox-sdn-types (0.2.4-1) trixie; urgency=medium
+
+  * wireguard: align the persistent_keepalive schema with the documented
+    "0 disables the feature" semantic that the runtime (is_off) and the
+    Perl API side already implement. Previously the schema declared
+    `minimum: 1` while is_off() treated 0 as off, so the documented
+    contract conflicted with the actual behaviour. Drop the unused
+    constraint and reword the doc to spell out the 0=off case explicitly.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 05:31:29 +0200
+
 rust-proxmox-sdn-types (0.2.3-1) trixie; urgency=medium
 
   * sdn: ospf: host the NetworkType enum (Broadcast, NonBroadcast,

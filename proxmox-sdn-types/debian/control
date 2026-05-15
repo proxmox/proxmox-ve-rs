@@ -42,7 +42,7 @@ Provides:
  librust-proxmox-sdn-types-0+default-dev (= ${binary:Version}),
  librust-proxmox-sdn-types-0.2-dev (= ${binary:Version}),
  librust-proxmox-sdn-types-0.2+default-dev (= ${binary:Version}),
- librust-proxmox-sdn-types-0.2.3-dev (= ${binary:Version}),
- librust-proxmox-sdn-types-0.2.3+default-dev (= ${binary:Version})
+ librust-proxmox-sdn-types-0.2.4-dev (= ${binary:Version}),
+ librust-proxmox-sdn-types-0.2.4+default-dev (= ${binary:Version})
 Description: Rust crate "proxmox-sdn-types" - Rust source code
  Source code for Debianized Rust crate "proxmox-sdn-types"
