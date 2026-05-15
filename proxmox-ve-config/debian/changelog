@@ -1,3 +1,13 @@
+rust-proxmox-ve-config (0.9.1) trixie; urgency=medium
+
+  * fabrics: wireguard: change WireGuardPrivateKeys::cleanup() to return a
+    bool indicating whether anything was removed, so Perl callers (and any
+    future consumer) can skip an unconditional rewrite of the
+    cluster-replicated /etc/pve/priv/wg-keys.cfg on every SDN apply when
+    no orphan keys are present.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 05:31:29 +0200
+
 rust-proxmox-ve-config (0.9.0) trixie; urgency=medium
 
   * fabrics: ospf: add `redistribute` setting to import routes from other
