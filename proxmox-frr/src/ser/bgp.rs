@@ -43,15 +43,15 @@ pub enum LocalAsFlags {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub struct LocalAsSettings {
-    asn: u32,
+    pub asn: u32,
     #[serde(default)]
-    mode: Option<LocalAsFlags>,
+    pub mode: Option<LocalAsFlags>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct NeighborGroup {
     pub name: FrrWord,
-    #[serde(deserialize_with = "proxmox_serde::perl::deserialize_bool")]
+    #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     pub bfd: bool,
     #[serde(default)]
     pub local_as: Option<LocalAsSettings>,
@@ -159,9 +159,84 @@ pub struct CommonAddressFamilyOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct AddressFamilies {
-    ipv4_unicast: Option<Ipv4UnicastAF>,
-    ipv6_unicast: Option<Ipv6UnicastAF>,
-    l2vpn_evpn: Option<L2vpnEvpnAF>,
+    pub ipv4_unicast: Option<Ipv4UnicastAF>,
+    pub ipv6_unicast: Option<Ipv6UnicastAF>,
+    pub l2vpn_evpn: Option<L2vpnEvpnAF>,
+}
+
+impl AddressFamilies {
+    /// Extend this [`AddressFamilies`] with another.
+    ///
+    /// For each address family: if `self` already has it, extend its neighbors, networks, and
+    /// redistribute lists. If `self` doesn't have it, take it from `other`.
+    pub fn extend(&mut self, other: AddressFamilies) {
+        match (self.ipv4_unicast.as_mut(), other.ipv4_unicast) {
+            (Some(existing), Some(incoming)) => {
+                existing
+                    .common_options
+                    .neighbors
+                    .extend(incoming.common_options.neighbors);
+                existing
+                    .common_options
+                    .import_vrf
+                    .extend(incoming.common_options.import_vrf);
+                existing
+                    .common_options
+                    .custom_frr_config
+                    .extend(incoming.common_options.custom_frr_config);
+                existing.networks.extend(incoming.networks);
+                existing.redistribute.extend(incoming.redistribute);
+            }
+            (None, Some(incoming)) => {
+                self.ipv4_unicast = Some(incoming);
+            }
+            _ => {}
+        }
+
+        match (self.ipv6_unicast.as_mut(), other.ipv6_unicast) {
+            (Some(existing), Some(incoming)) => {
+                existing
+                    .common_options
+                    .neighbors
+                    .extend(incoming.common_options.neighbors);
+                existing
+                    .common_options
+                    .import_vrf
+                    .extend(incoming.common_options.import_vrf);
+                existing
+                    .common_options
+                    .custom_frr_config
+                    .extend(incoming.common_options.custom_frr_config);
+                existing.networks.extend(incoming.networks);
+                existing.redistribute.extend(incoming.redistribute);
+            }
+            (None, Some(incoming)) => {
+                self.ipv6_unicast = Some(incoming);
+            }
+            _ => {}
+        }
+
+        // l2vpn_evpn: only take from other if self doesn't have it (fabric never sets this)
+        if self.l2vpn_evpn.is_none() {
+            self.l2vpn_evpn = other.l2vpn_evpn;
+        }
+    }
+}
+
+impl BgpRouter {
+    /// Merge a fabric-generated [`BgpRouter`] into an existing one.
+    ///
+    /// Appends the fabric's neighbor groups and merges address families. Keeps the existing
+    /// router's ASN, router-id, and other top-level settings. The caller is responsible for
+    /// setting `local_as` on the fabric's neighbor group if the ASNs differ.
+    pub fn merge_fabric(&mut self, other: BgpRouter) {
+        self.neighbor_groups.extend(other.neighbor_groups);
+        self.address_families.extend(other.address_families);
+
+        if self.default_ipv4_unicast.is_none() {
+            self.default_ipv4_unicast = other.default_ipv4_unicast;
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

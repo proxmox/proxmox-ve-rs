@@ -1,0 +1,35 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+---
+!
+router bgp 65002
+ bgp router-id 10.10.10.2
+ no bgp default ipv4-unicast
+ neighbor test peer-group
+ neighbor test remote-as external
+ neighbor ens19 interface peer-group test
+ !
+ address-family ipv4 unicast
+  network 10.10.10.2/32
+  neighbor test activate
+  neighbor test soft-reconfiguration inbound
+  neighbor test route-map pve_bgp_test_in in
+ exit-address-family
+exit
+!
+access-list pve_bgp_test_ips permit 10.10.10.0/24
+!
+route-map pve_bgp permit 100
+ match ip address pve_bgp_test_ips
+ set src 10.10.10.2
+exit
+!
+route-map pve_bgp permit 65535
+exit
+!
+route-map pve_bgp_test_in permit 10
+ match ip address pve_bgp_test_ips
+exit
+!
+ip protocol bgp route-map pve_bgp

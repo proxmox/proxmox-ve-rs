@@ -2,7 +2,7 @@
 pub mod frr;
 pub mod section_config;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::marker::PhantomData;
 use std::ops::Deref;
 
@@ -20,6 +20,10 @@ use crate::sdn::fabric::section_config::fabric::{
 use crate::sdn::fabric::section_config::node::{
     api::{NodeDataUpdater, NodeDeletableProperties, NodeUpdater},
     Node, NodeId, NodeSection,
+};
+use crate::sdn::fabric::section_config::protocol::bgp::{
+    bgp_router_id, BgpDeletableProperties, BgpNode, BgpNodeDeletableProperties,
+    BgpNodePropertiesUpdater, BgpProperties, BgpPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::protocol::openfabric::{
     OpenfabricDeletableProperties, OpenfabricNodeDeletableProperties, OpenfabricNodeProperties,
@@ -69,6 +73,8 @@ pub enum FabricConfigError {
     // this is technically possible, but we don't allow it
     #[error("duplicate OSPF area")]
     DuplicateOspfArea,
+    #[error("BGP router-id collision: multiple nodes resolve to the same router-id {0}")]
+    DuplicateBgpRouterId(std::net::Ipv4Addr),
     #[error("IP prefix {0} in fabric '{1}' overlaps with IPv4 prefix {2} in fabric '{3}'")]
     OverlappingIp4Prefix(String, String, String, String),
     #[error("IPv6 prefix {0} in fabric '{1}' overlaps with IPv6 prefix {2} in fabric '{3}'")]
@@ -203,6 +209,7 @@ macro_rules! impl_entry {
 impl_entry!(Openfabric, OpenfabricProperties, OpenfabricNodeProperties);
 impl_entry!(Ospf, OspfProperties, OspfNodeProperties);
 impl_entry!(WireGuard, WireGuardProperties, WireGuardNode);
+impl_entry!(Bgp, BgpProperties, BgpNode);
 
 /// All possible entries in a [`FabricConfig`].
 ///
@@ -213,6 +220,7 @@ pub enum FabricEntry {
     Openfabric(Entry<OpenfabricProperties, OpenfabricNodeProperties>),
     Ospf(Entry<OspfProperties, OspfNodeProperties>),
     WireGuard(Entry<WireGuardProperties, WireGuardNode>),
+    Bgp(Entry<BgpProperties, BgpNode>),
 }
 
 impl FabricEntry {
@@ -227,6 +235,7 @@ impl FabricEntry {
             (FabricEntry::WireGuard(entry), Node::WireGuard(node_section)) => {
                 entry.add_node(node_section)
             }
+            (FabricEntry::Bgp(entry), Node::Bgp(node_section)) => entry.add_node(node_section),
             _ => Err(FabricConfigError::ProtocolMismatch),
         }
     }
@@ -238,6 +247,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => entry.get_node(id),
             FabricEntry::Ospf(entry) => entry.get_node(id),
             FabricEntry::WireGuard(entry) => entry.get_node(id),
+            FabricEntry::Bgp(entry) => entry.get_node(id),
         }
     }
 
@@ -248,6 +258,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => entry.get_node_mut(id),
             FabricEntry::Ospf(entry) => entry.get_node_mut(id),
             FabricEntry::WireGuard(entry) => entry.get_node_mut(id),
+            FabricEntry::Bgp(entry) => entry.get_node_mut(id),
         }
     }
 
@@ -394,6 +405,8 @@ impl FabricEntry {
                                 _ => continue,
                             }
                         }
+
+                        Ok(())
                     }
                     (
                         WireGuardNode::External(external_wire_guard_node),
@@ -424,8 +437,48 @@ impl FabricEntry {
                                 _ => continue,
                             }
                         }
+
+                        Ok(())
                     }
-                    _ => return Err(FabricConfigError::ProtocolMismatch),
+                    _ => Err(FabricConfigError::ProtocolMismatch),
+                }
+            }
+            (Node::Bgp(node_section), NodeUpdater::Bgp(updater)) => {
+                let BgpNode::Internal(ref mut props) = node_section.properties else {
+                    return Err(FabricConfigError::ProtocolMismatch);
+                };
+
+                let NodeDataUpdater::<BgpNodePropertiesUpdater, BgpNodeDeletableProperties> {
+                    ip,
+                    ip6,
+                    properties: BgpNodePropertiesUpdater { asn, interfaces },
+                    delete,
+                } = updater;
+
+                if let Some(ip) = ip {
+                    node_section.ip = Some(ip);
+                }
+
+                if let Some(ip) = ip6 {
+                    node_section.ip6 = Some(ip);
+                }
+
+                if let Some(asn) = asn {
+                    props.asn = asn;
+                }
+
+                if let Some(interfaces) = interfaces {
+                    props.interfaces = interfaces;
+                }
+
+                for property in delete {
+                    match property {
+                        NodeDeletableProperties::Ip => node_section.ip = None,
+                        NodeDeletableProperties::Ip6 => node_section.ip6 = None,
+                        NodeDeletableProperties::Protocol(
+                            BgpNodeDeletableProperties::Interfaces,
+                        ) => props.interfaces = Vec::new(),
+                    }
                 }
 
                 Ok(())
@@ -440,6 +493,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => entry.nodes.iter(),
             FabricEntry::Ospf(entry) => entry.nodes.iter(),
             FabricEntry::WireGuard(entry) => entry.nodes.iter(),
+            FabricEntry::Bgp(entry) => entry.nodes.iter(),
         }
     }
 
@@ -449,6 +503,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => entry.delete_node(id),
             FabricEntry::Ospf(entry) => entry.delete_node(id),
             FabricEntry::WireGuard(entry) => entry.delete_node(id),
+            FabricEntry::Bgp(entry) => entry.delete_node(id),
         }
     }
 
@@ -459,6 +514,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => entry.into_pair(),
             FabricEntry::Ospf(entry) => entry.into_pair(),
             FabricEntry::WireGuard(entry) => entry.into_pair(),
+            FabricEntry::Bgp(entry) => entry.into_pair(),
         }
     }
 
@@ -468,6 +524,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => &entry.fabric,
             FabricEntry::Ospf(entry) => &entry.fabric,
             FabricEntry::WireGuard(entry) => &entry.fabric,
+            FabricEntry::Bgp(entry) => &entry.fabric,
         }
     }
 
@@ -477,6 +534,7 @@ impl FabricEntry {
             FabricEntry::Openfabric(entry) => &mut entry.fabric,
             FabricEntry::Ospf(entry) => &mut entry.fabric,
             FabricEntry::WireGuard(entry) => &mut entry.fabric,
+            FabricEntry::Bgp(entry) => &mut entry.fabric,
         }
     }
 }
@@ -489,6 +547,7 @@ impl From<Fabric> for FabricEntry {
             }
             Fabric::Ospf(fabric_section) => FabricEntry::Ospf(Entry::new(fabric_section)),
             Fabric::WireGuard(fabric_section) => FabricEntry::WireGuard(Entry::new(fabric_section)),
+            Fabric::Bgp(fabric_section) => FabricEntry::Bgp(Entry::new(fabric_section)),
         }
     }
 }
@@ -502,6 +561,8 @@ impl Validatable for FabricEntry {
     /// - Node IP addresses are within their respective fabric IP prefix ranges
     /// - IP addresses are unique across all nodes in the fabric
     /// - Each node passes its own validation checks
+    /// - For BGP fabrics, derived router-ids are unique across nodes (catches
+    ///   FNV-1a hash collisions for IPv6-only nodes)
     fn validate(&self) -> Result<(), FabricConfigError> {
         let fabric = self.fabric();
 
@@ -649,6 +710,27 @@ impl Validatable for FabricEntry {
             }
         }
 
+        // Per-node IPs are unique by the checks above. Router-ids can still
+        // collide when at least one node falls back to FNV-1a on its IPv6
+        // address (the hash is 32 bits wide, so two distinct IPv6 addresses
+        // can map to the same router-id).
+        if let FabricEntry::Bgp(bgp_entry) = self {
+            let mut seen_router_ids: HashMap<std::net::Ipv4Addr, &NodeId> = HashMap::new();
+            for (node_id, node) in &bgp_entry.nodes {
+                let Node::Bgp(node_section) = node else {
+                    continue;
+                };
+                if !matches!(node_section.properties(), BgpNode::Internal(_)) {
+                    continue;
+                }
+                if let Some(router_id) = bgp_router_id(node_section) {
+                    if seen_router_ids.insert(router_id, node_id).is_some() {
+                        return Err(FabricConfigError::DuplicateBgpRouterId(router_id));
+                    }
+                }
+            }
+        }
+
         fabric.validate()
     }
 }
@@ -760,6 +842,15 @@ impl Validatable for FabricConfig {
                                         interface.listen_port.to_string(),
                                     ));
                                 }
+                            }
+                        }
+                    }
+                    Node::Bgp(node_section) => {
+                        if let BgpNode::Internal(props) = node_section.properties() {
+                            if !props.interfaces().all(|interface| {
+                                node_interfaces.insert((node_id, interface.name().as_str()))
+                            }) {
+                                return Err(FabricConfigError::DuplicateInterface);
                             }
                         }
                     }
@@ -984,6 +1075,80 @@ impl FabricConfig {
                             WireGuardDeletableProperties::PersistentKeepalive,
                         ) => {
                             fabric_section.properties.persistent_keepalive = None;
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            (Fabric::Bgp(fabric_section), FabricUpdater::Bgp(updater)) => {
+                let FabricSectionUpdater::<BgpPropertiesUpdater, BgpDeletableProperties> {
+                    ip_prefix,
+                    ip6_prefix,
+                    properties:
+                        BgpPropertiesUpdater {
+                            bfd,
+                            redistribute,
+                            route_map_in,
+                            route_map_out,
+                            route_filter,
+                        },
+                    delete,
+                } = updater;
+
+                if let Some(prefix) = ip_prefix {
+                    fabric_section.ip_prefix = Some(prefix);
+                }
+
+                if let Some(prefix) = ip6_prefix {
+                    fabric_section.ip6_prefix = Some(prefix);
+                }
+
+                if let Some(bfd) = bfd {
+                    fabric_section.properties.bfd = bfd;
+                }
+
+                if let Some(redistribute) = redistribute {
+                    fabric_section.properties.redistribute = redistribute;
+                }
+
+                if let Some(route_map_in) = route_map_in {
+                    fabric_section.properties.route_map_in = Some(route_map_in);
+                }
+
+                if let Some(route_map_out) = route_map_out {
+                    fabric_section.properties.route_map_out = Some(route_map_out);
+                }
+
+                if let Some(route_filter) = route_filter {
+                    fabric_section.properties.route_filter = Some(route_filter);
+                }
+
+                for property in delete {
+                    match property {
+                        FabricDeletableProperties::IpPrefix => {
+                            fabric_section.ip_prefix = None;
+                        }
+                        FabricDeletableProperties::Ip6Prefix => {
+                            fabric_section.ip6_prefix = None;
+                        }
+                        FabricDeletableProperties::Protocol(
+                            BgpDeletableProperties::Redistribute,
+                        ) => {
+                            fabric_section.properties.redistribute = Vec::new();
+                        }
+                        FabricDeletableProperties::Protocol(
+                            BgpDeletableProperties::RouteFilter,
+                        ) => {
+                            fabric_section.properties.route_filter = None;
+                        }
+                        FabricDeletableProperties::Protocol(BgpDeletableProperties::RouteMapIn) => {
+                            fabric_section.properties.route_map_in = None;
+                        }
+                        FabricDeletableProperties::Protocol(
+                            BgpDeletableProperties::RouteMapOut,
+                        ) => {
+                            fabric_section.properties.route_map_out = None;
                         }
                     }
                 }

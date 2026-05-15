@@ -10,6 +10,7 @@ use proxmox_schema::{
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::section_config::protocol::bgp::BgpNode;
 use crate::sdn::fabric::section_config::protocol::wireguard::WireGuardNode;
 use crate::sdn::fabric::section_config::{
     fabric::{FabricId, FABRIC_ID_REGEX_STR},
@@ -191,6 +192,7 @@ pub enum Node {
     Ospf(NodeSection<OspfNodeProperties>),
     #[serde(rename = "wireguard")]
     WireGuard(NodeSection<WireGuardNode>),
+    Bgp(NodeSection<BgpNode>),
 }
 
 impl Node {
@@ -200,6 +202,7 @@ impl Node {
             Node::Openfabric(node_section) => node_section.id(),
             Node::Ospf(node_section) => node_section.id(),
             Node::WireGuard(node_section) => node_section.id(),
+            Node::Bgp(node_section) => node_section.id(),
         }
     }
 
@@ -209,6 +212,7 @@ impl Node {
             Node::Openfabric(node_section) => node_section.ip(),
             Node::Ospf(node_section) => node_section.ip(),
             Node::WireGuard(node_section) => node_section.ip(),
+            Node::Bgp(node_section) => node_section.ip(),
         }
     }
 
@@ -218,6 +222,7 @@ impl Node {
             Node::Openfabric(node_section) => node_section.ip6(),
             Node::Ospf(node_section) => node_section.ip6(),
             Node::WireGuard(node_section) => node_section.ip6(),
+            Node::Bgp(node_section) => node_section.ip6(),
         }
     }
 }
@@ -230,6 +235,7 @@ impl Validatable for Node {
             Node::Openfabric(node_section) => node_section.validate(),
             Node::Ospf(node_section) => node_section.validate(),
             Node::WireGuard(node_section) => node_section.validate(),
+            Node::Bgp(node_section) => node_section.validate(),
         }
     }
 }
@@ -249,6 +255,12 @@ impl From<NodeSection<OspfNodeProperties>> for Node {
 impl From<NodeSection<WireGuardNode>> for Node {
     fn from(value: NodeSection<WireGuardNode>) -> Self {
         Self::WireGuard(value)
+    }
+}
+
+impl From<NodeSection<BgpNode>> for Node {
+    fn from(value: NodeSection<BgpNode>) -> Self {
+        Self::Bgp(value)
     }
 }
 
@@ -273,6 +285,7 @@ pub mod api {
     use proxmox_schema::{Updater, UpdaterType};
 
     use crate::sdn::fabric::section_config::protocol::{
+        bgp::{BgpNodeDeletableProperties, BgpNodePropertiesUpdater},
         openfabric::{
             OpenfabricNodeDeletableProperties, OpenfabricNodeProperties,
             OpenfabricNodePropertiesUpdater,
@@ -338,6 +351,7 @@ pub mod api {
         Ospf(NodeData<OspfNodeProperties>),
         #[serde(rename = "wireguard")]
         WireGuard(NodeData<WireGuardNode>),
+        Bgp(NodeData<BgpNode>),
     }
 
     impl From<super::Node> for Node {
@@ -346,6 +360,7 @@ pub mod api {
                 super::Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
                 super::Node::Ospf(node_section) => Self::Ospf(node_section.into()),
                 super::Node::WireGuard(node_section) => Self::WireGuard(node_section.into()),
+                super::Node::Bgp(node_section) => Self::Bgp(node_section.into()),
             }
         }
     }
@@ -356,6 +371,7 @@ pub mod api {
                 Node::Openfabric(node_section) => Self::Openfabric(node_section.into()),
                 Node::Ospf(node_section) => Self::Ospf(node_section.into()),
                 Node::WireGuard(node_section) => Self::WireGuard(node_section.into()),
+                Node::Bgp(node_section) => Self::Bgp(node_section.into()),
             }
         }
     }
@@ -371,6 +387,10 @@ pub mod api {
 
     impl UpdaterType for NodeData<WireGuardNode> {
         type Updater = NodeDataUpdater<WireGuardNodeUpdater, WireGuardNodeDeletableProperties>;
+    }
+
+    impl UpdaterType for NodeData<BgpNode> {
+        type Updater = NodeDataUpdater<BgpNodePropertiesUpdater, BgpNodeDeletableProperties>;
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -410,6 +430,7 @@ pub mod api {
         Ospf(NodeDataUpdater<OspfNodePropertiesUpdater, OspfNodeDeletableProperties>),
         #[serde(rename = "wireguard")]
         WireGuard(NodeDataUpdater<WireGuardNodeUpdater, WireGuardNodeDeletableProperties>),
+        Bgp(NodeDataUpdater<BgpNodePropertiesUpdater, BgpNodeDeletableProperties>),
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]

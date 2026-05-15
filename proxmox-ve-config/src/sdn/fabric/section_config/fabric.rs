@@ -8,6 +8,9 @@ use proxmox_schema::{
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::section_config::protocol::bgp::{
+    BgpDeletableProperties, BgpProperties, BgpPropertiesUpdater,
+};
 use crate::sdn::fabric::section_config::protocol::openfabric::{
     OpenfabricDeletableProperties, OpenfabricProperties, OpenfabricPropertiesUpdater,
 };
@@ -147,6 +150,10 @@ impl UpdaterType for FabricSection<WireGuardProperties> {
     type Updater = FabricSectionUpdater<WireGuardPropertiesUpdater, WireGuardDeletableProperties>;
 }
 
+impl UpdaterType for FabricSection<BgpProperties> {
+    type Updater = FabricSectionUpdater<BgpPropertiesUpdater, BgpDeletableProperties>;
+}
+
 /// Enum containing all types of fabrics.
 ///
 /// It utilizes [`FabricSection<T>`] to define all possible types of fabrics. For parsing the
@@ -169,6 +176,7 @@ pub enum Fabric {
     Ospf(FabricSection<OspfProperties>),
     #[serde(rename = "wireguard")]
     WireGuard(FabricSection<WireGuardProperties>),
+    Bgp(FabricSection<BgpProperties>),
 }
 
 impl UpdaterType for Fabric {
@@ -184,6 +192,7 @@ impl Fabric {
             Self::Openfabric(fabric_section) => fabric_section.id(),
             Self::Ospf(fabric_section) => fabric_section.id(),
             Self::WireGuard(fabric_section) => fabric_section.id(),
+            Self::Bgp(fabric_section) => fabric_section.id(),
         }
     }
 
@@ -195,6 +204,7 @@ impl Fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip_prefix(),
             Fabric::WireGuard(fabric_section) => fabric_section.ip_prefix(),
+            Fabric::Bgp(fabric_section) => fabric_section.ip_prefix(),
         }
     }
 
@@ -206,6 +216,7 @@ impl Fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
             Fabric::Ospf(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
             Fabric::WireGuard(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
+            Fabric::Bgp(fabric_section) => fabric_section.ip_prefix = Some(ipv4_cidr),
         }
     }
 
@@ -217,6 +228,7 @@ impl Fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix(),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix(),
             Fabric::WireGuard(fabric_section) => fabric_section.ip6_prefix(),
+            Fabric::Bgp(fabric_section) => fabric_section.ip6_prefix(),
         }
     }
 
@@ -228,6 +240,7 @@ impl Fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
             Fabric::Ospf(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
             Fabric::WireGuard(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
+            Fabric::Bgp(fabric_section) => fabric_section.ip6_prefix = Some(ipv6_cidr),
         }
     }
 }
@@ -241,6 +254,7 @@ impl Validatable for Fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.validate(),
             Fabric::Ospf(fabric_section) => fabric_section.validate(),
             Fabric::WireGuard(_fabric_section) => Ok(()),
+            Fabric::Bgp(fabric_section) => fabric_section.validate(),
         }
     }
 }
@@ -263,6 +277,12 @@ impl From<FabricSection<WireGuardProperties>> for Fabric {
     }
 }
 
+impl From<FabricSection<BgpProperties>> for Fabric {
+    fn from(section: FabricSection<BgpProperties>) -> Self {
+        Fabric::Bgp(section)
+    }
+}
+
 /// Enum containing all updater types for fabrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
@@ -271,6 +291,7 @@ pub enum FabricUpdater {
     Ospf(<FabricSection<OspfProperties> as UpdaterType>::Updater),
     #[serde(rename = "wireguard")]
     WireGuard(<FabricSection<WireGuardProperties> as UpdaterType>::Updater),
+    Bgp(<FabricSection<BgpProperties> as UpdaterType>::Updater),
 }
 
 impl Updater for FabricUpdater {
@@ -279,6 +300,7 @@ impl Updater for FabricUpdater {
             FabricUpdater::Openfabric(updater) => updater.is_empty(),
             FabricUpdater::Ospf(updater) => updater.is_empty(),
             FabricUpdater::WireGuard(updater) => updater.is_empty(),
+            FabricUpdater::Bgp(updater) => updater.is_empty(),
         }
     }
 }

@@ -1,0 +1,37 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+---
+!
+router bgp 65001
+ bgp router-id 5.76.46.251
+ no bgp default ipv4-unicast
+ neighbor test peer-group
+ neighbor test remote-as external
+ neighbor ens18 interface peer-group test
+ neighbor ens19 interface peer-group test
+ !
+ address-family ipv6 unicast
+  network fd00:10::1/128
+  neighbor test activate
+  neighbor test soft-reconfiguration inbound
+  neighbor test route-map pve_bgp6_test_in in
+ exit-address-family
+exit
+!
+ipv6 access-list pve_bgp_test_ip6s permit fd00:10::/64
+!
+route-map pve_bgp6 permit 100
+ match ipv6 address pve_bgp_test_ip6s
+ set src fd00:10::1
+exit
+!
+route-map pve_bgp6 permit 65535
+exit
+!
+route-map pve_bgp6_test_in permit 10
+ match ipv6 address pve_bgp_test_ip6s
+exit
+!
+!
+ipv6 protocol bgp route-map pve_bgp6

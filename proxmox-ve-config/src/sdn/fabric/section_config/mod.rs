@@ -11,6 +11,7 @@ use crate::sdn::fabric::section_config::{
     fabric::{Fabric, FabricSection, FABRIC_ID_REGEX_STR},
     node::{Node, NodeSection, NODE_ID_REGEX_STR},
     protocol::{
+        bgp::{BgpNode, BgpProperties},
         openfabric::{OpenfabricNodeProperties, OpenfabricProperties},
         ospf::{OspfNodeProperties, OspfProperties},
         wireguard::WireGuardNode,
@@ -34,9 +35,11 @@ impl From<Section> for FabricOrNode<Fabric, Node> {
             Section::OpenfabricFabric(fabric_section) => Self::Fabric(fabric_section.into()),
             Section::OspfFabric(fabric_section) => Self::Fabric(fabric_section.into()),
             Section::WireGuardFabric(fabric_section) => Self::Fabric(fabric_section.into()),
+            Section::BgpFabric(fabric_section) => Self::Fabric(fabric_section.into()),
             Section::OpenfabricNode(node_section) => Self::Node(node_section.into()),
             Section::OspfNode(node_section) => Self::Node(node_section.into()),
             Section::WireGuardNode(node_section) => Self::Node(node_section.into()),
+            Section::BgpNode(node_section) => Self::Node(node_section.into()),
         }
     }
 }
@@ -68,10 +71,12 @@ pub enum Section {
     OspfFabric(FabricSection<OspfProperties>),
     #[serde(rename = "wireguard_fabric")]
     WireGuardFabric(FabricSection<WireGuardProperties>),
+    BgpFabric(FabricSection<BgpProperties>),
     OpenfabricNode(NodeSection<OpenfabricNodeProperties>),
     OspfNode(NodeSection<OspfNodeProperties>),
     #[serde(rename = "wireguard_node")]
     WireGuardNode(NodeSection<WireGuardNode>),
+    BgpNode(NodeSection<BgpNode>),
 }
 
 impl From<FabricSection<OpenfabricProperties>> for Section {
@@ -89,6 +94,12 @@ impl From<FabricSection<OspfProperties>> for Section {
 impl From<FabricSection<WireGuardProperties>> for Section {
     fn from(section: FabricSection<WireGuardProperties>) -> Self {
         Self::WireGuardFabric(section)
+    }
+}
+
+impl From<FabricSection<BgpProperties>> for Section {
+    fn from(section: FabricSection<BgpProperties>) -> Self {
+        Self::BgpFabric(section)
     }
 }
 
@@ -110,12 +121,19 @@ impl From<NodeSection<WireGuardNode>> for Section {
     }
 }
 
+impl From<NodeSection<BgpNode>> for Section {
+    fn from(section: NodeSection<BgpNode>) -> Self {
+        Self::BgpNode(section)
+    }
+}
+
 impl From<Fabric> for Section {
     fn from(fabric: Fabric) -> Self {
         match fabric {
             Fabric::Openfabric(fabric_section) => fabric_section.into(),
             Fabric::Ospf(fabric_section) => fabric_section.into(),
             Fabric::WireGuard(fabric_section) => fabric_section.into(),
+            Fabric::Bgp(fabric_section) => fabric_section.into(),
         }
     }
 }
@@ -126,6 +144,7 @@ impl From<Node> for Section {
             Node::Openfabric(node_section) => node_section.into(),
             Node::Ospf(node_section) => node_section.into(),
             Node::WireGuard(node_section) => node_section.into(),
+            Node::Bgp(node_section) => node_section.into(),
         }
     }
 }

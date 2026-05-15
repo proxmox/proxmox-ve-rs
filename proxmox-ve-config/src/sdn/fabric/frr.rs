@@ -2,15 +2,25 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use tracing;
 
+use proxmox_frr::ser::bgp::{
+    AddressFamilies, AddressFamilyNeighbor, BgpRouter, CommonAddressFamilyOptions, Ipv4UnicastAF,
+    Ipv6UnicastAF, LocalAsFlags, LocalAsSettings, NeighborGroup, NeighborRemoteAs,
+    RedistributeProtocol, Redistribution,
+};
 use proxmox_frr::ser::openfabric::{OpenfabricInterface, OpenfabricRouter, OpenfabricRouterName};
 use proxmox_frr::ser::ospf::{self, OspfInterface, OspfRedistribution, OspfRouter};
-use proxmox_frr::ser::route_map::{AccessListName, RouteMapEntry, RouteMapMatch, RouteMapSet};
-use proxmox_frr::ser::{self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName};
-use proxmox_network_types::ip_address::Cidr;
+use proxmox_frr::ser::route_map::{
+    AccessListName, RouteMapEntry, RouteMapMatch, RouteMapName, RouteMapSet,
+};
+use proxmox_frr::ser::{self, FrrConfig, FrrProtocol, FrrWord, Interface, InterfaceName, VrfName};
+use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
 use proxmox_sdn_types::net::Net;
 
 use crate::common::valid::Valid;
+
+use crate::sdn::fabric::section_config::protocol::bgp::{bgp_router_id, BgpNode};
 use crate::sdn::fabric::section_config::protocol::{
+    bgp::BgpRedistributionSource,
     openfabric::{OpenfabricInterfaceProperties, OpenfabricProperties},
     ospf::OspfInterfaceProperties,
 };
@@ -289,6 +299,296 @@ pub fn build_fabric(
                 protocol_routemap.v4 = Some(routemap_name);
             }
             FabricEntry::WireGuard(_) => {} // not a frr fabric
+            FabricEntry::Bgp(bgp_entry) => {
+                let Ok(node) = bgp_entry.node_section(&current_node) else {
+                    continue;
+                };
+
+                let BgpNode::Internal(properties) = node.properties() else {
+                    continue;
+                };
+
+                let fabric = bgp_entry.fabric_section();
+
+                let local_asn = properties.asn().as_u32();
+
+                let mut bgp_interfaces = Vec::new();
+                for interface in properties.interfaces() {
+                    bgp_interfaces.push(interface.name.as_str().try_into()?)
+                }
+
+                // If we will merge into an existing default-VRF BGP router that runs
+                // under a different ASN (typically the EVPN controller's ASN), present
+                // the per-node fabric ASN to the underlay peers via local-as.
+                let local_as = frr_config
+                    .bgp
+                    .vrf_router
+                    .get(&VrfName::Default)
+                    .filter(|existing| existing.asn != local_asn)
+                    .map(|_| LocalAsSettings {
+                        asn: local_asn,
+                        mode: Some(LocalAsFlags::ReplaceAs),
+                    });
+
+                let neighbor_group = NeighborGroup {
+                    name: FrrWord::new(fabric.id().to_string())?,
+                    bfd: fabric.properties().bfd(),
+                    remote_as: NeighborRemoteAs::External,
+                    local_as,
+                    interfaces: bgp_interfaces,
+                    ips: Default::default(),
+                    ebgp_multihop: Default::default(),
+                    update_source: Default::default(),
+                };
+
+                let redistribute: Vec<Redistribution> = fabric
+                    .properties()
+                    .redistribute
+                    .iter()
+                    .map(|redistribution| Redistribution {
+                        protocol: match redistribution.source {
+                            BgpRedistributionSource::Ospf => RedistributeProtocol::Ospf,
+                            BgpRedistributionSource::Connected => RedistributeProtocol::Connected,
+                            BgpRedistributionSource::Isis => RedistributeProtocol::Isis,
+                            BgpRedistributionSource::Kernel => RedistributeProtocol::Kernel,
+                            BgpRedistributionSource::Openfabric => RedistributeProtocol::Openfabric,
+                            BgpRedistributionSource::Ospf6 => RedistributeProtocol::Ospf6,
+                            BgpRedistributionSource::Static => RedistributeProtocol::Static,
+                        },
+                        metric: redistribution.metric,
+                        route_map: redistribution.route_map.clone().map(RouteMapName::from),
+                    })
+                    .collect();
+
+                let mut address_families = AddressFamilies::default();
+
+                if let Some(ip) = node.ip() {
+                    // Build the prefix matcher (route_filter prefix-list, or
+                    // an auto access-list from ip_prefix). Reused for both the
+                    // pve_bgp set-src clause and the per-peer inbound filter
+                    // below, so they stay in sync.
+                    let inbound_matchers: Vec<RouteMapMatch> =
+                        if let Some(prefix_list_id) = &fabric.properties().route_filter {
+                            vec![RouteMapMatch::IpAddressPrefixList(
+                                prefix_list_id.clone().into(),
+                            )]
+                        } else if let Some(cidr) = fabric.ip_prefix() {
+                            let access_list_name =
+                                AccessListName::new(format!("pve_bgp_{fabric_id}_ips"));
+
+                            let rule = ser::route_map::AccessListRule {
+                                action: ser::route_map::AccessAction::Permit,
+                                network: Cidr::from(cidr),
+                                is_ipv6: false,
+                                seq: None,
+                            };
+
+                            frr_config
+                                .access_lists
+                                .insert(access_list_name.clone(), vec![rule]);
+
+                            vec![RouteMapMatch::IpAddressAccessList(access_list_name)]
+                        } else {
+                            Vec::new()
+                        };
+
+                    // Per-peer inbound filter: permit prefixes matching the fabric's filter,
+                    // implicit deny everything else. Stops a misbehaving fabric peer from leaking
+                    // prefixes outside its declared range into BGP at all. If the user configured
+                    // a custom route_map_in, it is chained via FRR's `call` action so it only sees
+                    // prefixes that already passed the fabric-prefix filter.
+                    let auto_in_routemap = if !inbound_matchers.is_empty() {
+                        let name =
+                            ser::route_map::RouteMapName::new(format!("pve_bgp_{fabric_id}_in"));
+                        let in_routemap = frr_config.routemaps.entry(name.clone()).or_default();
+                        in_routemap.push(RouteMapEntry {
+                            seq: 10,
+                            action: ser::route_map::AccessAction::Permit,
+                            matches: inbound_matchers.clone(),
+                            sets: Vec::new(),
+                            custom_frr_config: Vec::new(),
+                            call: fabric
+                                .properties()
+                                .route_map_in
+                                .clone()
+                                .map(RouteMapName::from),
+                            exit_action: None,
+                        });
+                        Some(name)
+                    } else {
+                        None
+                    };
+
+                    address_families.ipv4_unicast = Some(Ipv4UnicastAF {
+                        common_options: CommonAddressFamilyOptions {
+                            import_vrf: Default::default(),
+                            neighbors: vec![AddressFamilyNeighbor {
+                                name: fabric.id().to_string(),
+                                route_map_in: auto_in_routemap,
+                                route_map_out: fabric
+                                    .properties()
+                                    .route_map_out
+                                    .clone()
+                                    .map(RouteMapName::from),
+                                soft_reconfiguration_inbound: Some(true),
+                            }],
+                            custom_frr_config: Default::default(),
+                        },
+                        redistribute: redistribute.clone(),
+                        networks: vec![Ipv4Cidr::from(ip)],
+                    });
+
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp".to_owned());
+                    let routemap = frr_config
+                        .routemaps
+                        .entry(routemap_name.clone())
+                        .or_default();
+
+                    let mut routemap_entry = build_source_routemap(ip.into(), routemap_seq);
+                    routemap_seq += 10;
+                    routemap_entry.matches = inbound_matchers;
+
+                    routemap.push(routemap_entry);
+
+                    let protocol_routemap = frr_config
+                        .protocol_routemaps
+                        .entry(FrrProtocol::Bgp)
+                        .or_default();
+
+                    protocol_routemap.v4 = Some(routemap_name);
+                }
+
+                if let Some(ip) = node.ip6() {
+                    let inbound_matchers: Vec<RouteMapMatch> =
+                        if let Some(prefix_list_id) = &fabric.properties().route_filter {
+                            vec![RouteMapMatch::Ip6AddressPrefixList(
+                                prefix_list_id.clone().into(),
+                            )]
+                        } else if let Some(cidr) = fabric.ip6_prefix() {
+                            let access_list_name =
+                                AccessListName::new(format!("pve_bgp_{fabric_id}_ip6s"));
+
+                            let rule = ser::route_map::AccessListRule {
+                                action: ser::route_map::AccessAction::Permit,
+                                network: Cidr::from(cidr),
+                                is_ipv6: true,
+                                seq: None,
+                            };
+
+                            frr_config
+                                .access_lists
+                                .insert(access_list_name.clone(), vec![rule]);
+
+                            vec![RouteMapMatch::Ip6AddressAccessList(access_list_name)]
+                        } else {
+                            Vec::new()
+                        };
+
+                    let auto_in_routemap = if !inbound_matchers.is_empty() {
+                        let name =
+                            ser::route_map::RouteMapName::new(format!("pve_bgp6_{fabric_id}_in"));
+                        let in_routemap = frr_config.routemaps.entry(name.clone()).or_default();
+                        in_routemap.push(RouteMapEntry {
+                            seq: 10,
+                            action: ser::route_map::AccessAction::Permit,
+                            matches: inbound_matchers.clone(),
+                            sets: Vec::new(),
+                            custom_frr_config: Vec::new(),
+                            call: fabric
+                                .properties()
+                                .route_map_in
+                                .clone()
+                                .map(RouteMapName::from),
+                            exit_action: None,
+                        });
+                        Some(name)
+                    } else {
+                        None
+                    };
+
+                    address_families.ipv6_unicast = Some(Ipv6UnicastAF {
+                        common_options: CommonAddressFamilyOptions {
+                            import_vrf: Default::default(),
+                            neighbors: vec![AddressFamilyNeighbor {
+                                name: fabric.id().to_string(),
+                                route_map_in: auto_in_routemap,
+                                route_map_out: fabric
+                                    .properties()
+                                    .route_map_out
+                                    .clone()
+                                    .map(RouteMapName::from),
+                                soft_reconfiguration_inbound: Some(true),
+                            }],
+                            custom_frr_config: Default::default(),
+                        },
+                        networks: vec![Ipv6Cidr::from(ip)],
+                        redistribute,
+                    });
+
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp6".to_owned());
+                    let routemap = frr_config
+                        .routemaps
+                        .entry(routemap_name.clone())
+                        .or_default();
+
+                    let mut routemap_entry = build_source_routemap(ip.into(), routemap_seq);
+                    routemap_seq += 10;
+                    routemap_entry.matches = inbound_matchers;
+
+                    routemap.push(routemap_entry);
+
+                    let protocol_routemap = frr_config
+                        .protocol_routemaps
+                        .entry(FrrProtocol::Bgp)
+                        .or_default();
+
+                    protocol_routemap.v6 = Some(routemap_name);
+                };
+
+                let router_id = bgp_router_id(&node)
+                    .ok_or_else(|| anyhow::anyhow!("BGP node must have ip or ip6 set"))?;
+
+                let router = BgpRouter {
+                    asn: local_asn,
+                    router_id,
+                    neighbor_groups: vec![neighbor_group],
+                    address_families,
+                    coalesce_time: Default::default(),
+                    default_ipv4_unicast: Some(false),
+                    hard_administrative_reset: Default::default(),
+                    graceful_restart_notification: Default::default(),
+                    disable_ebgp_connected_route_check: Default::default(),
+                    bestpath_as_path_multipath_relax: Default::default(),
+                    custom_frr_config: Default::default(),
+                };
+
+                if let Some(existing) = frr_config.bgp.vrf_router.get_mut(&VrfName::Default) {
+                    existing.merge_fabric(router);
+                } else {
+                    frr_config.bgp.vrf_router.insert(VrfName::Default, router);
+                }
+            }
+        }
+    }
+
+    // Append a trailing permit-all to the BGP route-maps so non-fabric BGP
+    // routes (e.g. EVPN-imported VRF routes) reach the kernel unchanged.
+    // Without this, the implicit deny at the end of the route-map would drop
+    // them.
+    for routemap_name in [
+        ser::route_map::RouteMapName::new("pve_bgp".to_owned()),
+        ser::route_map::RouteMapName::new("pve_bgp6".to_owned()),
+    ] {
+        if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
+            routemap.push(RouteMapEntry {
+                seq: 65535,
+                action: ser::route_map::AccessAction::Permit,
+                matches: Vec::new(),
+                sets: Vec::new(),
+                custom_frr_config: Vec::new(),
+                call: None,
+                exit_action: None,
+            });
         }
     }
 
