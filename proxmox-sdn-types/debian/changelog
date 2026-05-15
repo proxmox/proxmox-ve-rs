@@ -1,3 +1,14 @@
+rust-proxmox-sdn-types (0.2.3-1) trixie; urgency=medium
+
+  * sdn: ospf: host the NetworkType enum (Broadcast, NonBroadcast,
+    PointToPoint, PointToMultipoint) so proxmox-frr and proxmox-ve-config can
+    share it without ve-config pulling in the optional `frr` feature.
+
+  * sdn: rename the `area` module to `ospf` since it now hosts more
+    OSPF-specific types than just Area.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 03:39:40 +0200
+
 rust-proxmox-sdn-types (0.2.2-1) trixie; urgency=medium
 
   * add WireGuard-specific PersistentKeepalive api type, used by the WireGuard
