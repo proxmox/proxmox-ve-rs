@@ -5,14 +5,14 @@ use std::fmt::Display;
 use proxmox_schema::{api, UpdaterType};
 use serde::{Deserialize, Serialize};
 
-/// Persistent keep-alive interval. Specifies how often a authenticated, empty
-/// packet will be sent to the peer to keep e.g. stateful firewall open or NAT
-/// mappings.
+/// Persistent keep-alive interval, in seconds, between 0 and 65535 inclusive.
 ///
-/// Interval in seconds, between 1 and 65535 inclusive.
+/// When set to a non-zero value, an authenticated empty packet is sent to the
+/// peer at that interval to keep stateful firewall mappings or NAT translations
+/// open. A value of 0, or the absence of this property, disables the feature.
 #[api(
     type: Integer,
-    minimum: 1,
+    minimum: 0,
 )]
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(transparent)]
