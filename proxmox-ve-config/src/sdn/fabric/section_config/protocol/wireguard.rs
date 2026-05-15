@@ -722,8 +722,13 @@ pub mod private_keys {
             self.0.get(node)?.get(interface)
         }
 
-        /// Removes all entries in the private key configuration that do not exist in the given [`FabricConfig`].
-        pub fn cleanup(&mut self, fabric_config: &FabricConfig) -> Result<(), Error> {
+        /// Removes all entries in the private key configuration that do not exist in the given
+        /// [`FabricConfig`].
+        ///
+        /// Returns `true` if at least one entry was removed, allowing callers to skip an
+        /// unconditional write of the cluster-replicated key file when there was nothing to clean
+        /// up.
+        pub fn cleanup(&mut self, fabric_config: &FabricConfig) -> Result<bool, Error> {
             let mut private_keys_nodes = HashSet::new();
             let mut private_keys_interfaces = HashSet::new();
 
@@ -757,17 +762,23 @@ pub mod private_keys {
                 );
             }
 
+            let mut changed = false;
+
             for node_id in private_keys_nodes.difference(&fabric_config_nodes) {
-                self.0.remove(node_id);
+                if self.0.remove(node_id).is_some() {
+                    changed = true;
+                }
             }
 
             for (node_id, interface_id) in
                 private_keys_interfaces.difference(&fabric_config_interfaces)
             {
-                self.remove(node_id, interface_id);
+                if self.remove(node_id, interface_id).is_some() {
+                    changed = true;
+                }
             }
 
-            Ok(())
+            Ok(changed)
         }
     }
 
