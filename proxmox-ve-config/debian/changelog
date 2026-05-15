@@ -1,3 +1,21 @@
+rust-proxmox-ve-config (0.9.0) trixie; urgency=medium
+
+  * fabrics: ospf: add `redistribute` setting to import routes from other
+    protocols (connected, kernel, static, ...) into OSPF, and generate the
+    matching FRR configuration.
+
+  * fabrics: ospf: expose the network-type interface property in the API
+    (Broadcast, NonBroadcast, PointToPoint, PointToMultipoint). Previously
+    OSPF picked the network type implicitly based on whether the interface
+    had an IP, which left users no way to override it. The type now lives
+    in proxmox-sdn-types so it can be shared without pulling in the
+    optional `frr` feature.
+
+  * widen proxmox-frr dependency to 0.5 for the NetworkType move and the
+    new OSPF redistribute, BGP local-as, and extcommunity list types.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 15 May 2026 03:43:57 +0200
+
 rust-proxmox-ve-config (0.8.0) trixie; urgency=medium
 
   * sdn: fabrics: add WireGuard as a fabric protocol. Two node sub-types
