@@ -73,8 +73,10 @@ pub enum FabricConfigError {
     // this is technically possible, but we don't allow it
     #[error("duplicate OSPF area")]
     DuplicateOspfArea,
-    #[error("BGP router-id collision: multiple nodes resolve to the same router-id {0}")]
-    DuplicateBgpRouterId(std::net::Ipv4Addr),
+    #[error("BGP router-id collision: nodes '{0}' and '{1}' both resolve to router-id {2}")]
+    DuplicateBgpRouterId(String, String, std::net::Ipv4Addr),
+    #[error("BGP router-id for node '{0}' resolved to 0.0.0.0; pick an explicit IPv4 address or a different IPv6 address")]
+    InvalidBgpRouterId(String),
     #[error("IP prefix {0} in fabric '{1}' overlaps with IPv4 prefix {2} in fabric '{3}'")]
     OverlappingIp4Prefix(String, String, String, String),
     #[error("IPv6 prefix {0} in fabric '{1}' overlaps with IPv6 prefix {2} in fabric '{3}'")]
@@ -562,7 +564,9 @@ impl Validatable for FabricEntry {
     /// - IP addresses are unique across all nodes in the fabric
     /// - Each node passes its own validation checks
     /// - For BGP fabrics, derived router-ids are unique across nodes (catches
-    ///   FNV-1a hash collisions for IPv6-only nodes)
+    ///   FNV-1a hash collisions for IPv6-only nodes) and not 0.0.0.0 (FRR
+    ///   rejects 0.0.0.0; a hash output of zero is astronomically unlikely
+    ///   but not impossible)
     fn validate(&self) -> Result<(), FabricConfigError> {
         let fabric = self.fabric();
 
@@ -724,8 +728,17 @@ impl Validatable for FabricEntry {
                     continue;
                 }
                 if let Some(router_id) = bgp_router_id(node_section) {
-                    if seen_router_ids.insert(router_id, node_id).is_some() {
-                        return Err(FabricConfigError::DuplicateBgpRouterId(router_id));
+                    if router_id.is_unspecified() {
+                        return Err(FabricConfigError::InvalidBgpRouterId(
+                            node_id.to_string(),
+                        ));
+                    }
+                    if let Some(prev) = seen_router_ids.insert(router_id, node_id) {
+                        return Err(FabricConfigError::DuplicateBgpRouterId(
+                            prev.to_string(),
+                            node_id.to_string(),
+                            router_id,
+                        ));
                     }
                 }
             }
