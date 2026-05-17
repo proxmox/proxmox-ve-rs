@@ -226,9 +226,20 @@ impl AddressFamilies {
 impl BgpRouter {
     /// Merge a fabric-generated [`BgpRouter`] into an existing one.
     ///
-    /// Appends the fabric's neighbor groups and merges address families. Keeps the existing
-    /// router's ASN, router-id, and other top-level settings. The caller is responsible for
-    /// setting `local_as` on the fabric's neighbor group if the ASNs differ.
+    /// Appends the fabric's neighbor groups and merges address families. The receiver's `asn`,
+    /// `router_id`, `coalesce_time`, and all boolean flags (`hard_administrative_reset`,
+    /// `graceful_restart_notification`, `disable_ebgp_connected_route_check`,
+    /// `bestpath_as_path_multipath_relax`) are preserved; the fabric never sets these so its
+    /// values are discarded. `default_ipv4_unicast` is taken from `other` only if the receiver
+    /// doesn't have it set.
+    ///
+    /// The caller is responsible for setting `local_as` on the fabric's neighbor group if the
+    /// fabric's per-node ASN differs from the receiver's ASN.
+    ///
+    /// FRR allows only a single router-id per BGP instance, so if `other.router_id` differs
+    /// from `self.router_id` it is silently dropped. In typical EVPN+fabric deployments both
+    /// derive their router-id from the node's primary loopback, so a mismatch only occurs in
+    /// unusual mixed v4/v6 configurations.
     pub fn merge_fabric(&mut self, other: BgpRouter) {
         self.neighbor_groups.extend(other.neighbor_groups);
         self.address_families.extend(other.address_families);
