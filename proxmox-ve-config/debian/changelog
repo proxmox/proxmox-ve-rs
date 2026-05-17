@@ -1,3 +1,21 @@
+rust-proxmox-ve-config (0.10.0) trixie; urgency=medium
+
+  * fabrics: add BGP as a third fabric protocol, supporting eBGP unnumbered
+    underlays. Each node has its own ASN and peers with its neighbors over
+    physical interfaces without IP assignment on the fabric links. The
+    fabric coexists with the EVPN controller's BGP instance in the default
+    VRF via local-as.
+
+  * fabrics: bgp: reject a router-id of 0.0.0.0 at validation time, since
+    FRR rejects it at config load. Catches an explicitly-configured node
+    IP of 0.0.0.0 and the (~1/2^32) FNV-1a hash-to-zero edge case for
+    IPv6-only nodes.
+
+  * widen proxmox-frr dependency to 0.5.1 for the new
+    BgpRouter::merge_fabric() helper.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 17 May 2026 22:20:17 +0200
+
 rust-proxmox-ve-config (0.9.1) trixie; urgency=medium
 
   * fabrics: wireguard: change WireGuardPrivateKeys::cleanup() to return a
