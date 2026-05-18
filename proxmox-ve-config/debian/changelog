@@ -1,3 +1,12 @@
+rust-proxmox-ve-config (0.10.1) trixie; urgency=medium
+
+  * sdn: route maps: add the `tag` match action to the API schema. The Tag
+    variant was already present in the MatchAction enum but missing from the
+    EnumEntry list, which left `match tag` unavailable to downstream API
+    consumers.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 18 May 2026 19:30:00 +0200
+
 rust-proxmox-ve-config (0.10.0) trixie; urgency=medium
 
   * fabrics: add BGP as a third fabric protocol, supporting eBGP unnumbered
