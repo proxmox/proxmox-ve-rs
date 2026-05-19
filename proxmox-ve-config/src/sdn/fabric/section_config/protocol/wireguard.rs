@@ -34,7 +34,7 @@ use std::ops::{Deref, DerefMut};
 use anyhow::Result;
 
 use const_format::concatcp;
-use proxmox_network_types::endpoint::{HostnameOrIpAddr, ServiceEndpoint};
+use proxmox_network_types::endpoint::ServiceEndpoint;
 use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
 use proxmox_schema::api_types::CIDR_SCHEMA;
 use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater, UpdaterType};
@@ -274,7 +274,7 @@ pub struct InternalWireGuardNode {
     /// The endpoint used for connecting to this node.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
-    pub(crate) endpoint: Option<HostnameOrIpAddr>,
+    pub(crate) endpoint: Option<ServiceEndpoint>,
 
     /// The interfaces that should get created on this node.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -378,7 +378,7 @@ pub struct InternalPeer {
     /// Override for the endpoint settings in the node section.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
-    pub(crate) endpoint: Option<HostnameOrIpAddr>,
+    pub(crate) endpoint: Option<ServiceEndpoint>,
     /// Additional allowed IPs for this peer
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]

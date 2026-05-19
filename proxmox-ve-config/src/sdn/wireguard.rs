@@ -3,7 +3,6 @@ use std::ops::Deref;
 
 use anyhow::bail;
 
-use proxmox_network_types::endpoint::ServiceEndpoint;
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use proxmox_sdn_types::wireguard::PersistentKeepalive;
 use proxmox_wireguard::{WireGuardConfig, WireGuardInterface, WireGuardPeer};
@@ -90,14 +89,8 @@ impl WireGuardConfigBuilder {
 
                             let endpoint = peer
                                 .endpoint
-                                .as_ref()
-                                .or(wireguard_node.endpoint.as_ref())
-                                .map(|endpoint| {
-                                    ServiceEndpoint::new(
-                                        endpoint.to_string(),
-                                        peer_interface.listen_port,
-                                    )
-                                });
+                                .clone()
+                                .or_else(|| wireguard_node.endpoint.clone());
 
                             let mut allowed_ips = Vec::new();
 
@@ -233,14 +226,14 @@ wireguard_node: wireg_external
 
 wireguard_node: wireg_pve1
     role internal
-    endpoint 192.0.2.2
+    endpoint 192.0.2.2:51111
     allowed_ips 203.0.113.0/25
     interfaces name=wg0,listen_port=51111,public_key=GDPUAnPOY5xGIjYXmcGyXZXbocjBr21dGQ5vwnjmdzA=,ip=198.51.100.1/24
     peers type=internal,node=pve2,node_iface=wg0,iface=wg0
 
 wireguard_node: wireg_pve2
     role internal
-    endpoint 192.0.2.3
+    endpoint 192.0.2.3:51111
     interfaces name=wg0,listen_port=51111,public_key=y0kOpXfo9ff4KoUwO3H1cRuwObbKwsK8mAkwXxNvKUc=
     peers type=internal,node=pve1,node_iface=wg0,iface=wg0
     peers type=external,node=external,iface=wg0
