@@ -729,9 +729,7 @@ impl Validatable for FabricEntry {
                 }
                 if let Some(router_id) = bgp_router_id(node_section) {
                     if router_id.is_unspecified() {
-                        return Err(FabricConfigError::InvalidBgpRouterId(
-                            node_id.to_string(),
-                        ));
+                        return Err(FabricConfigError::InvalidBgpRouterId(node_id.to_string()));
                     }
                     if let Some(prev) = seen_router_ids.insert(router_id, node_id) {
                         return Err(FabricConfigError::DuplicateBgpRouterId(
