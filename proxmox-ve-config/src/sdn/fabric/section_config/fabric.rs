@@ -307,7 +307,7 @@ impl Updater for FabricUpdater {
 
 /// Deletable properties for a [`FabricSection<T>`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum FabricDeletableProperties<T> {
     IpPrefix,
     Ip6Prefix,
