@@ -1,3 +1,12 @@
+rust-proxmox-ve-config (0.10.2) trixie; urgency=medium
+
+  * sdn: fabrics: wireguard: store internal node and peer endpoints as full
+    host:port service endpoints instead of deriving the port from the
+    interface, avoiding the malformed ip:port:port entries previously written
+    to the generated WireGuard configuration.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 20 May 2026 04:23:56 +0200
+
 rust-proxmox-ve-config (0.10.1) trixie; urgency=medium
 
   * sdn: route maps: add the `tag` match action to the API schema. The Tag
