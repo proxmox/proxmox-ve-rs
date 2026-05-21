@@ -168,13 +168,13 @@ wireguard_node: wireg_external
 
 wireguard_node: wireg_pve1
     role internal
-    endpoint 192.0.2.2:51111
+    endpoint 192.0.2.2
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     peers type=internal,node=pve2,node_iface=wg0,iface=wg0
 
 wireguard_node: wireg_pve2
     role internal
-    endpoint 192.0.2.3:51111
+    endpoint 192.0.2.3
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     peers type=internal,node=pve1,node_iface=wg0,iface=wg0
 "#;
