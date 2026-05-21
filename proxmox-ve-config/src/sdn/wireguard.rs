@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use anyhow::bail;
 
-use proxmox_network_types::endpoint::ServiceEndpoint;
+use proxmox_network_types::endpoint::{HostnameOrIpAddr, ServiceEndpoint};
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use proxmox_sdn_types::wireguard::PersistentKeepalive;
 use proxmox_wireguard::{WireGuardConfig, WireGuardInterface, WireGuardPeer};
@@ -93,10 +93,14 @@ impl WireGuardConfigBuilder {
                                 .as_ref()
                                 .or(wireguard_node.endpoint.as_ref())
                                 .map(|endpoint| {
-                                    ServiceEndpoint::new(
-                                        endpoint.to_string(),
-                                        peer_interface.listen_port,
-                                    )
+                                    // avoid the IPv6 brackets that HostnameOrIpAddr's Display adds, which the
+                                    // strict ServiceEndpoint::new re-parse would reject
+                                    let host = match endpoint {
+                                        HostnameOrIpAddr::Hostname(s) => s.clone(),
+                                        HostnameOrIpAddr::IpAddr(addr) => addr.to_string(),
+                                    };
+                                    ServiceEndpoint::new(host, peer_interface.listen_port)
+                                        .expect("validated host round-trips through ServiceEndpoint::new")
                                 });
 
                             let mut allowed_ips = Vec::new();

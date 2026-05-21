@@ -1270,7 +1270,7 @@ wireguard_fabric: wireg
 
 wireguard_node: wireg_internal
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51112,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
@@ -1289,7 +1289,7 @@ wireguard_fabric: wireg
 
 wireguard_node: wireg_internal
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg1,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
@@ -1310,13 +1310,13 @@ wireguard_fabric: wiregb
 
 wireguard_node: wirega_pve1
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
 
 wireguard_node: wiregb_pve1
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg1,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
 "#;
@@ -1334,7 +1334,7 @@ wireguard_fabric: wireg
 
 wireguard_node: wireg_internal
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     peers type=internal,node=invalid,node_iface=invalid,iface=wg0
@@ -1353,13 +1353,13 @@ wireguard_fabric: wireg
 
 wireguard_node: wireg_internal
     role internal
-    endpoint 192.0.2.1:123
+    endpoint 192.0.2.1
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
 
 wireguard_node: wireg_internal2
     role internal
-    endpoint 192.0.2.2:123
+    endpoint 192.0.2.2
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     peers type=internal,node=internal,node_iface=wg0,iface=wg1
@@ -1384,7 +1384,7 @@ wireguard_node: wireg_external
 
 wireguard_node: wireg_internal
     role internal
-    endpoint 192.0.2.2:123
+    endpoint 192.0.2.2
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     peers type=external,node=wireg_external,iface=wg1
