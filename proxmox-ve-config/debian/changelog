@@ -1,18 +1,18 @@
 rust-proxmox-ve-config (0.10.3) trixie; urgency=medium
 
-  * Revert the WireGuard endpoint schema change from 0.10.2 that switched
-    internal node and peer endpoints to a full host:port service endpoint.
-    The reported ip:port:port issue was a parser bug already fixed by the
-    stricter HostnameOrIpAddr parsing in proxmox-network-types 1.1.2 alone,
-    and the schema change dropped the per-interface listen-port semantics
-    where a peer's connect port comes from the specific interface it
+  * Partially revert the WireGuard endpoint schema change from 0.10.2 that
+    switched internal node and peer endpoints to a full host:port service
+    endpoint.  The reported ip:port:port issue was a parser bug already fixed
+    by the stricter HostnameOrIpAddr parsing in proxmox-network-types 1.1.2
+    alone, and the schema change dropped the per-interface listen-port
+    semantics where a peer's connect port comes from the specific interface it
     references.
 
   * Raise the build dependency on proxmox-network-types to 1.1.2 so the
-    stricter HostnameOrIpAddr parsing that this revert relies on is
-    guaranteed to be present at build time.
+    stricter HostnameOrIpAddr parsing that this revert relies on is guaranteed
+    to be present at build time.
 
- -- Proxmox Support Team <support@proxmox.com>  Thu, 21 May 2026 11:30:35 +0200
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 21 May 2026 12:26:04 +0200
 
 rust-proxmox-ve-config (0.10.2) trixie; urgency=medium
 
