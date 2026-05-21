@@ -376,9 +376,13 @@ pub struct InternalPeer {
     /// The local interface that uses this peering definition
     pub(crate) iface: WireGuardInterfaceName,
     /// Override for the endpoint settings in the node section.
+    ///
+    /// Stored as a full host:port `ServiceEndpoint` because a peer override replaces the connect
+    /// endpoint as a whole, so the override needs to carry both host and port (e.g. for a peer
+    /// reached over NAT where the listen port differs from the advertised port).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]
-    pub(crate) endpoint: Option<HostnameOrIpAddr>,
+    pub(crate) endpoint: Option<ServiceEndpoint>,
     /// Additional allowed IPs for this peer
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[updater(serde(skip_serializing_if = "Option::is_none"))]

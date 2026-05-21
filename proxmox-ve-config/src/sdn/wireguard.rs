@@ -88,20 +88,24 @@ impl WireGuardConfigBuilder {
                                     anyhow::format_err!("could not find referenced iface")
                                 })?;
 
-                            let endpoint = peer
-                                .endpoint
-                                .as_ref()
-                                .or(wireguard_node.endpoint.as_ref())
-                                .map(|endpoint| {
-                                    // avoid the IPv6 brackets that HostnameOrIpAddr's Display adds, which the
-                                    // strict ServiceEndpoint::new re-parse would reject
-                                    let host = match endpoint {
-                                        HostnameOrIpAddr::Hostname(s) => s.clone(),
-                                        HostnameOrIpAddr::IpAddr(addr) => addr.to_string(),
-                                    };
-                                    ServiceEndpoint::new(host, peer_interface.listen_port)
-                                        .expect("validated host round-trips through ServiceEndpoint::new")
-                                });
+                            // peer override replaces the endpoint outright; otherwise derive port
+                            // from the target interface's listen_port
+                            let endpoint = if let Some(override_ep) = peer.endpoint.as_ref() {
+                                Some(override_ep.clone())
+                            } else if let Some(node_endpoint) = wireguard_node.endpoint.as_ref() {
+                                // unbracket so the strict ServiceEndpoint::new re-parse accepts IPv6
+                                let host = match node_endpoint {
+                                    HostnameOrIpAddr::Hostname(s) => s.clone(),
+                                    HostnameOrIpAddr::IpAddr(addr) => addr.to_string(),
+                                };
+                                Some(
+                                    ServiceEndpoint::new(host, peer_interface.listen_port).expect(
+                                        "validated host round-trips through ServiceEndpoint::new",
+                                    ),
+                                )
+                            } else {
+                                None
+                            };
 
                             let mut allowed_ips = Vec::new();
 
