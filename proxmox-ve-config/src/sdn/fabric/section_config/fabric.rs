@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use proxmox_schema::{
-    api, api_string_type, const_regex, AllOfSchema, ApiStringFormat, ApiType, ObjectSchema, Schema,
-    Updater, UpdaterType,
+    AllOfSchema, ApiStringFormat, ApiType, ObjectSchema, Schema, Updater, UpdaterType, api,
+    api_string_type, const_regex,
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::protocol::bgp::{
     BgpDeletableProperties, BgpProperties, BgpPropertiesUpdater,
 };
@@ -17,7 +18,6 @@ use crate::sdn::fabric::section_config::protocol::openfabric::{
 use crate::sdn::fabric::section_config::protocol::ospf::{
     OspfDeletableProperties, OspfProperties, OspfPropertiesUpdater,
 };
-use crate::sdn::fabric::FabricConfigError;
 
 use super::protocol::wireguard::{
     WireGuardDeletableProperties, WireGuardProperties, WireGuardPropertiesUpdater,

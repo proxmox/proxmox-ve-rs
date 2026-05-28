@@ -13,7 +13,7 @@ use crate::sdn::fabric::section_config::fabric::Fabric;
 use crate::sdn::fabric::section_config::node::Node;
 use crate::sdn::fabric::section_config::protocol::wireguard::private_keys::WireGuardPrivateKeys;
 use crate::sdn::fabric::section_config::protocol::wireguard::{WireGuardNode, WireGuardNodePeer};
-use crate::sdn::fabric::{section_config::node::NodeId, FabricConfig};
+use crate::sdn::fabric::{FabricConfig, section_config::node::NodeId};
 
 pub struct WireGuardConfigBuilder {
     fabrics: Valid<FabricConfig>,
@@ -195,8 +195,8 @@ mod tests {
     use proxmox_wireguard::PrivateKey;
 
     use crate::sdn::fabric::{
-        section_config::{protocol::wireguard::WireGuardInterfaceName, Section},
         FabricConfig,
+        section_config::{Section, protocol::wireguard::WireGuardInterfaceName},
     };
 
     use super::*;

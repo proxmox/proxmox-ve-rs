@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, HashMap};
 use std::io;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use serde::de::IntoDeserializer;
 
-use crate::firewall::parse::{parse_named_section_tail, split_key_value, SomeString};
+use crate::firewall::parse::{SomeString, parse_named_section_tail, split_key_value};
 use crate::firewall::types::ipset::{IpsetName, IpsetScope};
 use crate::firewall::types::rule::{Direction, Kind};
 use crate::firewall::types::{Alias, Group, Ipset, Rule};

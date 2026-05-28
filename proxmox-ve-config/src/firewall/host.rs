@@ -1,7 +1,7 @@
 use std::io;
 use std::net::IpAddr;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::Deserialize;
 
 use proxmox_network_types::ip_address::Cidr;

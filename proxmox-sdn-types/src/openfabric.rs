@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-use proxmox_schema::{api, UpdaterType};
+use proxmox_schema::{UpdaterType, api};
 
 /// The OpenFabric CSNP Interval.
 ///

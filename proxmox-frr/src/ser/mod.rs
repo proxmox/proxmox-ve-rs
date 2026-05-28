@@ -17,8 +17,8 @@ use crate::ser::{
 };
 
 use proxmox_network_types::{
-    ip_address::{Ipv4Cidr, Ipv6Cidr},
     Cidr,
+    ip_address::{Ipv4Cidr, Ipv6Cidr},
 };
 use proxmox_serde::forward_deserialize_to_from_str;
 use serde::{Deserialize, Serialize};

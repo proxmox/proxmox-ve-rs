@@ -4,13 +4,13 @@ use proxmox_network_types::ip_address::Ipv4Cidr;
 use proxmox_sdn_types::ospf::Area;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater};
+use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
-use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::prefix_list::PrefixListId;
 
 #[api]

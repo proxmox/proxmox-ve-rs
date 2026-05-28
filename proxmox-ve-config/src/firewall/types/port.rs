@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Deref;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 
 use crate::firewall::ports::parse_named_port;
 

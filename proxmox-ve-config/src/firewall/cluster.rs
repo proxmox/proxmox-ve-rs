@@ -232,7 +232,9 @@ IN BGP(REJECT) -log crit -source 1.2.3.4
             Alias::new(
                 "wide",
                 Cidr::new_v6(
-                    [0xCCCC, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x000],
+                    [
+                        0xCCCC, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x000
+                    ],
                     64
                 )
                 .unwrap(),

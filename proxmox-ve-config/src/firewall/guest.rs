@@ -4,13 +4,13 @@ use std::io;
 use crate::guest::types::Vmid;
 use crate::guest::vm::NetworkConfig;
 
+use crate::firewall::types::Ipset;
 use crate::firewall::types::alias::Alias;
 use crate::firewall::types::ipset::IpsetScope;
 use crate::firewall::types::log::LogLevel;
 use crate::firewall::types::rule::{Direction, Rule, Verdict};
-use crate::firewall::types::Ipset;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::Deserialize;
 
 /// default return value for [`Config::is_enabled()`]

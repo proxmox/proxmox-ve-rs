@@ -1,6 +1,6 @@
 use std::fmt;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 
 const NAME_SPECIAL_CHARACTERS: [u8; 2] = [b'-', b'_'];
 

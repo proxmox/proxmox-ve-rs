@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Deref;
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use proxmox_network_types::ip_address::{Cidr, Family, IpRange};
 
 #[derive(Clone, Debug)]

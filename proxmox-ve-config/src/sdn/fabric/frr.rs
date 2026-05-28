@@ -18,7 +18,7 @@ use proxmox_sdn_types::net::Net;
 
 use crate::common::valid::Valid;
 
-use crate::sdn::fabric::section_config::protocol::bgp::{bgp_router_id, BgpNode};
+use crate::sdn::fabric::section_config::protocol::bgp::{BgpNode, bgp_router_id};
 use crate::sdn::fabric::section_config::protocol::{
     bgp::BgpRedistributionSource,
     openfabric::{OpenfabricInterfaceProperties, OpenfabricProperties},

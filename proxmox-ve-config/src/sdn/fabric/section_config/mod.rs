@@ -8,8 +8,8 @@ use protocol::wireguard::WireGuardProperties;
 use serde::{Deserialize, Serialize};
 
 use crate::sdn::fabric::section_config::{
-    fabric::{Fabric, FabricSection, FABRIC_ID_REGEX_STR},
-    node::{Node, NodeSection, NODE_ID_REGEX_STR},
+    fabric::{FABRIC_ID_REGEX_STR, Fabric, FabricSection},
+    node::{NODE_ID_REGEX_STR, Node, NodeSection},
     protocol::{
         bgp::{BgpNode, BgpProperties},
         openfabric::{OpenfabricNodeProperties, OpenfabricProperties},
@@ -18,7 +18,7 @@ use crate::sdn::fabric::section_config::{
     },
 };
 
-use proxmox_schema::{api, const_regex, ApiStringFormat};
+use proxmox_schema::{ApiStringFormat, api, const_regex};
 
 /// Represents a value that can be one of two given types.
 ///

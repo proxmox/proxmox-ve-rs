@@ -4,13 +4,13 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use serde::de::IntoDeserializer;
 
 use proxmox_network_types::ip_address::Family;
 use proxmox_sortable_macro::sortable;
 
-use crate::firewall::parse::{match_name, match_non_whitespace, SomeStr};
+use crate::firewall::parse::{SomeStr, match_name, match_non_whitespace};
 use crate::firewall::types::address::IpList;
 use crate::firewall::types::alias::RuleAliasName;
 use crate::firewall::types::ipset::RuleIpsetName;

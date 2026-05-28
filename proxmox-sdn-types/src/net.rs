@@ -3,10 +3,10 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, api_string_type, const_regex, ApiStringFormat, UpdaterType};
+use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
 const_regex! {
     NET_AFI_REGEX = r"^(?:[a-fA-F0-9]{2})$";

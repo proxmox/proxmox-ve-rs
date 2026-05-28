@@ -18,12 +18,12 @@ use crate::sdn::fabric::section_config::fabric::{
     Fabric, FabricDeletableProperties, FabricId, FabricSection, FabricSectionUpdater, FabricUpdater,
 };
 use crate::sdn::fabric::section_config::node::{
-    api::{NodeDataUpdater, NodeDeletableProperties, NodeUpdater},
     Node, NodeId, NodeSection,
+    api::{NodeDataUpdater, NodeDeletableProperties, NodeUpdater},
 };
 use crate::sdn::fabric::section_config::protocol::bgp::{
-    bgp_router_id, BgpDeletableProperties, BgpNode, BgpNodeDeletableProperties,
-    BgpNodePropertiesUpdater, BgpProperties, BgpPropertiesUpdater,
+    BgpDeletableProperties, BgpNode, BgpNodeDeletableProperties, BgpNodePropertiesUpdater,
+    BgpProperties, BgpPropertiesUpdater, bgp_router_id,
 };
 use crate::sdn::fabric::section_config::protocol::openfabric::{
     OpenfabricDeletableProperties, OpenfabricNodeDeletableProperties, OpenfabricNodeProperties,
@@ -75,7 +75,9 @@ pub enum FabricConfigError {
     DuplicateOspfArea,
     #[error("BGP router-id collision: nodes '{0}' and '{1}' both resolve to router-id {2}")]
     DuplicateBgpRouterId(String, String, std::net::Ipv4Addr),
-    #[error("BGP router-id for node '{0}' resolved to 0.0.0.0; pick an explicit IPv4 address or a different IPv6 address")]
+    #[error(
+        "BGP router-id for node '{0}' resolved to 0.0.0.0; pick an explicit IPv4 address or a different IPv6 address"
+    )]
     InvalidBgpRouterId(String),
     #[error("IP prefix {0} in fabric '{1}' overlaps with IPv4 prefix {2} in fabric '{3}'")]
     OverlappingIp4Prefix(String, String, String, String),
@@ -699,7 +701,7 @@ impl Validatable for FabricEntry {
                     return Err(FabricConfigError::NodeNoIpForFabricPrefix(
                         node.id().to_string(),
                         prefix.to_string(),
-                    ))
+                    ));
                 }
                 (Some(prefix), Some(ip)) => {
                     // Fabric prefix needs to contain the node IP
@@ -1372,8 +1374,8 @@ wireguard_node: wireg_internal2
     }
 
     #[test]
-    fn test_wireguard_validation_local_interface_external_peer_does_not_exist(
-    ) -> Result<(), anyhow::Error> {
+    fn test_wireguard_validation_local_interface_external_peer_does_not_exist()
+    -> Result<(), anyhow::Error> {
         let section_config = r#"
 wireguard_fabric: wireg
 

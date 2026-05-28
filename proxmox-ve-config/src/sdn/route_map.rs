@@ -43,14 +43,14 @@ use const_format::concatcp;
 
 use proxmox_network_types::ip_address::api_types::{Ipv4Addr, Ipv6Addr};
 use proxmox_sdn_types::{
-    bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
     ModifyNumber, Vni,
+    bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
 };
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
-    api, api_string_type, const_regex, property_string::PropertyString, ApiStringFormat, ApiType,
-    EnumEntry, ObjectSchema, Schema, StringSchema, Updater, UpdaterType,
+    ApiStringFormat, ApiType, EnumEntry, ObjectSchema, Schema, StringSchema, Updater, UpdaterType,
+    api, api_string_type, const_regex, property_string::PropertyString,
 };
 
 use crate::sdn::prefix_list::PrefixListId;
@@ -456,12 +456,12 @@ pub mod frr {
     use std::collections::HashMap;
 
     use proxmox_frr::ser::{
+        FrrConfig,
         route_map::{
             RouteMapEntry as FrrRouteMapEntry, RouteMapExitAction as FrrRouteMapExitAction,
             RouteMapMatch as FrrRouteMapMatch, RouteMapName as FrrRouteMapName,
             RouteMapSet as FrrRouteMapSet,
         },
-        FrrConfig,
     };
 
     use crate::sdn::route_map::RouteMapAction;

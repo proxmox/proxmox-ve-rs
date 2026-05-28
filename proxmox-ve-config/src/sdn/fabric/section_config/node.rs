@@ -5,18 +5,18 @@ use serde::{Deserialize, Serialize};
 use proxmox_network_types::ip_address::api_types::{Ipv4Addr, Ipv6Addr};
 
 use proxmox_schema::{
-    api, api_string_type, const_regex, AllOfSchema, ApiStringFormat, ApiType, ObjectSchema, Schema,
-    StringSchema, UpdaterType,
+    AllOfSchema, ApiStringFormat, ApiType, ObjectSchema, Schema, StringSchema, UpdaterType, api,
+    api_string_type, const_regex,
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::protocol::bgp::BgpNode;
 use crate::sdn::fabric::section_config::protocol::wireguard::WireGuardNode;
 use crate::sdn::fabric::section_config::{
-    fabric::{FabricId, FABRIC_ID_REGEX_STR},
+    fabric::{FABRIC_ID_REGEX_STR, FabricId},
     protocol::{openfabric::OpenfabricNodeProperties, ospf::OspfNodeProperties},
 };
-use crate::sdn::fabric::FabricConfigError;
 
 pub const NODE_ID_REGEX_STR: &str = r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]){0,61}(?:[a-zA-Z0-9]){0,1})";
 

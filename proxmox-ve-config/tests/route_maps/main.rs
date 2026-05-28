@@ -2,7 +2,7 @@
 
 use proxmox_ve_config::sdn::route_map::{frr::build_frr_route_maps, *};
 
-use proxmox_frr::ser::{serializer::dump, FrrConfig};
+use proxmox_frr::ser::{FrrConfig, serializer::dump};
 use proxmox_section_config::typed::ApiSectionDataEntry;
 
 #[test]

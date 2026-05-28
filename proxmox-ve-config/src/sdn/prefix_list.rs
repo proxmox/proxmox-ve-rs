@@ -27,8 +27,8 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_network_types::Cidr;
 use proxmox_schema::{
-    api, api_string_type, const_regex, property_string::PropertyString, ApiStringFormat,
-    UpdaterType,
+    ApiStringFormat, UpdaterType, api, api_string_type, const_regex,
+    property_string::PropertyString,
 };
 
 use crate::common::valid::Validatable;
@@ -403,10 +403,10 @@ pub mod frr {
     use super::*;
 
     use proxmox_frr::ser::{
+        FrrConfig,
         route_map::{
             self, PrefixListName as FrrPrefixListName, PrefixListRule as FrrPrefixListRule,
         },
-        FrrConfig,
     };
 
     impl From<PrefixListId> for FrrPrefixListName {
@@ -462,7 +462,7 @@ pub mod api {
     use serde::{Deserialize, Serialize};
 
     use proxmox_network_types::Cidr;
-    use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater};
+    use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
 
     use super::{PrefixListAction, PrefixListId, PrefixListSection};
 

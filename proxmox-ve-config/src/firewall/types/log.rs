@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use crate::firewall::parse::parse_bool;
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, Default)]

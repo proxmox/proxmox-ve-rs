@@ -1,4 +1,4 @@
-use anyhow::{bail, Error};
+use anyhow::{Error, bail};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;

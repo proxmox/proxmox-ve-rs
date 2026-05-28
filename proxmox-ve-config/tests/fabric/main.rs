@@ -3,9 +3,9 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 
 use proxmox_frr::ser::bgp::{AddressFamilies, BgpRouter, CommonAddressFamilyOptions, L2vpnEvpnAF};
-use proxmox_frr::ser::{serializer::dump, FrrConfig, VrfName};
+use proxmox_frr::ser::{FrrConfig, VrfName, serializer::dump};
 use proxmox_ve_config::sdn::fabric::{
-    frr::build_fabric, section_config::node::NodeId, FabricConfig,
+    FabricConfig, frr::build_fabric, section_config::node::NodeId,
 };
 
 mod helper;

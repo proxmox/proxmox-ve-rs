@@ -37,18 +37,18 @@ use const_format::concatcp;
 use proxmox_network_types::endpoint::{HostnameOrIpAddr, ServiceEndpoint};
 use proxmox_network_types::ip_address::{Cidr, Ipv4Cidr, Ipv6Cidr};
 use proxmox_schema::api_types::CIDR_SCHEMA;
-use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater, UpdaterType};
+use proxmox_schema::{ApiStringFormat, Updater, UpdaterType, api, property_string::PropertyString};
 use proxmox_schema::{
-    api_string_type, const_regex, ApiType, ArraySchema, ObjectSchema, Schema, StringSchema,
+    ApiType, ArraySchema, ObjectSchema, Schema, StringSchema, api_string_type, const_regex,
 };
 use proxmox_sdn_types::wireguard::PersistentKeepalive;
 use proxmox_wireguard::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::node::{NodeId, NodeSection};
-use crate::sdn::fabric::FabricConfigError;
 
 pub const WIREGUARD_INTERFACE_NAME_REGEX_STR: &str = "[a-zA-Z0-9][a-zA-Z0-9-]{0,6}[a-zA-Z0-9]?";
 
@@ -599,15 +599,15 @@ pub mod private_keys {
     use anyhow::Error;
     use serde::{Deserialize, Serialize};
 
-    use proxmox_schema::{api, ApiStringFormat, PropertyString};
+    use proxmox_schema::{ApiStringFormat, PropertyString, api};
     use proxmox_section_config::typed::SectionConfigData;
     use proxmox_wireguard::{PrivateKey, PublicKey};
 
+    use crate::sdn::fabric::FabricConfig;
     use crate::sdn::fabric::section_config::{
-        node::{Node, NodeId, NODE_ID_FORMAT},
+        node::{NODE_ID_FORMAT, Node, NodeId},
         protocol::wireguard::{WireGuardInterfaceName, WireGuardNode},
     };
-    use crate::sdn::fabric::FabricConfig;
 
     #[api()]
     #[derive(Clone, Debug, Serialize, Deserialize, Hash)]

@@ -2,7 +2,7 @@ use core::fmt::Display;
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::{bail, ensure, format_err, Error};
+use anyhow::{Error, bail, ensure, format_err};
 
 use crate::firewall::parse::match_name;
 use crate::firewall::types::rule_match::RuleMatch;

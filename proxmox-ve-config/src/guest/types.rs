@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct Vmid(u32);

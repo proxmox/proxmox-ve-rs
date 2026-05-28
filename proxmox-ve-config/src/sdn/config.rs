@@ -7,14 +7,14 @@ use std::{
 };
 
 use proxmox_network_types::ip_address::{Cidr, IpRange, IpRangeError};
-use proxmox_schema::{property_string::PropertyString, ApiType, ObjectSchema, StringSchema};
+use proxmox_schema::{ApiType, ObjectSchema, StringSchema, property_string::PropertyString};
 use serde::Deserialize;
 
 use crate::{
     common::Allowlist,
     firewall::types::{
-        ipset::{IpsetEntry, IpsetName, IpsetScope},
         Ipset,
+        ipset::{IpsetEntry, IpsetName, IpsetScope},
     },
     sdn::{SdnNameError, SubnetName, VnetName, ZoneName},
 };

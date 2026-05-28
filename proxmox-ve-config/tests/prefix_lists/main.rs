@@ -2,7 +2,7 @@
 
 use proxmox_ve_config::sdn::prefix_list::{frr::build_frr_prefix_lists, *};
 
-use proxmox_frr::ser::{route_map::PrefixListRule as FrrPrefixListRule, FrrConfig};
+use proxmox_frr::ser::{FrrConfig, route_map::PrefixListRule as FrrPrefixListRule};
 
 use proxmox_frr::ser::route_map::{AccessAction, PrefixListName};
 use proxmox_frr::ser::serializer::dump;

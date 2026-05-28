@@ -2,13 +2,13 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use proxmox_network_types::ip_address::Cidr;
 use proxmox_sdn_types::{
-    bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
     ModifyNumber, Vni,
+    bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
 };
 use serde::{Deserialize, Serialize};
 
-use crate::ser::bgp::CommunityListName;
 pub use crate::ser::AccessAction;
+use crate::ser::bgp::CommunityListName;
 
 /// A single [`AccessList`] rule.
 ///

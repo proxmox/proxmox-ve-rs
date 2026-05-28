@@ -12,7 +12,7 @@ use proxmox_network_types::mac_address::MacAddress;
 
 use crate::{
     common::Allowlist,
-    firewall::types::{ipset::IpsetScope, Ipset},
+    firewall::types::{Ipset, ipset::IpsetScope},
     guest::types::Vmid,
     sdn::{SdnNameError, SubnetName, ZoneName},
 };

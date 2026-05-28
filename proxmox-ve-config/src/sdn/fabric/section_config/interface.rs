@@ -1,7 +1,7 @@
 use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, api_string_type, const_regex, ApiStringFormat, UpdaterType};
+use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
 pub const INTERFACE_NAME_REGEX_STR: &str = "[[:ascii:]]+";
 

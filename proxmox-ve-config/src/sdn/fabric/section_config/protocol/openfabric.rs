@@ -3,14 +3,14 @@ use std::ops::{Deref, DerefMut};
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
 use serde::{Deserialize, Serialize};
 
-use proxmox_schema::{api, property_string::PropertyString, ApiStringFormat, Updater};
+use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
 use proxmox_sdn_types::openfabric::{CsnpInterval, HelloInterval, HelloMultiplier};
 
 use crate::common::valid::Validatable;
+use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
-use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::prefix_list::PrefixListId;
 
 /// Protocol-specific options for an OpenFabric Fabric.

@@ -7,11 +7,11 @@ use proxmox_network_types::ip_address::{Cidr, IpRange};
 use proxmox_network_types::mac_address::MacAddress;
 
 use proxmox_ve_config::sdn::{
+    SubnetName, VnetName, ZoneName,
     config::{
         RunningConfig, SdnConfig, SdnConfigError, SubnetConfig, VnetConfig, ZoneConfig, ZoneType,
     },
     ipam::{Ipam, IpamDataVm, IpamEntry, IpamJson},
-    SubnetName, VnetName, ZoneName,
 };
 
 #[test]

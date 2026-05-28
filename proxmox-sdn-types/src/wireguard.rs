@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use proxmox_schema::{api, UpdaterType};
+use proxmox_schema::{UpdaterType, api};
 use serde::{Deserialize, Serialize};
 
 /// Persistent keep-alive interval, in seconds, between 0 and 65535 inclusive.

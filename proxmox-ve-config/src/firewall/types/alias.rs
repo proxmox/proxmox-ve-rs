@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
-use anyhow::{bail, format_err, Error};
+use anyhow::{Error, bail, format_err};
 use proxmox_network_types::ip_address::Cidr;
 
 use crate::firewall::parse::{match_name, match_non_whitespace};
