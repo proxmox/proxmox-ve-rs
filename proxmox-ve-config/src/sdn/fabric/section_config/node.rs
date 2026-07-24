@@ -188,10 +188,14 @@ impl<T: ApiType> ApiType for NodeSection<T> {
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum Node {
+    /// Section type for OpenFabric nodes. See [`NodeSection`] and [`OpenfabricNodeProperties`].
     Openfabric(NodeSection<OpenfabricNodeProperties>),
+    /// Section type for OSPF nodes. See [`NodeSection`] and [`OspfNodeProperties`].
     Ospf(NodeSection<OspfNodeProperties>),
+    /// Section type for WireGuard nodes. See [`NodeSection`] and [`WireGuardNode`].
     #[serde(rename = "wireguard")]
     WireGuard(NodeSection<WireGuardNode>),
+    /// Section type for BGP nodes. See [`NodeSection`] and [`BgpNode`].
     Bgp(NodeSection<BgpNode>),
 }
 

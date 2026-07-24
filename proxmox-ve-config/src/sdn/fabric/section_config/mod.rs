@@ -67,15 +67,23 @@ pub const SECTION_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&SECTION
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Section {
+    /// Section type for OpenFabric fabrics. See [`FabricSection`] and [`OpenfabricProperties`].
     OpenfabricFabric(FabricSection<OpenfabricProperties>),
+    /// Section type for OSPF fabrics. See [`FabricSection`] and [`OspfProperties`].
     OspfFabric(FabricSection<OspfProperties>),
+    /// Section type for WireGuard fabrics. See [`FabricSection`] and [`WireGuardProperties`].
     #[serde(rename = "wireguard_fabric")]
     WireGuardFabric(FabricSection<WireGuardProperties>),
+    /// Section type for BGP fabrics. See [`FabricSection`] and [`BgpProperties`].
     BgpFabric(FabricSection<BgpProperties>),
+    /// Section type for OpenFabric nodes. See [`NodeSection`] and [`OpenfabricNodeProperties`].
     OpenfabricNode(NodeSection<OpenfabricNodeProperties>),
+    /// Section type for OSPF nodes. See [`NodeSection`] and [`OspfNodeProperties`].
     OspfNode(NodeSection<OspfNodeProperties>),
+    /// Section type for WireGuard nodes. See [`NodeSection`] and [`WireGuardNode`].
     #[serde(rename = "wireguard_node")]
     WireGuardNode(NodeSection<WireGuardNode>),
+    /// Section type for BGP nodes. See [`NodeSection`] and [`BgpNode`].
     BgpNode(NodeSection<BgpNode>),
 }
 

@@ -150,6 +150,7 @@ proxmox_serde::forward_deserialize_to_from_str!(RouteMapEntryId);
 #[serde(rename_all = "kebab-case", tag = "type")]
 /// The Route Map section config type.
 pub enum RouteMap {
+    /// Section type for entries in a route map. See [`RouteMapEntry`].
     RouteMapEntry(RouteMapEntry),
 }
 

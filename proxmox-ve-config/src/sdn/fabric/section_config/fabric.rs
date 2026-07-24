@@ -172,10 +172,14 @@ impl UpdaterType for FabricSection<BgpProperties> {
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum Fabric {
+    /// Section type for OpenFabric fabrics. See [`FabricSection`] and [`OpenfabricProperties`].
     Openfabric(FabricSection<OpenfabricProperties>),
+    /// Section type for OSPF fabrics. See [`FabricSection`] and [`OspfProperties`].
     Ospf(FabricSection<OspfProperties>),
+    /// Section type for WireGuard fabrics. See [`FabricSection`] and [`WireGuardProperties`].
     #[serde(rename = "wireguard")]
     WireGuard(FabricSection<WireGuardProperties>),
+    /// Section type for BGP fabrics. See [`FabricSection`] and [`BgpProperties`].
     Bgp(FabricSection<BgpProperties>),
 }
 
