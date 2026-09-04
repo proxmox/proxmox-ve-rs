@@ -98,7 +98,7 @@ pub struct Nexthop {
     /// IP of the nexthop
     pub ip: IpAddr,
     /// Hostname of the nexthop
-    pub hostname: String,
+    pub hostname: Option<String>,
     /// Afi of the ip
     pub afi: Option<Protocol>,
     /// Used
