@@ -22,6 +22,16 @@ pub enum NetworkDeviceModel {
     E1000,
     Vmxnet3,
     RTL8139,
+    E100082540em,
+    E100082544gc,
+    E100082545em,
+    E1000e,
+    I82551,
+    I82557b,
+    I82559er,
+    Ne2kIsa,
+    Ne2kPci,
+    Pcnet,
 }
 
 proxmox_serde::forward_deserialize_to_from_str!(NetworkDeviceModel);
@@ -36,6 +46,16 @@ impl FromStr for NetworkDeviceModel {
             "rtl8139" => Ok(NetworkDeviceModel::RTL8139),
             "vmxnet3" => Ok(NetworkDeviceModel::Vmxnet3),
             "veth" => Ok(NetworkDeviceModel::Veth),
+            "e1000-82540em" => Ok(NetworkDeviceModel::E100082540em),
+            "e1000-82544gc" => Ok(NetworkDeviceModel::E100082544gc),
+            "e1000-82545em" => Ok(NetworkDeviceModel::E100082545em),
+            "e1000e" => Ok(NetworkDeviceModel::E1000e),
+            "i82551" => Ok(NetworkDeviceModel::I82551),
+            "i82557b" => Ok(NetworkDeviceModel::I82557b),
+            "i82559er" => Ok(NetworkDeviceModel::I82559er),
+            "ne2k_isa" => Ok(NetworkDeviceModel::Ne2kIsa),
+            "ne2k_pci" => Ok(NetworkDeviceModel::Ne2kPci),
+            "pcnet" => Ok(NetworkDeviceModel::Pcnet),
             _ => bail!("Invalid network device model: {s}"),
         }
     }
@@ -79,7 +99,22 @@ impl ApiType for QemuNetworkDevice {
     .additional_properties(true)
     .key_alias_info(KeyAliasInfo::new(
         "model",
-        &sorted!(["e1000", "rtl8139", "virtio", "vmxnet3"]),
+        &sorted!([
+            "e1000",
+            "rtl8139",
+            "virtio",
+            "vmxnet3",
+            "e1000-82540em",
+            "e1000-82544gc",
+            "e1000-82545em",
+            "e1000e",
+            "i82551",
+            "i82557b",
+            "i82559er",
+            "ne2k_isa",
+            "ne2k_pci",
+            "pcnet",
+        ]),
         "macaddr",
     ))
     .schema();
