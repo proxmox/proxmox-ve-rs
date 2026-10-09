@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 use std::io;
 use std::str::FromStr;
 
-use anyhow::{Error, bail};
+use anyhow::{Context, Error, bail};
+use proxmox_fixed_string::FixedString;
 use serde::Deserialize;
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
@@ -32,6 +33,7 @@ pub enum NetworkDeviceModel {
     Ne2kIsa,
     Ne2kPci,
     Pcnet,
+    UnknownEnumValue(FixedString),
 }
 
 proxmox_serde::forward_deserialize_to_from_str!(NetworkDeviceModel);
@@ -56,7 +58,12 @@ impl FromStr for NetworkDeviceModel {
             "ne2k_isa" => Ok(NetworkDeviceModel::Ne2kIsa),
             "ne2k_pci" => Ok(NetworkDeviceModel::Ne2kPci),
             "pcnet" => Ok(NetworkDeviceModel::Pcnet),
-            _ => bail!("Invalid network device model: {s}"),
+            _ => {
+                let unknown_variant = FixedString::try_from(s)
+                    .with_context(|| format!("unable to parse network device model {s}"))?;
+
+                Ok(NetworkDeviceModel::UnknownEnumValue(unknown_variant))
+            }
         }
     }
 }
