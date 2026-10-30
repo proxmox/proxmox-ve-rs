@@ -20,7 +20,7 @@ use proxmox_network_types::{
     Cidr,
     ip_address::{Ipv4Cidr, Ipv6Cidr},
 };
-use proxmox_serde::forward_deserialize_to_from_str;
+use proxmox_serde::{forward_deserialize_to_from_str, forward_display_to_serialize};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -52,6 +52,7 @@ pub enum FrrWordError {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct FrrWord(String);
 
+forward_display_to_serialize!(FrrWord);
 forward_deserialize_to_from_str!(FrrWord);
 
 impl FrrWord {
