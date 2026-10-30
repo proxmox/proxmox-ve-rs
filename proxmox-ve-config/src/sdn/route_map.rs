@@ -38,104 +38,19 @@
 
 use std::net::IpAddr;
 
-use anyhow::format_err;
-use const_format::concatcp;
-
 use proxmox_network_types::ip_address::api_types::{Ipv4Addr, Ipv6Addr};
 use proxmox_sdn_types::{
     ModifyNumber, Vni,
     bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
+    prefix_lists::PrefixListId,
+    route_maps::{ROUTE_MAP_SECTION_ID_FORMAT, RouteMapEntryId, RouteMapId},
 };
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
     ApiStringFormat, ApiType, EnumEntry, ObjectSchema, Schema, StringSchema, Updater, UpdaterType,
-    api, api_string_type, const_regex, property_string::PropertyString,
+    api, property_string::PropertyString,
 };
-
-use crate::sdn::prefix_list::PrefixListId;
-
-pub const ROUTE_MAP_ID_REGEX_STR: &str =
-    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-_]){0,30}(?:[a-zA-Z0-9]){0,1})";
-
-pub const ROUTE_MAP_ORDER_REGEX_STR: &str = r"\d+";
-
-const_regex! {
-    pub ROUTE_MAP_ID_REGEX = concatcp!(r"^", ROUTE_MAP_ID_REGEX_STR, r"$");
-    pub ROUTE_MAP_SECTION_ID_REGEX = concatcp!(r"^", ROUTE_MAP_ID_REGEX_STR, r"_", ROUTE_MAP_ORDER_REGEX_STR, r"$");
-}
-
-pub const ROUTE_MAP_SECTION_ID_FORMAT: ApiStringFormat =
-    ApiStringFormat::Pattern(&ROUTE_MAP_SECTION_ID_REGEX);
-
-pub const ROUTE_MAP_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&ROUTE_MAP_ID_REGEX);
-
-api_string_type! {
-    /// ID of a Route Map.
-    #[api(format: &ROUTE_MAP_ID_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
-    pub struct RouteMapId(String);
-}
-
-/// The ID of a Route Map entry in the section config (name + order).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RouteMapEntryId {
-    /// name of the Route Map
-    route_map_id: RouteMapId,
-    /// seq nr of the Route Map
-    order: u16,
-}
-
-impl RouteMapEntryId {
-    /// Create a new Route Map Entry ID.
-    pub fn new(route_map_id: RouteMapId, order: u16) -> Self {
-        Self {
-            route_map_id,
-            order,
-        }
-    }
-
-    /// Returns the name part of the Route Map section id.
-    pub fn route_map_id(&self) -> &RouteMapId {
-        &self.route_map_id
-    }
-
-    /// Returns the order part of the Route Map section id.
-    pub fn order(&self) -> u16 {
-        self.order
-    }
-}
-
-impl ApiType for RouteMapEntryId {
-    const API_SCHEMA: Schema = StringSchema::new("ID of a Route Map entry in the section config")
-        .format(&ROUTE_MAP_SECTION_ID_FORMAT)
-        .schema();
-}
-
-impl std::fmt::Display for RouteMapEntryId {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}_{}", self.route_map_id, self.order)
-    }
-}
-
-proxmox_serde::forward_serialize_to_display!(RouteMapEntryId);
-
-impl std::str::FromStr for RouteMapEntryId {
-    type Err = anyhow::Error;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (name, order) = value
-            .rsplit_once("_")
-            .ok_or_else(|| format_err!("invalid RouteMap section id: {}", value))?;
-
-        Ok(Self {
-            route_map_id: RouteMapId::from_string(name.to_string())?,
-            order: order.parse()?,
-        })
-    }
-}
-
-proxmox_serde::forward_deserialize_to_from_str!(RouteMapEntryId);
 
 #[api(
     "id-property": "id",
@@ -473,16 +388,16 @@ pub mod frr {
                 MatchAction::RouteType(evpn_route_type) => Self::RouteType(evpn_route_type),
                 MatchAction::Vni(vni) => Self::Vni(vni),
                 MatchAction::IpAddressPrefixList(prefix_list_name) => {
-                    Self::IpAddressPrefixList(prefix_list_name.into())
+                    Self::IpAddressPrefixList(prefix_list_name)
                 }
                 MatchAction::Ip6AddressPrefixList(prefix_list_name) => {
-                    Self::Ip6AddressPrefixList(prefix_list_name.into())
+                    Self::Ip6AddressPrefixList(prefix_list_name)
                 }
                 MatchAction::IpNextHopPrefixList(prefix_list_name) => {
-                    Self::IpNextHopPrefixList(prefix_list_name.into())
+                    Self::IpNextHopPrefixList(prefix_list_name)
                 }
                 MatchAction::Ip6NextHopPrefixList(prefix_list_name) => {
-                    Self::Ip6NextHopPrefixList(prefix_list_name.into())
+                    Self::Ip6NextHopPrefixList(prefix_list_name)
                 }
                 MatchAction::IpNextHopAddress(ipv4_addr) => Self::IpNextHopAddress(*ipv4_addr),
                 MatchAction::Ip6NextHopAddress(ipv6_addr) => Self::Ip6NextHopAddress(*ipv6_addr),
@@ -526,16 +441,10 @@ pub mod frr {
         }
     }
 
-    impl From<RouteMapId> for FrrRouteMapName {
-        fn from(value: RouteMapId) -> Self {
-            FrrRouteMapName::new(value.0)
-        }
-    }
-
     impl From<RouteMapEntry> for FrrRouteMapEntry {
         fn from(value: RouteMapEntry) -> FrrRouteMapEntry {
             FrrRouteMapEntry {
-                seq: value.id.order,
+                seq: value.id.order(),
                 action: match value.action {
                     RouteMapAction::Permit => proxmox_frr::ser::route_map::AccessAction::Permit,
                     RouteMapAction::Deny => proxmox_frr::ser::route_map::AccessAction::Deny,
@@ -571,7 +480,7 @@ pub mod frr {
 
         for route_map in config.into_iter() {
             let RouteMap::RouteMapEntry(route_map) = route_map;
-            let route_map_name = FrrRouteMapName::new(route_map.id.route_map_id.to_string());
+            let route_map_name = FrrRouteMapName::from(route_map.id().route_map_id().clone());
 
             if let Some(frr_route_map) = config_route_map.get_mut(&route_map_name) {
                 let idx =
@@ -674,8 +583,8 @@ pub mod api {
     impl From<super::RouteMapEntry> for RouteMapEntry {
         fn from(value: super::RouteMapEntry) -> RouteMapEntry {
             RouteMapEntry {
-                route_map_id: value.id.route_map_id,
-                order: value.id.order,
+                route_map_id: value.id.route_map_id().clone(),
+                order: value.id.order(),
                 action: value.action,
                 set_actions: value.set_actions,
                 match_actions: value.match_actions,
@@ -688,10 +597,7 @@ pub mod api {
     impl From<RouteMapEntry> for super::RouteMapEntry {
         fn from(value: RouteMapEntry) -> super::RouteMapEntry {
             super::RouteMapEntry {
-                id: RouteMapEntryId {
-                    route_map_id: value.route_map_id,
-                    order: value.order,
-                },
+                id: RouteMapEntryId::new(value.route_map_id, value.order),
                 action: value.action,
                 set_actions: value.set_actions,
                 match_actions: value.match_actions,

@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::{Ipv4Cidr, Ipv6Cidr};
+use proxmox_sdn_types::prefix_lists::PrefixListId;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
@@ -11,7 +12,6 @@ use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
-use crate::sdn::prefix_list::PrefixListId;
 
 /// Protocol-specific options for an OpenFabric Fabric.
 #[api]

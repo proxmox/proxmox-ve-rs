@@ -2,6 +2,8 @@ pub mod bgp;
 pub mod net;
 pub mod openfabric;
 pub mod ospf;
+pub mod prefix_lists;
+pub mod route_maps;
 pub mod wireguard;
 
 use serde::{Deserialize, Serialize};

@@ -4,6 +4,8 @@ use proxmox_network_types::ip_address::Cidr;
 use proxmox_sdn_types::{
     ModifyNumber, Vni,
     bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
+    prefix_lists::PrefixListId,
+    route_maps::RouteMapId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -32,14 +34,7 @@ pub struct AccessListRule {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AccessListName(String);
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct PrefixListName(String);
-
-impl PrefixListName {
-    pub fn new(name: String) -> PrefixListName {
-        PrefixListName(name)
-    }
-}
+pub type PrefixListName = PrefixListId;
 
 impl AccessListName {
     pub fn new(name: String) -> AccessListName {
@@ -174,12 +169,22 @@ pub enum RouteMapExitAction {
     Continue(u16),
 }
 
+/// Name of a route map.
+///
+/// This is not limited to [`RouteMapId`], as generated names, for example from the EVPN controller,
+/// can exceed its length limit.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RouteMapName(String);
 
 impl RouteMapName {
     pub fn new(name: String) -> RouteMapName {
         RouteMapName(name)
+    }
+}
+
+impl From<RouteMapId> for RouteMapName {
+    fn from(value: RouteMapId) -> Self {
+        RouteMapName(value.into_string())
     }
 }
 

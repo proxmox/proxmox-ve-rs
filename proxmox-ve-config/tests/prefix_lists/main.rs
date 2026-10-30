@@ -1,5 +1,7 @@
 #![cfg(feature = "frr")]
 
+use std::str::FromStr;
+
 use proxmox_ve_config::sdn::prefix_list::{frr::build_frr_prefix_lists, *};
 
 use proxmox_frr::ser::{FrrConfig, route_map::PrefixListRule as FrrPrefixListRule};
@@ -81,7 +83,7 @@ prefix-list: example-1
     let mut frr_config = FrrConfig::default();
 
     frr_config.prefix_lists.insert(
-        PrefixListName::new("example-1".to_string()),
+        PrefixListName::from_str("example-1").expect("valid prefix list name"),
         example_1_prefix_list.clone(),
     );
 
@@ -94,7 +96,7 @@ prefix-list: example-1
 
     let new_prefix_list = frr_config
         .prefix_lists
-        .get(&PrefixListName::new("example-1".to_string()))
+        .get(&PrefixListName::from_str("example-1").expect("valid prefix list name"))
         .expect("'example-1' prefix list exists");
 
     assert_ne!(&example_1_prefix_list, new_prefix_list);

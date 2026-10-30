@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::api_types::Ipv4Addr;
 use proxmox_schema::{ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, UpdaterType};
+use proxmox_sdn_types::prefix_lists::PrefixListId;
+use proxmox_sdn_types::route_maps::RouteMapId;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
@@ -12,9 +14,6 @@ use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
-
-use crate::sdn::prefix_list::PrefixListId;
-use crate::sdn::route_map::RouteMapId;
 
 #[api]
 #[derive(Debug, Clone, Serialize, Deserialize, Updater, Hash)]

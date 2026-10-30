@@ -122,9 +122,8 @@ pub fn build_fabric(
                     routemap_seq += 10;
 
                     if let Some(prefix_list_id) = &fabric.properties().route_filter {
-                        routemap_entry.matches = vec![RouteMapMatch::IpAddressPrefixList(
-                            prefix_list_id.clone().into(),
-                        )];
+                        routemap_entry.matches =
+                            vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())];
                     } else if let Some(cidr) = fabric.ip_prefix() {
                         let access_list_name =
                             AccessListName::new(format!("pve_openfabric_{fabric_id}_ips"));
@@ -166,9 +165,8 @@ pub fn build_fabric(
                     routemap_seq += 10;
 
                     if let Some(prefix_list_id) = &fabric.properties().route_filter {
-                        routemap_entry.matches = vec![RouteMapMatch::Ip6AddressPrefixList(
-                            prefix_list_id.clone().into(),
-                        )];
+                        routemap_entry.matches =
+                            vec![RouteMapMatch::Ip6AddressPrefixList(prefix_list_id.clone())];
                     } else if let Some(cidr) = fabric.ip6_prefix() {
                         let access_list_name =
                             AccessListName::new(format!("pve_openfabric_{fabric_id}_ip6s"));
@@ -268,9 +266,8 @@ pub fn build_fabric(
                 routemap_seq += 10;
 
                 if let Some(prefix_list_id) = &fabric.properties().route_filter {
-                    routemap_entry.matches = vec![RouteMapMatch::IpAddressPrefixList(
-                        prefix_list_id.clone().into(),
-                    )];
+                    routemap_entry.matches =
+                        vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())];
                 } else if let Some(ipv4cidr) = fabric.ip_prefix() {
                     let access_list_name = AccessListName::new(format!("pve_ospf_{fabric_id}_ips"));
 
@@ -369,9 +366,7 @@ pub fn build_fabric(
                     // below, so they stay in sync.
                     let inbound_matchers: Vec<RouteMapMatch> =
                         if let Some(prefix_list_id) = &fabric.properties().route_filter {
-                            vec![RouteMapMatch::IpAddressPrefixList(
-                                prefix_list_id.clone().into(),
-                            )]
+                            vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())]
                         } else if let Some(cidr) = fabric.ip_prefix() {
                             let access_list_name =
                                 AccessListName::new(format!("pve_bgp_{fabric_id}_ips"));
@@ -461,9 +456,7 @@ pub fn build_fabric(
                 if let Some(ip) = node.ip6() {
                     let inbound_matchers: Vec<RouteMapMatch> =
                         if let Some(prefix_list_id) = &fabric.properties().route_filter {
-                            vec![RouteMapMatch::Ip6AddressPrefixList(
-                                prefix_list_id.clone().into(),
-                            )]
+                            vec![RouteMapMatch::Ip6AddressPrefixList(prefix_list_id.clone())]
                         } else if let Some(cidr) = fabric.ip6_prefix() {
                             let access_list_name =
                                 AccessListName::new(format!("pve_bgp_{fabric_id}_ip6s"));
