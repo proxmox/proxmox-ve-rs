@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr as StdIpv4Addr, Ipv6Addr};
 use std::ops::{Deref, DerefMut};
 
 use proxmox_network_types::ip_address::api_types::Ipv4Addr;
-use proxmox_schema::{ApiType, OneOfSchema, Schema, StringSchema, UpdaterType};
+use proxmox_schema::{ApiType, EnumEntry, OneOfSchema, Schema, StringSchema, UpdaterType};
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
@@ -167,7 +167,15 @@ impl ApiType for BgpNode {
         &(
             "role",
             false,
-            &StringSchema::new("internal or external").schema(),
+            &StringSchema::new("The role of the BGP node.")
+                .format(&ApiStringFormat::Enum(&[
+                    EnumEntry::new("internal", "BGP node that is part of the cluster."),
+                    EnumEntry::new(
+                        "external",
+                        "BGP node that is an external peer not managed by Proxmox VE.",
+                    ),
+                ]))
+                .schema(),
         ),
         &[
             ("external", &ExternalBgpNode::API_SCHEMA),
