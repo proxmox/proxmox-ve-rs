@@ -12,6 +12,7 @@ use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 use crate::sdn::fabric::section_config::node::NodeSection;
 use crate::sdn::prefix_list::PrefixListId;
+use crate::sdn::route_map::RouteMapId;
 
 #[api]
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Copy)]
@@ -46,13 +47,14 @@ pub struct OspfRedistribution {
     pub(crate) metric: Option<u32>,
     /// The name of the route map used for filtering redistributed routes
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) route_map: Option<String>,
+    pub(crate) route_map: Option<RouteMapId>,
 }
 
 #[cfg(feature = "frr")]
 mod frr {
     use proxmox_frr::ser::ospf::OspfRedistribution as FrrOspfRedistribution;
     use proxmox_frr::ser::ospf::OspfRedistributionSource as FrrOspfRedistributionSource;
+    use proxmox_frr::ser::route_map::RouteMapName;
 
     use super::*;
 
@@ -61,7 +63,7 @@ mod frr {
             Self {
                 source: value.source.into(),
                 metric: value.metric,
-                route_map: value.route_map.into(),
+                route_map: value.route_map.map(RouteMapName::from),
             }
         }
     }

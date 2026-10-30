@@ -5,7 +5,7 @@ use proxmox_sdn_types::ospf::NetworkType;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::ser::{FrrWord, FrrWordError};
+use crate::ser::{FrrWord, FrrWordError, route_map::RouteMapName};
 
 #[derive(Error, Debug)]
 pub enum AreaParsingError {
@@ -71,7 +71,7 @@ pub struct OspfRedistribution {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metric: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub route_map: Option<String>,
+    pub route_map: Option<RouteMapName>,
 }
 
 /// The OSPF router properties.
