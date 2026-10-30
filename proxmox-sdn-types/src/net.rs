@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{Error, bail};
-use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
@@ -25,9 +24,12 @@ api_string_type! {
     /// Address Family authority Identifier - 49 The AFI value 49 is what IS-IS (and openfabric) uses
     /// for private addressing.
     #[api(format: &NET_AFI_FORMAT)]
-    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
     struct NetAFI(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(NetAFI);
+proxmox_serde::forward_deserialize_to_from_str!(NetAFI);
 
 impl Default for NetAFI {
     fn default() -> Self {
@@ -44,9 +46,12 @@ api_string_type! {
     /// IS-IS area number that identifies the routing domain. All routers in the same area must
     /// have the same area identifier. Can be empty or up to 26 hex digits.
     #[api(format: &NET_AREA_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
     struct NetArea(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(NetArea);
+proxmox_serde::forward_deserialize_to_from_str!(NetArea);
 
 impl Default for NetArea {
     fn default() -> Self {
@@ -66,9 +71,12 @@ api_string_type! {
     /// 192.168.001.002. Then all one has to do is move the dots to have four numbers instead of three.
     /// This gives us 1921.6800.1002.
     #[api(format: &NET_SYSTEM_ID_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
     struct NetSystemId(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(NetSystemId);
+proxmox_serde::forward_deserialize_to_from_str!(NetSystemId);
 
 impl UpdaterType for NetSystemId {
     type Updater = Option<NetSystemId>;
@@ -113,9 +121,12 @@ impl From<Ipv6Addr> for NetSystemId {
 api_string_type! {
     /// NET selector: 00 Must always be 00. This setting indicates “this system” or “local system.”
     #[api(format: &NET_SELECTOR_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
     struct NetSelector(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(NetSelector);
+proxmox_serde::forward_deserialize_to_from_str!(NetSelector);
 
 impl UpdaterType for NetSelector {
     type Updater = Option<NetSelector>;

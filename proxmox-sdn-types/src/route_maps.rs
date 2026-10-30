@@ -1,6 +1,5 @@
 use anyhow::format_err;
 use const_format::concatcp;
-use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
     ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType, api, api_string_type,
@@ -25,9 +24,12 @@ pub const ROUTE_MAP_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&ROUTE
 api_string_type! {
     /// ID of a Route Map.
     #[api(format: &ROUTE_MAP_ID_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
     pub struct RouteMapId(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(RouteMapId);
+proxmox_serde::forward_deserialize_to_from_str!(RouteMapId);
 
 /// The ID of a Route Map entry in the section config (name + order).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

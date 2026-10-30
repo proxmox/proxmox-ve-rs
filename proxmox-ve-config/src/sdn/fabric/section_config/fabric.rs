@@ -34,9 +34,12 @@ pub const FABRIC_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&FABRIC_I
 api_string_type! {
     /// ID of an SDN fabric.
     #[api(format: &FABRIC_ID_FORMAT)]
-    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct FabricId(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(FabricId);
+proxmox_serde::forward_deserialize_to_from_str!(FabricId);
 
 /// A fabric section in an SDN fabric config.
 ///

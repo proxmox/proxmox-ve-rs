@@ -34,9 +34,12 @@ api_string_type! {
     ///
     /// This corresponds to the hostname of the node.
     #[api(format: &NODE_ID_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
     pub struct NodeId(String);
 }
+
+proxmox_serde::forward_deserialize_to_from_str!(NodeId);
+proxmox_serde::forward_serialize_to_display!(NodeId);
 
 /// ID of a node in the section config.
 ///

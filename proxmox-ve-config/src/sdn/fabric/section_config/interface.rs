@@ -1,5 +1,4 @@
 use const_format::concatcp;
-use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
@@ -20,6 +19,9 @@ api_string_type! {
         max_length: 15,
         format: &INTERFACE_NAME_FORMAT,
     )]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
     pub struct InterfaceName(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(InterfaceName);
+proxmox_serde::forward_deserialize_to_from_str!(InterfaceName);

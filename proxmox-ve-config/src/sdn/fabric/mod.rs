@@ -1389,7 +1389,7 @@ wireguard_node: wireg_internal
     endpoint 192.0.2.2
     public_key Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
     interfaces name=wg0,listen_port=51111,public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=
-    peers type=external,node=wireg_external,iface=wg1
+    peers type=external,node=external,iface=wg1
 "#;
         let parsed_config = Section::parse_section_config("fabrics.cfg", section_config)?;
         FabricConfig::from_section_config(parsed_config)

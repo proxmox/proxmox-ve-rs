@@ -70,9 +70,12 @@ api_string_type! {
         max_length: 8,
         format: &WIREGUARD_INTERFACE_NAME_FORMAT,
     )]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
     pub struct WireGuardInterfaceName(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(WireGuardInterfaceName);
+proxmox_serde::forward_deserialize_to_from_str!(WireGuardInterfaceName);
 
 /// Global properties for a WireGuard fabric.
 #[api]

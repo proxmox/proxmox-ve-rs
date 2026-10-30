@@ -1,5 +1,4 @@
 use const_format::concatcp;
-use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
@@ -15,6 +14,9 @@ pub const PREFIX_LIST_ID_FORMAT: ApiStringFormat = ApiStringFormat::Pattern(&PRE
 api_string_type! {
     /// ID of a Prefix List.
     #[api(format: &PREFIX_LIST_ID_FORMAT)]
-    #[derive(Debug, Deserialize, Serialize, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
     pub struct PrefixListId(String);
 }
+
+proxmox_serde::forward_serialize_to_display!(PrefixListId);
+proxmox_serde::forward_deserialize_to_from_str!(PrefixListId);
