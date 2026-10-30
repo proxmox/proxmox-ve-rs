@@ -2,7 +2,8 @@ use const_format::concatcp;
 
 use proxmox_schema::{ApiStringFormat, UpdaterType, api, api_string_type, const_regex};
 
-pub const INTERFACE_NAME_REGEX_STR: &str = "[[:ascii:]]+";
+/// Printable ASCII without whitespace, as the name ends up as a single word in the FRR config.
+pub const INTERFACE_NAME_REGEX_STR: &str = r"[!-~]+";
 
 const_regex! {
     pub INTERFACE_NAME_REGEX = concatcp!(r"^", INTERFACE_NAME_REGEX_STR, r"$");
