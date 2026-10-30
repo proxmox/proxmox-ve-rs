@@ -5,7 +5,7 @@ use proxmox_sdn_types::{
     ModifyNumber, Vni,
     bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
     prefix_lists::PrefixListId,
-    route_maps::RouteMapId,
+    route_maps::{RouteMapId, RouteMapPeer},
 };
 use serde::{Deserialize, Serialize};
 
@@ -115,7 +115,7 @@ pub enum RouteMapMatch {
     #[serde(rename = "local-preference")]
     LocalPreference(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
     #[serde(rename = "peer")]
-    Peer(String),
+    Peer(RouteMapPeer),
     #[serde(rename = "tag")]
     Tag(SetTagValue),
     #[serde(rename = "extcommunity")]

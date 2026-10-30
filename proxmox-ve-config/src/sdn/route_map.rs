@@ -43,7 +43,7 @@ use proxmox_sdn_types::{
     ModifyNumber, Vni,
     bgp::{EvpnRouteType, SetMetricValue, SetTagValue},
     prefix_lists::PrefixListId,
-    route_maps::{ROUTE_MAP_SECTION_ID_FORMAT, RouteMapEntryId, RouteMapId},
+    route_maps::{ROUTE_MAP_SECTION_ID_FORMAT, RouteMapEntryId, RouteMapId, RouteMapPeer},
 };
 use serde::{Deserialize, Serialize};
 
@@ -299,7 +299,7 @@ pub enum MatchAction {
     Tag(SetTagValue),
     Metric(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
     LocalPreference(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")] u32),
-    Peer(String),
+    Peer(RouteMapPeer),
 }
 
 impl ApiType for MatchAction {

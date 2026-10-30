@@ -3,7 +3,8 @@ use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
-    ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType, api, api_string_type, const_regex,
+    ApiStringFormat, ApiType, Schema, StringSchema, UpdaterType, api, api_string_type,
+    api_types::NON_EMPTY_NO_WHITESPACE_FORMAT, const_regex,
 };
 
 pub const ROUTE_MAP_ID_REGEX_STR: &str =
@@ -87,3 +88,13 @@ impl std::str::FromStr for RouteMapEntryId {
 }
 
 proxmox_serde::forward_deserialize_to_from_str!(RouteMapEntryId);
+
+api_string_type! {
+    /// Peer to match in a Route Map entry, for example an IP address or an interface name.
+    #[api(format: &NON_EMPTY_NO_WHITESPACE_FORMAT)]
+    #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, UpdaterType)]
+    pub struct RouteMapPeer(String);
+}
+
+proxmox_serde::forward_serialize_to_display!(RouteMapPeer);
+proxmox_serde::forward_deserialize_to_from_str!(RouteMapPeer);
