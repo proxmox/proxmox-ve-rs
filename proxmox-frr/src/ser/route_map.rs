@@ -143,8 +143,6 @@ pub enum RouteMapSet {
     Metric(SetMetricValue),
     #[serde(rename = "src")]
     Src(IpAddr),
-    #[serde(rename = "community")]
-    Community(String),
 }
 
 /// The exit action for a route map.
