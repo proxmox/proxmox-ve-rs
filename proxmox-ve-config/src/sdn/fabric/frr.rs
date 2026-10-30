@@ -423,7 +423,7 @@ pub fn build_fabric(
                         common_options: CommonAddressFamilyOptions {
                             import_vrf: Default::default(),
                             neighbors: vec![AddressFamilyNeighbor {
-                                name: fabric.id().to_string(),
+                                name: fabric.id().parse()?,
                                 route_map_in: auto_in_routemap,
                                 route_map_out: fabric
                                     .properties()
@@ -510,7 +510,7 @@ pub fn build_fabric(
                         common_options: CommonAddressFamilyOptions {
                             import_vrf: Default::default(),
                             neighbors: vec![AddressFamilyNeighbor {
-                                name: fabric.id().to_string(),
+                                name: fabric.id().parse()?,
                                 route_map_in: auto_in_routemap,
                                 route_map_out: fabric
                                     .properties()

@@ -140,7 +140,7 @@ pub struct RouteTargets {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AddressFamilyNeighbor {
-    pub name: String,
+    pub name: FrrWord,
     #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     pub soft_reconfiguration_inbound: Option<bool>,
     pub route_map_in: Option<RouteMapName>,
