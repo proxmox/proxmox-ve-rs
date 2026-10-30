@@ -85,6 +85,8 @@ impl AsRef<str> for FrrWord {
 
 #[derive(Error, Debug)]
 pub enum InterfaceNameError {
+    #[error(transparent)]
+    WordError(#[from] FrrWordError),
     #[error("interface name too long")]
     TooLong,
 }
@@ -96,13 +98,14 @@ pub enum InterfaceNameError {
 /// that do not exist on the node, and rejecting such a reference would fail the generation of the
 /// whole FRR configuration instead of only affecting the reference.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct InterfaceName(String);
+pub struct InterfaceName(FrrWord);
 
 impl TryFrom<&str> for InterfaceName {
     type Error = InterfaceNameError;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Self::validate(s).map(Self::from_str_unchecked)
+        Self::validate(s)?;
+        Ok(Self(FrrWord::new(s)?))
     }
 }
 
@@ -110,11 +113,7 @@ impl TryFrom<String> for InterfaceName {
     type Error = InterfaceNameError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        if Self::validate(&value).is_ok() {
-            Ok(Self::from_string_unchecked(value))
-        } else {
-            Err(InterfaceNameError::TooLong)
-        }
+        Self::try_from(value.as_str())
     }
 }
 
@@ -125,13 +124,6 @@ impl InterfaceName {
         } else {
             Err(InterfaceNameError::TooLong)
         }
-    }
-    fn from_string_unchecked(s: String) -> InterfaceName {
-        Self(s)
-    }
-
-    fn from_str_unchecked(s: &str) -> InterfaceName {
-        Self::from_string_unchecked(s.to_string())
     }
 }
 
@@ -202,7 +194,7 @@ pub enum VrfName {
     #[serde(rename = "default")]
     Default,
     #[serde(untagged)]
-    Custom(String),
+    Custom(FrrWord),
 }
 
 /// Main FRR config.

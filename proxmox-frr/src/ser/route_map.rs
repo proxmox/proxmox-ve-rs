@@ -10,7 +10,7 @@ use proxmox_sdn_types::{
 use serde::{Deserialize, Serialize};
 
 pub use crate::ser::AccessAction;
-use crate::ser::bgp::CommunityListName;
+use crate::ser::{FrrWord, bgp::CommunityListName};
 
 /// A single access list rule.
 ///
@@ -31,16 +31,9 @@ pub struct AccessListRule {
 }
 
 /// The name of an access list.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct AccessListName(String);
+pub type AccessListName = FrrWord;
 
 pub type PrefixListName = PrefixListId;
-
-impl AccessListName {
-    pub fn new(name: String) -> AccessListName {
-        AccessListName(name)
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PrefixListRule {
@@ -173,18 +166,12 @@ pub enum RouteMapExitAction {
 ///
 /// This is not limited to [`RouteMapId`], as generated names, for example from the EVPN controller,
 /// can exceed its length limit.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct RouteMapName(String);
+pub type RouteMapName = FrrWord;
 
-impl RouteMapName {
-    pub fn new(name: String) -> RouteMapName {
-        RouteMapName(name)
-    }
-}
-
-impl From<RouteMapId> for RouteMapName {
+impl From<RouteMapId> for FrrWord {
     fn from(value: RouteMapId) -> Self {
-        RouteMapName(value.into_string())
+        // route map IDs only consist of ASCII alphanumerics, '-' and '_', so they are valid words
+        FrrWord(value.into_string())
     }
 }
 

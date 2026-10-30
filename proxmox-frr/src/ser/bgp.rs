@@ -283,20 +283,7 @@ pub struct BgpRouter {
     pub custom_frr_config: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct CommunityListName(String);
-
-impl Display for CommunityListName {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Display::fmt(&self.0, f)
-    }
-}
-
-impl CommunityListName {
-    pub fn new(name: String) -> Self {
-        Self(name)
-    }
-}
+pub type CommunityListName = FrrWord;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExtCommunityRouteTarget {
@@ -338,7 +325,7 @@ pub enum StandardExtCommunityListMatch {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ExpandedExtCommunityListEntry {
     pub action: AccessAction,
-    pub match_entry: String,
+    pub match_entry: FrrWord,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

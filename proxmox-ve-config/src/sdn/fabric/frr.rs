@@ -111,8 +111,7 @@ pub fn build_fabric(
                 }
 
                 if let Some(ip) = node.ip() {
-                    let routemap_name =
-                        ser::route_map::RouteMapName::new("pve_openfabric".to_owned());
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_openfabric")?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -126,7 +125,7 @@ pub fn build_fabric(
                             vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())];
                     } else if let Some(cidr) = fabric.ip_prefix() {
                         let access_list_name =
-                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ips"));
+                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ips"))?;
 
                         let rule = ser::route_map::AccessListRule {
                             action: ser::route_map::AccessAction::Permit,
@@ -154,8 +153,7 @@ pub fn build_fabric(
                 }
 
                 if let Some(ip) = node.ip6() {
-                    let routemap_name =
-                        ser::route_map::RouteMapName::new("pve_openfabric6".to_owned());
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_openfabric6")?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -169,7 +167,7 @@ pub fn build_fabric(
                             vec![RouteMapMatch::Ip6AddressPrefixList(prefix_list_id.clone())];
                     } else if let Some(cidr) = fabric.ip6_prefix() {
                         let access_list_name =
-                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ip6s"));
+                            AccessListName::new(format!("pve_openfabric_{fabric_id}_ip6s"))?;
 
                         let rule = ser::route_map::AccessListRule {
                             action: ser::route_map::AccessAction::Permit,
@@ -252,7 +250,7 @@ pub fn build_fabric(
                     }
                 }
 
-                let routemap_name = ser::route_map::RouteMapName::new("pve_ospf".to_owned());
+                let routemap_name = ser::route_map::RouteMapName::new("pve_ospf")?;
                 let routemap = frr_config
                     .routemaps
                     .entry(routemap_name.clone())
@@ -269,7 +267,8 @@ pub fn build_fabric(
                     routemap_entry.matches =
                         vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())];
                 } else if let Some(ipv4cidr) = fabric.ip_prefix() {
-                    let access_list_name = AccessListName::new(format!("pve_ospf_{fabric_id}_ips"));
+                    let access_list_name =
+                        AccessListName::new(format!("pve_ospf_{fabric_id}_ips"))?;
 
                     let rule = ser::route_map::AccessListRule {
                         action: ser::route_map::AccessAction::Permit,
@@ -369,7 +368,7 @@ pub fn build_fabric(
                             vec![RouteMapMatch::IpAddressPrefixList(prefix_list_id.clone())]
                         } else if let Some(cidr) = fabric.ip_prefix() {
                             let access_list_name =
-                                AccessListName::new(format!("pve_bgp_{fabric_id}_ips"));
+                                AccessListName::new(format!("pve_bgp_{fabric_id}_ips"))?;
 
                             let rule = ser::route_map::AccessListRule {
                                 action: ser::route_map::AccessAction::Permit,
@@ -394,7 +393,7 @@ pub fn build_fabric(
                     // prefixes that already passed the fabric-prefix filter.
                     let auto_in_routemap = if !inbound_matchers.is_empty() {
                         let name =
-                            ser::route_map::RouteMapName::new(format!("pve_bgp_{fabric_id}_in"));
+                            ser::route_map::RouteMapName::new(format!("pve_bgp_{fabric_id}_in"))?;
                         let in_routemap = frr_config.routemaps.entry(name.clone()).or_default();
                         in_routemap.push(RouteMapEntry {
                             seq: 10,
@@ -433,7 +432,7 @@ pub fn build_fabric(
                         networks: vec![Ipv4Cidr::from(ip)],
                     });
 
-                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp".to_owned());
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp")?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -459,7 +458,7 @@ pub fn build_fabric(
                             vec![RouteMapMatch::Ip6AddressPrefixList(prefix_list_id.clone())]
                         } else if let Some(cidr) = fabric.ip6_prefix() {
                             let access_list_name =
-                                AccessListName::new(format!("pve_bgp_{fabric_id}_ip6s"));
+                                AccessListName::new(format!("pve_bgp_{fabric_id}_ip6s"))?;
 
                             let rule = ser::route_map::AccessListRule {
                                 action: ser::route_map::AccessAction::Permit,
@@ -479,7 +478,7 @@ pub fn build_fabric(
 
                     let auto_in_routemap = if !inbound_matchers.is_empty() {
                         let name =
-                            ser::route_map::RouteMapName::new(format!("pve_bgp6_{fabric_id}_in"));
+                            ser::route_map::RouteMapName::new(format!("pve_bgp6_{fabric_id}_in"))?;
                         let in_routemap = frr_config.routemaps.entry(name.clone()).or_default();
                         in_routemap.push(RouteMapEntry {
                             seq: 10,
@@ -518,7 +517,7 @@ pub fn build_fabric(
                         redistribute,
                     });
 
-                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp6".to_owned());
+                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp6")?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -569,8 +568,8 @@ pub fn build_fabric(
     // Without this, the implicit deny at the end of the route-map would drop
     // them.
     for routemap_name in [
-        ser::route_map::RouteMapName::new("pve_bgp".to_owned()),
-        ser::route_map::RouteMapName::new("pve_bgp6".to_owned()),
+        ser::route_map::RouteMapName::new("pve_bgp")?,
+        ser::route_map::RouteMapName::new("pve_bgp6")?,
     ] {
         if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
             routemap.push(RouteMapEntry {
