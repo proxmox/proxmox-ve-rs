@@ -49,7 +49,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::{
     ApiStringFormat, ApiType, EnumEntry, ObjectSchema, Schema, StringSchema, Updater, UpdaterType,
-    api, property_string::PropertyString,
+    api, api_types::NON_EMPTY_NO_WHITESPACE_FORMAT, property_string::PropertyString,
 };
 
 #[api(
@@ -117,6 +117,7 @@ impl ApiType for ExitAction {
                 "value",
                 true,
                 &StringSchema::new("The value that should be set - depends on the given key.")
+                    .format(&NON_EMPTY_NO_WHITESPACE_FORMAT)
                     .schema(),
             ),
         ],
@@ -278,6 +279,7 @@ impl ApiType for SetAction {
                 "value",
                 true,
                 &StringSchema::new("The value that should be set - depends on the given key.")
+                    .format(&NON_EMPTY_NO_WHITESPACE_FORMAT)
                     .schema(),
             ),
         ],
@@ -351,6 +353,7 @@ impl ApiType for MatchAction {
                 "value",
                 true,
                 &StringSchema::new("The value that should be matched - depends on the given key.")
+                    .format(&NON_EMPTY_NO_WHITESPACE_FORMAT)
                     .schema(),
             ),
         ],
