@@ -47,8 +47,8 @@ pub enum FrrWordError {
 
 /// A simple FRR Word.
 ///
-/// Every string argument or value in FRR is an FrrWord. FrrWords must only contain ascii
-/// characters and must not have a whitespace.
+/// Every string argument or value in FRR is an FrrWord. FrrWords must only contain printable ASCII
+/// characters without whitespace, which also keeps them from spanning multiple lines.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct FrrWord(String);
 
@@ -60,12 +60,7 @@ impl FrrWord {
             return Err(FrrWordError::IsEmpty);
         }
 
-        if name
-            .as_ref()
-            .as_bytes()
-            .iter()
-            .any(|c| !c.is_ascii() || c.is_ascii_whitespace())
-        {
+        if name.as_ref().bytes().any(|c| !c.is_ascii_graphic()) {
             return Err(FrrWordError::InvalidCharacter(name.into()));
         }
 
