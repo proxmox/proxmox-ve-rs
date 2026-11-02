@@ -28,5 +28,5 @@ proxmox-fixed-string = { version = "0.1.1" }
 proxmox-frr = { version = "0.5.1", path = "proxmox-frr" }
 proxmox-network-types = { version = "1.1.2" }
 proxmox-schema = { version = "5.6" }
-proxmox-sdn-types = { version = "0.2", path = "proxmox-sdn-types" }
+proxmox-sdn-types = { version = "0.2.5", path = "proxmox-sdn-types" }
 proxmox-serde = { version = "1.0.0" }

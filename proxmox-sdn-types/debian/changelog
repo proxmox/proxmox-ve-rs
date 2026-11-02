@@ -1,3 +1,11 @@
+rust-proxmox-sdn-types (0.2.5-1) trixie; urgency=medium
+
+  * add route map and prefix list ID types, moved from proxmox-ve-config
+    so that proxmox-frr can use the same validated types, and a route
+    map peer type that rejects empty values and whitespace.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Nov 2026 22:24:17 +0100
+
 rust-proxmox-sdn-types (0.2.4-1) trixie; urgency=medium
 
   * wireguard: align the persistent_keepalive schema with the documented
