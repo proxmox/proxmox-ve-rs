@@ -1,3 +1,28 @@
+rust-proxmox-frr (0.6.0-1) trixie; urgency=medium
+
+  * fix #8008: evpn: treat the nexthop hostname of EVPN routes as
+    optional, as FRR only reports it if the BGP peer announced one.
+    Showing the MAC-VRF of an EVPN VNet failed if any of its routes was
+    learned from a peer without a hostname.
+
+  * require names and values rendered into the FRR configuration, like
+    route map, access list, community list, VRF, interface and BGP neighbor
+    names, to be non-empty and consist of printable ASCII characters
+    without whitespace, so invalid input can no longer break the generated
+    configuration or inject additional statements. Errors now include the
+    rejected value, instead of printing it to standard error.
+
+  * route maps: use the prefix list ID type from proxmox-sdn-types for
+    prefix list names, which also validates their format.
+
+  * route maps: drop the unused community set action, which had no
+    validated format.
+
+  * packaging: depend on proxmox-frr-templates, as the crate embeds the
+    templates at build time and failed to compile without them.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Nov 2026 22:24:30 +0100
+
 rust-proxmox-frr (0.5.1-1) trixie; urgency=medium
 
   * ser: bgp: add BgpRouter::merge_fabric() and AddressFamilies::extend()
