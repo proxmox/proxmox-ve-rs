@@ -511,7 +511,7 @@ impl FabricEntry {
         }
     }
 
-    /// Consume this entry and return a (Fabric, Vec<Node>) pair. This is used to write to the
+    /// Consume this entry and return a `(Fabric, Vec<Node>)` pair. This is used to write to the
     /// section-config file.
     pub fn into_section_config(self) -> (Fabric, Vec<Node>) {
         match self {

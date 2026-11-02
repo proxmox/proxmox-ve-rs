@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 pub use crate::ser::AccessAction;
 use crate::ser::bgp::CommunityListName;
 
-/// A single [`AccessList`] rule.
+/// A single access list rule.
 ///
-/// Every rule in a [`AccessList`] is its own command and gets written into a new line (with the
+/// Every rule in an access list is its own command and gets written into a new line (with the
 /// same name). These rules have an action - permit (match) or deny (don't match) - and a network
 /// address (which can be a single address or a range). The seq number is used to differentiate
 /// between access-lists of the same name and rules. Every [`AccessListRule`] has to have a
@@ -28,7 +28,7 @@ pub struct AccessListRule {
     pub is_ipv6: bool,
 }
 
-/// The name of an [`AccessList`].
+/// The name of an access list.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AccessListName(String);
 
@@ -130,7 +130,6 @@ pub enum RouteMapMatch {
 /// Defines the Action a route-map takes when it matches on a route.
 ///
 /// If the route matches the [`RouteMapMatch`], then a [`RouteMapSet`] action will be executed.
-/// We currently only use the IpSrc command which changes the source address of the route.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "key", content = "value")]
 pub enum RouteMapSet {

@@ -16,8 +16,8 @@ impl<T: Hash + Eq> FromIterator<T> for Allowlist<T> {
     }
 }
 
-/// returns true if [`value`] is in the allowlist or if allowlist does not exist
 impl<T: Hash + Eq> Allowlist<T> {
+    /// Returns whether `value` is in the allowlist.
     pub fn is_allowed(&self, value: &T) -> bool {
         self.0.contains(value)
     }

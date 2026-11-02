@@ -88,10 +88,12 @@ pub enum InterfaceNameError {
     TooLong,
 }
 
-/// Name of a interface, which is common between all protocols.
+/// Name of an interface, which is common between all protocols.
 ///
-/// FRR itself doesn't enforce any limits, but the kernel does. Linux only allows interface names
-/// to be a maximum of 16 bytes. This is enforced by this struct.
+/// Linux limits interface names to 15 bytes plus the terminating NUL byte, which the constructors
+/// enforce. Deserialization does not check the length, as configurations can reference interfaces
+/// that do not exist on the node, and rejecting such a reference would fail the generation of the
+/// whole FRR configuration instead of only affecting the reference.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct InterfaceName(String);
 

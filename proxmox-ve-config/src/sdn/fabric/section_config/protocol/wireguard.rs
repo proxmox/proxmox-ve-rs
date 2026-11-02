@@ -318,7 +318,7 @@ impl InternalWireGuardNode {
 impl Validatable for InternalWireGuardNode {
     type Error = FabricConfigError;
 
-    /// Validates the [FabricSection<WireGuardNodeProperties>].
+    /// Validates the [`InternalWireGuardNode`].
     fn validate(&self) -> Result<(), Self::Error> {
         let mut local_interfaces = HashSet::new();
         let mut listen_ports = HashSet::new();

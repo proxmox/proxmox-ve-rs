@@ -132,11 +132,11 @@ impl Default for NetSelector {
 /// Every OpenFabric node is identified through the NET. It has a network and a host
 /// part.
 /// The first part is the network part (also called area). The entire OpenFabric fabric has to have
-/// the same network part (afi + area). The first number is the [`NetAFI`] and the second is the
-/// [`NetArea`].
+/// the same network part (afi + area). The first number is the `NetAFI` and the second is the
+/// `NetArea`.
 /// e.g.: "49.0001"
 /// The second part is the host part, which has to differ on every node in the fabric, but *not*
-/// between fabrics on the same node. It contains the [`NetSystemId`] and the [`NetSelector`].
+/// between fabrics on the same node. It contains the `NetSystemId` and the `NetSelector`.
 /// e.g.: "1921.6800.1002.00"
 #[api]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]

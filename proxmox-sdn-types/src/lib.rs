@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use proxmox_schema::api;
 
-/// Enum for representing signedness of Integer in [`IntegerWithSign`].
+/// Sign of a relative integer value, rendered as `+` or `-`.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Sign {
     #[serde(rename = "-")]

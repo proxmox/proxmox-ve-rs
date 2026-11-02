@@ -157,9 +157,9 @@ impl UpdaterType for FabricSection<BgpProperties> {
 /// Enum containing all types of fabrics.
 ///
 /// It utilizes [`FabricSection<T>`] to define all possible types of fabrics. For parsing the
-/// configuration, please use the [`Section`] enum, which contains the Node sections as well. This
-/// struct is used for sorting the sections into their sub-types after parsing the configuration
-/// via [`Section`].
+/// configuration, please use the [`Section`](super::Section) enum, which contains the Node sections
+/// as well. This struct is used for sorting the sections into their sub-types after parsing the
+/// configuration via [`Section`](super::Section).
 #[api(
     "id-property": "id",
     "id-schema": {
