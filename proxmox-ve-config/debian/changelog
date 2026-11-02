@@ -1,3 +1,26 @@
+rust-proxmox-ve-config (0.11.0) trixie; urgency=medium
+
+  * fix #7584: guest: recognize all NIC models supported by qemu-server.
+    A guest with a firewall config and a previously unknown model, like
+    e1000e, made the nftables firewall (proxmox-firewall) fail to update
+    the rules on its node.
+
+  * sdn: tighten the validation of values that end up in the generated FRR
+    configuration, so they can no longer break it or inject statements:
+    - fabrics: reject whitespace and control characters in interface
+      names, which were allowed as long as they were ASCII.
+    - fabrics: ospf: validate the route map name of redistributions.
+    - route maps: reject empty values and whitespace in the values of set,
+      match and exit actions.
+    - check the format of fabric IDs, node IDs, interface names, route map
+      IDs and prefix list IDs also when deserializing them from JSON or
+      Perl data, not only when parsing the section config.
+
+  * sdn: move the route map and prefix list ID types to proxmox-sdn-types,
+    so proxmox-frr can use them as well.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 02 Nov 2026 22:25:36 +0100
+
 rust-proxmox-ve-config (0.10.4) trixie; urgency=medium
 
   * sdn: fabrics: wireguard: keep InternalPeer.endpoint as a full host:port
