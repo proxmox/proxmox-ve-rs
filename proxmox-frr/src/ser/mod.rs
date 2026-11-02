@@ -41,8 +41,8 @@ proxmox_serde::forward_display_to_serialize!(AccessAction);
 pub enum FrrWordError {
     #[error("word is empty")]
     IsEmpty,
-    #[error("word contains invalid character")]
-    InvalidCharacter,
+    #[error("word {0:?} contains an invalid character")]
+    InvalidCharacter(String),
 }
 
 /// A simple FRR Word.
@@ -66,8 +66,7 @@ impl FrrWord {
             .iter()
             .any(|c| !c.is_ascii() || c.is_ascii_whitespace())
         {
-            eprintln!("invalid char in: \"{}\"", name.as_ref());
-            return Err(FrrWordError::InvalidCharacter);
+            return Err(FrrWordError::InvalidCharacter(name.into()));
         }
 
         Ok(Self(name.into()))
