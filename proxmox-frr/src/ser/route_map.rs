@@ -79,7 +79,7 @@ impl std::fmt::Display for ExtendedCommunityMatch {
             .mode
             .as_ref()
             .map(|mode| format!(" {mode}"))
-            .unwrap_or_else(|| String::new());
+            .unwrap_or_default();
 
         write!(f, "{}{mode}", self.name)
     }

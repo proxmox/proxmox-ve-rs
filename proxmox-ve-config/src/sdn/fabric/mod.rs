@@ -634,14 +634,14 @@ impl Validatable for FabricEntry {
                 }
             }
 
-            for (node_id, interface) in internal_peers.difference(&all_interfaces) {
+            if let Some((node_id, interface)) = internal_peers.difference(&all_interfaces).next() {
                 return Err(FabricConfigError::InvalidRemoteInterfaceReference(
                     interface.to_string(),
                     node_id.to_string(),
                 ));
             }
 
-            for node_id in external_peers.difference(&all_external_nodes) {
+            if let Some(node_id) = external_peers.difference(&all_external_nodes).next() {
                 return Err(FabricConfigError::InvalidExternalNodeReference(
                     node_id.to_string(),
                 ));

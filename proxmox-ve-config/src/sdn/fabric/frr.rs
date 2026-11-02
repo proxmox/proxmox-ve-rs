@@ -545,7 +545,7 @@ pub fn build_fabric(
                     protocol_routemap.v6 = Some(routemap_name);
                 };
 
-                let router_id = bgp_router_id(&node)
+                let router_id = bgp_router_id(node)
                     .ok_or_else(|| anyhow::anyhow!("BGP node must have ip or ip6 set"))?;
 
                 let router = BgpRouter {

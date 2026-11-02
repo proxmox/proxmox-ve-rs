@@ -51,7 +51,7 @@ impl std::str::FromStr for ModifyNumber {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with(&['+', '-']) {
+        if s.starts_with(['+', '-']) {
             return Ok(Self::Relative(s.parse()?));
         }
 
