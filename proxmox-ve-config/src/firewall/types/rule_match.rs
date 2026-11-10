@@ -707,7 +707,7 @@ const IPTABLES_ICMPV6_TYPES_MAPPING: [(&str, IcmpTypeMap); 19] = sorted!([
     ("address-unreachable", IcmpTypeMap::Custom((1, 3))),
     ("port-unreachable", IcmpTypeMap::Custom((1, 4))),
     ("failed-policy", IcmpTypeMap::Custom((1, 5))),
-    ("reject-route'", IcmpTypeMap::Custom((1, 6))),
+    ("reject-route", IcmpTypeMap::Custom((1, 6))),
     ("ttl-zero-during-transit", IcmpTypeMap::Custom((3, 0))),
     ("ttl-zero-during-reassembly", IcmpTypeMap::Custom((3, 1))),
     ("bad-header", IcmpTypeMap::Custom((4, 0))),
