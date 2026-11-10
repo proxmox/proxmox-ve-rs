@@ -73,6 +73,71 @@ fn parse_running_config() {
 }
 
 #[test]
+fn parse_running_config_from_newer_pve_network() {
+    // unknown zone and DHCP types, an unknown property in a DHCP range and an IPv4 gateway for an
+    // IPv6 /32 subnet must not prevent reading the configuration
+    let running_config: RunningConfig = serde_json::from_value(serde_json::json!({
+        "zones": {
+            "ids": {
+                "zone0": { "type": "faucet", "dhcp": "kea" },
+            },
+        },
+        "vnets": {
+            "ids": {
+                "vnet0": { "type": "vnet", "zone": "zone0" },
+            },
+        },
+        "subnets": {
+            "ids": {
+                "zone0-10.0.0.0-24": {
+                    "type": "subnet",
+                    "vnet": "vnet0",
+                    "gateway": "10.0.0.1",
+                    "dhcp-range": [
+                        "start-address=10.0.0.100,end-address=10.0.0.200,unknown=value",
+                    ],
+                },
+                "zone0-fd00::-32": {
+                    "type": "subnet",
+                    "vnet": "vnet0",
+                    "gateway": "192.0.2.1",
+                },
+            },
+        },
+    }))
+    .expect("valid running config");
+
+    let sdn_config = SdnConfig::try_from(running_config).expect("valid SDN config");
+
+    let zone = sdn_config
+        .zone(&ZoneName::from_str("zone0").unwrap())
+        .expect("zone exists");
+    assert_eq!(zone.ty(), &ZoneType::Unknown("faucet".to_string()));
+    assert_eq!(zone.ty().to_string(), "faucet");
+
+    let vnet = zone
+        .vnet(&VnetName::from_str("vnet0").unwrap())
+        .expect("vnet exists");
+
+    let subnet_v4 = vnet
+        .subnet(&Cidr::from_str("10.0.0.0/24").unwrap())
+        .expect("IPv4 subnet exists");
+    assert_eq!(
+        subnet_v4.gateway(),
+        Some(&IpAddr::from(Ipv4Addr::new(10, 0, 0, 1)))
+    );
+    assert_eq!(
+        subnet_v4.dhcp_ranges().collect::<Vec<_>>(),
+        [&IpRange::new_v4([10, 0, 0, 100], [10, 0, 0, 200]).unwrap()]
+    );
+
+    let subnet_v6 = vnet
+        .subnet(&Cidr::from_str("fd00::/32").unwrap())
+        .expect("IPv6 subnet exists");
+    assert_eq!(subnet_v6.gateway(), None);
+}
+
+#[test]
 fn sdn_config() {
     let mut sdn_config = SdnConfig::new();
 

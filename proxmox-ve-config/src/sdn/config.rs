@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    convert::Infallible,
     error::Error,
     fmt::Display,
     net::IpAddr,
@@ -21,8 +22,6 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SdnConfigError {
-    InvalidZoneType,
-    InvalidDhcpType,
     ZoneNotFound,
     VnetNotFound,
     MismatchedCidrGateway,
@@ -52,8 +51,6 @@ impl Display for SdnConfigError {
             SdnConfigError::MismatchedCidrGateway => {
                 write!(f, "mismatched ip address family for gateway and CIDR")
             }
-            SdnConfigError::InvalidZoneType => write!(f, "invalid zone type"),
-            SdnConfigError::InvalidDhcpType => write!(f, "invalid dhcp type"),
             SdnConfigError::DuplicateVnetName => write!(f, "vnet name occurs in multiple zones"),
             SdnConfigError::MismatchedSubnetZone => {
                 write!(f, "subnet zone does not match actual zone")
@@ -62,20 +59,25 @@ impl Display for SdnConfigError {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// The type of an SDN zone.
+///
+/// Zone types that are not known to this version, e.g. ones added by a newer pve-network, are
+/// represented by [`ZoneType::Unknown`], so that they do not prevent reading the configuration.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ZoneType {
     Simple,
     Vlan,
     Qinq,
     Vxlan,
     Evpn,
+    Unknown(String),
 }
 
 proxmox_serde::forward_deserialize_to_from_str!(ZoneType);
 proxmox_serde::forward_serialize_to_display!(ZoneType);
 
 impl FromStr for ZoneType {
-    type Err = SdnConfigError;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -84,7 +86,7 @@ impl FromStr for ZoneType {
             "qinq" => Ok(ZoneType::Qinq),
             "vxlan" => Ok(ZoneType::Vxlan),
             "evpn" => Ok(ZoneType::Evpn),
-            _ => Err(SdnConfigError::InvalidZoneType),
+            _ => Ok(ZoneType::Unknown(s.to_string())),
         }
     }
 }
@@ -97,24 +99,30 @@ impl Display for ZoneType {
             ZoneType::Qinq => "qinq",
             ZoneType::Vxlan => "vxlan",
             ZoneType::Evpn => "evpn",
+            ZoneType::Unknown(ty) => ty,
         })
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// The type of the DHCP server of an SDN zone.
+///
+/// Like [`ZoneType`], types that are not known to this version are represented by
+/// [`DhcpType::Unknown`].
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DhcpType {
     Dnsmasq,
+    Unknown(String),
 }
 proxmox_serde::forward_deserialize_to_from_str!(DhcpType);
 proxmox_serde::forward_serialize_to_display!(DhcpType);
 
 impl FromStr for DhcpType {
-    type Err = SdnConfigError;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "dnsmasq" => Ok(DhcpType::Dnsmasq),
-            _ => Err(SdnConfigError::InvalidDhcpType),
+            _ => Ok(DhcpType::Unknown(s.to_string())),
         }
     }
 }
@@ -123,6 +131,7 @@ impl Display for DhcpType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             DhcpType::Dnsmasq => "dnsmasq",
+            DhcpType::Unknown(ty) => ty,
         })
     }
 }
@@ -166,6 +175,8 @@ impl ApiType for DhcpRange {
             ),
         ],
     )
+    // ignore properties added by a newer pve-network instead of failing to parse the range
+    .additional_properties(true)
     .schema();
 }
 
@@ -269,7 +280,20 @@ impl SubnetConfig {
             None => Vec::new(),
         };
 
-        Self::new(name, running_config.gateway, snat, dhcp_range)
+        // pve-network accepts an IPv4 gateway outside of the subnet for any /32 subnet, so it can
+        // store one for an IPv6 subnet as well. Such a gateway cannot be used, so ignore it instead
+        // of rejecting the whole configuration.
+        let mut gateway = running_config.gateway;
+
+        if let Some(ignored) = gateway.take_if(|gateway| gateway.is_ipv4() != name.cidr().is_ipv4())
+        {
+            log::warn!(
+                "ignoring gateway {ignored} of subnet {}, its address family differs",
+                name.cidr()
+            );
+        }
+
+        Self::new(name, gateway, snat, dhcp_range)
     }
 
     pub fn name(&self) -> &SubnetName {
@@ -418,8 +442,8 @@ impl ZoneConfig {
         &self.name
     }
 
-    pub fn ty(&self) -> ZoneType {
-        self.ty
+    pub fn ty(&self) -> &ZoneType {
+        &self.ty
     }
 }
 
