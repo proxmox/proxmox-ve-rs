@@ -333,7 +333,7 @@ impl NetworkConfig {
             if let Some((digits, rest)) = match_digits(digits) {
                 let index: i64 = digits.parse()?;
 
-                if (0..31).contains(&index) && rest.is_empty() {
+                if (0..32).contains(&index) && rest.is_empty() {
                     return Ok(index);
                 }
             }
@@ -655,5 +655,15 @@ unprivileged: 1"
                 .as_bytes(),
         )
         .expect_err("invalid net key");
+    }
+
+    #[test]
+    fn test_index_from_net_key() {
+        assert_eq!(NetworkConfig::index_from_net_key("net0").unwrap(), 0);
+        assert_eq!(NetworkConfig::index_from_net_key("net31").unwrap(), 31);
+
+        for key in ["net32", "net", "net-1", "net1a", "eth0"] {
+            NetworkConfig::index_from_net_key(key).expect_err("invalid net key");
+        }
     }
 }
