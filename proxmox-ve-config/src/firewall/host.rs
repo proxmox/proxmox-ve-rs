@@ -198,20 +198,25 @@ impl Config {
     }
 
     /// returns value of protection_synflood_rate key or [`HOST_BLOCK_SYNFLOOD_RATE_DEFAULT`] if
-    /// unset
+    /// unset or not positive
+    ///
+    /// The kernel rejects a limit with a rate of 0, and pve-firewall uses the default in that case
+    /// as well.
     pub fn synflood_rate(&self) -> i64 {
         self.config
             .options
             .protection_synflood_rate
+            .filter(|rate| *rate > 0)
             .unwrap_or(HOST_BLOCK_SYNFLOOD_RATE_DEFAULT)
     }
 
     /// returns value of protection_synflood_burst key or [`HOST_BLOCK_SYNFLOOD_BURST_DEFAULT`] if
-    /// unset
+    /// unset or not positive, the same as in pve-firewall
     pub fn synflood_burst(&self) -> i64 {
         self.config
             .options
             .protection_synflood_burst
+            .filter(|burst| *burst > 0)
             .unwrap_or(HOST_BLOCK_SYNFLOOD_BURST_DEFAULT)
     }
 
@@ -380,5 +385,30 @@ IN ACCEPT -p udp -dport 33 -sport 22 -log warning
         Config::parse("[GROUP test]".as_bytes()).expect_err("host config cannot contain groups");
 
         Config::parse("[IPSET test]".as_bytes()).expect_err("host config cannot contain ipsets");
+    }
+
+    #[test]
+    fn synflood_defaults() {
+        let config = Config::parse("[OPTIONS]\n".as_bytes()).unwrap();
+        assert_eq!(config.synflood_rate(), HOST_BLOCK_SYNFLOOD_RATE_DEFAULT);
+        assert_eq!(config.synflood_burst(), HOST_BLOCK_SYNFLOOD_BURST_DEFAULT);
+
+        // the kernel rejects a rate of 0, so values that are not positive use the defaults
+        for value in ["0", "-1"] {
+            let input = format!(
+                "[OPTIONS]\nprotection_synflood_rate: {value}\nprotection_synflood_burst: {value}\n"
+            );
+            let config = Config::parse(input.as_bytes()).unwrap();
+            assert_eq!(config.synflood_rate(), HOST_BLOCK_SYNFLOOD_RATE_DEFAULT);
+            assert_eq!(config.synflood_burst(), HOST_BLOCK_SYNFLOOD_BURST_DEFAULT);
+        }
+
+        let config = Config::parse(
+            "[OPTIONS]\nprotection_synflood_rate: 300\nprotection_synflood_burst: 2500\n"
+                .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(config.synflood_rate(), 300);
+        assert_eq!(config.synflood_burst(), 2500);
     }
 }
