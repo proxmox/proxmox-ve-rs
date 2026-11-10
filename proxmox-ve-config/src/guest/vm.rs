@@ -334,7 +334,8 @@ impl NetworkConfig {
             if let Some((digits, rest)) = match_digits(digits) {
                 let index: i64 = digits.parse()?;
 
-                if (0..32).contains(&index) && rest.is_empty() {
+                // only the canonical form is a network device key, e.g. not net01
+                if (0..32).contains(&index) && rest.is_empty() && digits == index.to_string() {
                     return Ok(index);
                 }
             }
@@ -358,7 +359,9 @@ impl NetworkConfig {
 
         for line in input.lines() {
             let line = line?;
-            let line = line.trim();
+            // a key starts at the beginning of the line and ends right before the colon, as in
+            // qemu-server and pve-container, so only trailing whitespace is removed
+            let line = line.trim_end();
 
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -371,12 +374,11 @@ impl NetworkConfig {
             if line.starts_with("net") {
                 log::trace!("parsing net config line: {line}");
 
-                if let Some((mut key, mut value)) = line.split_once(':') {
+                if let Some((key, mut value)) = line.split_once(':') {
                     if key.is_empty() || value.is_empty() {
                         continue;
                     }
 
-                    key = key.trim();
                     value = value.trim();
 
                     // the guest ignores keys outside of its schema as well
@@ -655,6 +657,11 @@ unprivileged: 1"
             "netqwe: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
             "net0 name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
             "net33: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+            // only keys in canonical form are network device keys
+            "net00: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+            "net0 : name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+            // a line with leading whitespace does not start with a network device key
+            " net0: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
         ] {
             let network_config = NetworkConfig::parse(line.as_bytes()).expect("valid config");
             assert!(network_config.network_devices().is_empty());
@@ -685,7 +692,9 @@ unprivileged: 1"
         assert_eq!(NetworkConfig::index_from_net_key("net0").unwrap(), 0);
         assert_eq!(NetworkConfig::index_from_net_key("net31").unwrap(), 31);
 
-        for key in ["net32", "net", "net-1", "net1a", "eth0"] {
+        for key in [
+            "net32", "net", "net-1", "net1a", "eth0", "net00", "net01", "net031", "net+1",
+        ] {
             NetworkConfig::index_from_net_key(key).expect_err("invalid net key");
         }
     }
