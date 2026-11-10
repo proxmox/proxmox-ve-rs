@@ -237,7 +237,12 @@ impl Error for IpamError {}
 
 impl Display for IpamError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("")
+        match self {
+            IpamError::NameError(err) => write!(f, "invalid name: {err}"),
+            IpamError::InvalidIpAddress => f.write_str("invalid IP address"),
+            IpamError::DuplicateIpAddress => f.write_str("duplicate IP address"),
+            IpamError::IpAddressOutOfBounds => f.write_str("IP address is not in the subnet"),
+        }
     }
 }
 
@@ -451,5 +456,26 @@ mod tests {
                 .iter()
                 .any(|data| matches!(data, IpamData::Custom(_)))
         );
+    }
+
+    #[test]
+    fn ipam_errors_are_displayed() {
+        let json = serde_json::json!({
+            "zones": {
+                "zone0": {
+                    "subnets": {
+                        "10.0.0.0/24": {
+                            "ips": {
+                                "10.0.1.1": { "vmid": "100", "mac": "BC:24:11:00:00:01" },
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let ipam_json: IpamJson = serde_json::from_value(json).expect("valid IPAM");
+        let err = Ipam::try_from(ipam_json).expect_err("IP address outside of the subnet");
+        assert_eq!(err.to_string(), "IP address is not in the subnet");
     }
 }
