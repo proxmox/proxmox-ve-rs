@@ -96,6 +96,11 @@ impl Config {
 
         let network_config = NetworkConfig::parse(network_input)?;
 
+        // such a line is most likely a mistake, so make it visible
+        for key in network_config.ignored_keys() {
+            log::warn!("guest #{vmid}: ignoring '{key}', it is not a valid network device key");
+        }
+
         Ok(Self {
             vmid: *vmid,
             iface_prefix,

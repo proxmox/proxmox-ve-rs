@@ -321,6 +321,7 @@ impl FromStr for NetworkDevice {
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct NetworkConfig {
     network_devices: BTreeMap<i64, NetworkDevice>,
+    ignored_keys: Vec<String>,
 }
 
 impl NetworkConfig {
@@ -346,8 +347,14 @@ impl NetworkConfig {
         &self.network_devices
     }
 
+    /// Returns the keys of lines starting with 'net' that are not a valid network device key.
+    pub fn ignored_keys(&self) -> &[String] {
+        &self.ignored_keys
+    }
+
     pub fn parse<R: io::BufRead>(input: R) -> Result<Self, Error> {
         let mut network_devices = BTreeMap::new();
+        let mut ignored_keys = Vec::new();
 
         for line in input.lines() {
             let line = line?;
@@ -372,22 +379,27 @@ impl NetworkConfig {
                     key = key.trim();
                     value = value.trim();
 
-                    if let Ok(index) = Self::index_from_net_key(key) {
-                        let network_device = NetworkDevice::from_str(value)?;
+                    // the guest ignores keys outside of its schema as well
+                    let Ok(index) = Self::index_from_net_key(key) else {
+                        ignored_keys.push(key.to_string());
+                        continue;
+                    };
 
-                        let exists = network_devices.insert(index, network_device);
+                    let network_device = NetworkDevice::from_str(value)?;
 
-                        if exists.is_some() {
-                            bail!("Duplicated config key detected: {key}");
-                        }
-                    } else {
-                        bail!("Encountered invalid net key in cfg: {key}");
+                    let exists = network_devices.insert(index, network_device);
+
+                    if exists.is_some() {
+                        bail!("Duplicated config key detected: {key}");
                     }
                 }
             }
         }
 
-        Ok(Self { network_devices })
+        Ok(Self {
+            network_devices,
+            ignored_keys,
+        })
     }
 }
 
@@ -638,23 +650,34 @@ unprivileged: 1"
             })
         );
 
-        NetworkConfig::parse(
-            "netqwe: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth"
-                .as_bytes(),
-        )
-        .expect_err("invalid net key");
+        // lines without a network device key are skipped
+        for line in [
+            "netqwe: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+            "net0 name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+            "net33: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth",
+        ] {
+            let network_config = NetworkConfig::parse(line.as_bytes()).expect("valid config");
+            assert!(network_config.network_devices().is_empty());
+        }
 
-        NetworkConfig::parse(
-            "net0 name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth"
+        let network_config = NetworkConfig::parse(
+            "net0: virtio=AA:AA:AA:AA:AA:01,bridge=vmbr0\nnet32: virtio=AA:AA:AA:AA:AA:02,bridge=vmbr0\n"
                 .as_bytes(),
         )
-        .expect_err("invalid net key");
+        .expect("valid config");
+        assert_eq!(network_config.network_devices().len(), 1);
+        assert_eq!(network_config.ignored_keys(), ["net32"]);
 
+        // a network device key with an invalid value is still an error
+        NetworkConfig::parse("net0: foo".as_bytes()).expect_err("invalid network device");
+
+        // which definition the guest uses depends on its validation of the values
         NetworkConfig::parse(
-            "net33: name=eth0,bridge=data,firewall=1,hwaddr=BC:24:11:47:83:11,ip=dhcp,type=veth"
+            "net0: virtio=AA:AA:AA:AA:AA:01,bridge=vmbr0\n\
+             net0: virtio=AA:AA:AA:AA:AA:02,bridge=vmbr0\n"
                 .as_bytes(),
         )
-        .expect_err("invalid net key");
+        .expect_err("duplicate network device key");
     }
 
     #[test]
