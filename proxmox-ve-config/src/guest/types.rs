@@ -25,6 +25,16 @@ impl From<u32> for Vmid {
     }
 }
 
+impl proxmox_serde::perl::FromU32 for Vmid {
+    fn from_u32(value: u32) -> Self {
+        Self::new(value)
+    }
+
+    fn from_none<E: serde::de::Error>() -> Result<Self, E> {
+        Err(E::invalid_type(serde::de::Unexpected::Option, &"a vmid"))
+    }
+}
+
 impl fmt::Display for Vmid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)

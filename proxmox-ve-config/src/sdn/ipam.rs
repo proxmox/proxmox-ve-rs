@@ -32,9 +32,10 @@ pub struct IpamJsonDataGateway {
 /// configured.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct IpamJsonDataVm {
+    #[serde(deserialize_with = "proxmox_serde::perl::deserialize_u32")]
     vmid: Vmid,
     hostname: Option<String>,
-    mac: MacAddress,
+    mac: Option<MacAddress>,
 }
 
 /// Struct for deserializing a custom entry in PVE IPAM.
@@ -45,16 +46,25 @@ pub struct IpamJsonDataCustom {
     mac: MacAddress,
 }
 
+/// An entry in PVE IPAM that is none of the known kinds of entries.
+///
+/// All fields of such an entry are ignored and the entry is skipped, so that it does not prevent
+/// reading all other entries.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IpamJsonDataUnknown {}
+
 /// Enum representing the different kinds of entries that can be located in PVE IPAM.
 ///
 /// For more information about the members see the documentation of the respective structs in the
-/// enum.
+/// enum. Entries that match none of the known kinds are deserialized as
+/// [`IpamJsonData::Unknown`].
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum IpamJsonData {
     Vm(IpamJsonDataVm),
     Gateway(IpamJsonDataGateway),
     Custom(IpamJsonDataCustom),
+    Unknown(IpamJsonDataUnknown),
 }
 
 /// Struct for deserializing IPs from the PVE IPAM.
@@ -82,7 +92,7 @@ pub struct IpamJson {
 pub struct IpamDataVm {
     ip: IpAddr,
     vmid: Vmid,
-    mac: MacAddress,
+    mac: Option<MacAddress>,
     hostname: Option<String>,
 }
 
@@ -90,13 +100,13 @@ impl IpamDataVm {
     pub fn new(
         ip: impl Into<IpAddr>,
         vmid: impl Into<Vmid>,
-        mac: MacAddress,
+        mac: impl Into<Option<MacAddress>>,
         hostname: impl Into<Option<String>>,
     ) -> Self {
         Self {
             ip: ip.into(),
             vmid: vmid.into(),
-            mac,
+            mac: mac.into(),
             hostname: hostname.into(),
         }
     }
@@ -113,8 +123,9 @@ impl IpamDataVm {
         self.vmid
     }
 
-    pub fn mac(&self) -> &MacAddress {
-        &self.mac
+    /// Returns the MAC address of the guest, if the entry contains one.
+    pub fn mac(&self) -> Option<&MacAddress> {
+        self.mac.as_ref()
     }
 
     pub fn hostname(&self) -> Option<&str> {
@@ -175,14 +186,16 @@ pub enum IpamData {
 }
 
 impl IpamData {
-    pub fn from_json_data(ip: IpAddr, json_data: IpamJsonData) -> Self {
-        match json_data {
+    /// Converts an entry of PVE IPAM, returns [`None`] for an [`IpamJsonData::Unknown`] entry.
+    pub fn from_json_data(ip: IpAddr, json_data: IpamJsonData) -> Option<Self> {
+        Some(match json_data {
             IpamJsonData::Vm(json_data) => IpamDataVm::from_json_data(ip, json_data).into(),
             IpamJsonData::Gateway(json_data) => {
                 IpamDataGateway::from_json_data(ip, json_data).into()
             }
             IpamJsonData::Custom(json_data) => IpamDataCustom::from_json_data(ip, json_data).into(),
-        }
+            IpamJsonData::Unknown(_) => return None,
+        })
     }
 
     pub fn ip_address(&self) -> &IpAddr {
@@ -356,7 +369,11 @@ impl TryFrom<IpamJson> for Ipam {
         for (zone_name, subnet_json) in value.zones {
             for (cidr, ip_json) in subnet_json.subnets {
                 for (ip, json_data) in ip_json.ips {
-                    let data = IpamData::from_json_data(ip, json_data);
+                    let Some(data) = IpamData::from_json_data(ip, json_data) else {
+                        log::warn!("skipping IPAM entry of unknown kind for {ip}");
+                        continue;
+                    };
+
                     let subnet = SubnetName::new(zone_name.clone(), cidr);
                     ipam.add_entry(IpamEntry::new(subnet, data)?)?;
                 }
@@ -364,5 +381,75 @@ impl TryFrom<IpamJson> for Ipam {
         }
 
         Ok(ipam)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ipam_entries() {
+        let json = serde_json::json!({
+            "zones": {
+                "zone0": {
+                    "subnets": {
+                        "10.0.0.0/24": {
+                            "ips": {
+                                "10.0.0.1": { "gateway": 1 },
+                                "10.0.0.2": {
+                                    "vmid": "100",
+                                    "hostname": "vm100",
+                                    "mac": "BC:24:11:00:00:01",
+                                },
+                                // pve-network can store a guest without a MAC address
+                                "10.0.0.3": { "vmid": "101", "hostname": "vm101" },
+                                // and a VMID given as a number via the API
+                                "10.0.0.4": { "vmid": 102, "mac": "BC:24:11:00:00:02" },
+                                "10.0.0.5": { "mac": "BC:24:11:00:00:03" },
+                                // entries of an unknown kind are skipped
+                                "10.0.0.6": { "something": "else" },
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let ipam_json: IpamJson = serde_json::from_value(json).expect("valid IPAM");
+        let ipam = Ipam::try_from(ipam_json).expect("valid IPAM entries");
+
+        let entries: Vec<&IpamData> = ipam
+            .entries
+            .values()
+            .flatten()
+            .map(IpamEntry::data)
+            .collect();
+        assert_eq!(entries.len(), 5);
+
+        let vms: Vec<(Vmid, Option<&MacAddress>)> = entries
+            .iter()
+            .filter_map(|data| match data {
+                IpamData::Vm(vm) => Some((vm.vmid(), vm.mac())),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(vms.len(), 3);
+        assert_eq!(vms[0].0, Vmid::new(100));
+        assert!(vms[0].1.is_some());
+        assert_eq!(vms[1], (Vmid::new(101), None));
+        assert_eq!(vms[2].0, Vmid::new(102));
+
+        assert!(
+            entries
+                .iter()
+                .any(|data| matches!(data, IpamData::Gateway(_)))
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|data| matches!(data, IpamData::Custom(_)))
+        );
     }
 }
