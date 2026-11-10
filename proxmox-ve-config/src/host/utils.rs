@@ -1,5 +1,7 @@
 use std::net::{IpAddr, ToSocketAddrs};
 
+use anyhow::{Context, Error};
+
 use proxmox_network_types::ip_address::Cidr;
 
 use nix::sys::socket::{AddressFamily, SockaddrLike};
@@ -7,30 +9,31 @@ use proxmox_sys::nodename;
 
 /// gets a list of IPs that the hostname of this node resolves to
 ///
-/// panics if the local hostname is not resolvable
-pub fn host_ips() -> Vec<IpAddr> {
+/// fails if the local hostname is not resolvable
+pub fn host_ips() -> Result<Vec<IpAddr>, Error> {
     let hostname = nodename();
 
     log::trace!("resolving hostname");
 
-    format!("{hostname}:0")
+    Ok(format!("{hostname}:0")
         .to_socket_addrs()
-        .expect("local hostname is resolvable")
+        .with_context(|| format!("unable to resolve the hostname '{hostname}'"))?
         .map(|addr| addr.ip())
-        .collect()
+        .collect())
 }
 
 /// gets a list of all configured CIDRs on all network interfaces of this host
 ///
-/// panics if unable to query the current network configuration
-pub fn network_interface_cidrs() -> Vec<Cidr> {
+/// fails if unable to query the current network configuration
+pub fn network_interface_cidrs() -> Result<Vec<Cidr>, Error> {
     use nix::ifaddrs::getifaddrs;
 
     log::trace!("reading networking interface list");
 
     let mut cidrs = Vec::new();
 
-    let interfaces = getifaddrs().expect("should be able to query network interfaces");
+    let interfaces =
+        getifaddrs().context("unable to query the addresses of the network interfaces")?;
 
     for interface in interfaces {
         if let (Some(address), Some(netmask)) = (interface.address, interface.netmask) {
@@ -67,5 +70,5 @@ pub fn network_interface_cidrs() -> Vec<Cidr> {
         }
     }
 
-    cidrs
+    Ok(cidrs)
 }

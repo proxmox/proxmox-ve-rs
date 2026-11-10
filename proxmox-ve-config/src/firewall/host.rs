@@ -127,8 +127,10 @@ impl Config {
     pub fn management_ips() -> Result<Vec<Cidr>, Error> {
         let mut management_cidrs = Vec::new();
 
-        for host_ip in host_ips() {
-            for network_interface_cidr in network_interface_cidrs() {
+        let network_interface_cidrs = network_interface_cidrs()?;
+
+        for host_ip in host_ips()? {
+            for &network_interface_cidr in &network_interface_cidrs {
                 match (host_ip, network_interface_cidr) {
                     (IpAddr::V4(ip), Cidr::Ipv4(cidr)) => {
                         if cidr.contains_address(&ip) {
