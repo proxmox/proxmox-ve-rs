@@ -1,3 +1,44 @@
+rust-proxmox-ve-config (0.12.0) trixie; urgency=medium
+
+  * guest: parse the network devices of a guest config like qemu-server and
+    pve-container do:
+    - accept net31. A guest with such a network device made the nftables
+      firewall (proxmox-firewall) fail to update the rules on its node.
+    - ignore a line without a valid network device key with a warning,
+      instead of failing to parse the whole config.
+    - only accept keys in canonical form, so a line like 'net01: ...' or
+      ' net0: ...', which the guest ignores, is not taken as a network
+      device anymore.
+
+  * firewall: fix the name of the 'reject-route' ICMPv6 type, which made
+    every rule using it fail to parse.
+
+  * firewall: host: use the default SYN flood rate and burst for values of 0
+    or below, like pve-firewall does. A rate of 0 made nftables reject the
+    whole ruleset if SYN flood protection was enabled.
+
+  * sdn: ipam: accept guest entries without a MAC address or with a numeric
+    VMID, which can both be created through the API, and skip entries of an
+    unknown kind with a warning, instead of failing to parse the whole IPAM
+    state.
+
+  * sdn: tolerate unknown zone and DHCP types, like the faucet zone, unknown
+    properties of DHCP ranges and an IPv4 gateway of an IPv6 /32 subnet,
+    instead of failing to parse the whole SDN running config.
+    Parse errors of the IPAM state or the SDN running config made
+    pve-firewall generate its rules without any SDN ipsets, and
+    proxmox-firewall failed to apply any changes.
+
+  * sdn: ipam: describe the cause in the message of IPAM errors, which was
+    empty before.
+
+  * host: return an error instead of panicking if the hostname cannot be
+    resolved or the addresses of the network interfaces cannot be queried
+    while determining the management IPs. This stopped the proxmox-firewall
+    daemon.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 11 Nov 2026 01:19:38 +0100
+
 rust-proxmox-ve-config (0.11.0) trixie; urgency=medium
 
   * fix #7584: guest: recognize all NIC models supported by qemu-server.
