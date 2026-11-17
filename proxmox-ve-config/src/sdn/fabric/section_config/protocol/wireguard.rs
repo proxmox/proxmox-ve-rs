@@ -509,7 +509,11 @@ pub enum WireGuardNodeDeletableProperties {
 }
 
 /// Properties of a WireGuard interface.
-#[api()]
+#[api(
+    properties: {
+        mtu: { type: Integer, optional: true, minimum: 576, maximum: 65535 },
+    },
+)]
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct WireGuardInterfaceProperties {
     /// Name for this WireGuard interface.
@@ -532,6 +536,10 @@ pub struct WireGuardInterfaceProperties {
     /// whether to generate an IPv6 link-local address for this interface
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) ip6_ll: Option<bool>,
+
+    /// The MTU for this WireGuard interface.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) mtu: Option<u16>,
 }
 
 impl WireGuardInterfaceProperties {
@@ -554,6 +562,11 @@ impl WireGuardInterfaceProperties {
     pub fn ip6(&self) -> Option<&Ipv6Cidr> {
         self.ip6.as_ref()
     }
+
+    /// Get the MTU set for this interface
+    pub fn mtu(&self) -> Option<u16> {
+        self.mtu
+    }
 }
 
 /// Determines whether the given `PersistentKeepalive` value means that it is
@@ -569,7 +582,11 @@ fn persistent_keepalive_is_off(value: &Option<PersistentKeepalive>) -> bool {
 ///
 /// This makes public_key optional, since it isn't included for new interfaces, because it gets
 /// generated automatically when creating the interface.
-#[api()]
+#[api(
+    properties: {
+        mtu: { type: Integer, optional: true, minimum: 576, maximum: 65535 },
+    },
+)]
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct WireGuardInterfaceCreateProperties {
     /// Name for this WireGuard interface.
@@ -593,6 +610,10 @@ pub struct WireGuardInterfaceCreateProperties {
     /// whether to generate an IPv6 link-local address for this interface
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) ip6_ll: Option<bool>,
+
+    /// The MTU for this WireGuard interface.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) mtu: Option<u16>,
 }
 
 pub mod private_keys {
@@ -836,6 +857,38 @@ pub mod private_keys {
             }
 
             Ok(Self(data))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interface_mtu_range() {
+        let interface = concat!(
+            "name=wg0,listen_port=51820,",
+            "public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=",
+        );
+
+        for (mtu, valid) in [("", true), (",mtu=576", true), (",mtu=575", false)] {
+            let property_string = format!("{interface}{mtu}");
+
+            assert_eq!(
+                property_string
+                    .parse::<PropertyString<WireGuardInterfaceProperties>>()
+                    .is_ok(),
+                valid,
+                "{property_string}",
+            );
+            assert_eq!(
+                property_string
+                    .parse::<PropertyString<WireGuardInterfaceCreateProperties>>()
+                    .is_ok(),
+                valid,
+                "{property_string}",
+            );
         }
     }
 }
