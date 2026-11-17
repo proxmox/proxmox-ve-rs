@@ -553,6 +553,16 @@ impl WireGuardInterfaceProperties {
         self.name = name
     }
 
+    /// Get the listen port of the interface.
+    pub fn listen_port(&self) -> u16 {
+        self.listen_port
+    }
+
+    /// Get the public key of the interface.
+    pub fn public_key(&self) -> &PublicKey {
+        &self.public_key
+    }
+
     /// Get the ip (IPv4) of the interface.
     pub fn ip(&self) -> Option<&Ipv4Cidr> {
         self.ip.as_ref()
