@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 
 use anyhow::Error;
+use proxmox_wireguard::PublicKey;
 use section_config::protocol::wireguard::WireGuardProperties;
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +35,8 @@ use crate::sdn::fabric::section_config::protocol::ospf::{
     OspfNodePropertiesUpdater, OspfProperties, OspfPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::protocol::wireguard::{
-    WireGuardDeletableProperties, WireGuardNode, WireGuardNodeDeletableProperties,
+    ExternalWireGuardNode, InternalWireGuardNode, WireGuardDeletableProperties,
+    WireGuardInterfaceProperties, WireGuardNode, WireGuardNodeDeletableProperties,
     WireGuardNodePeer, WireGuardNodeUpdater, WireGuardPropertiesUpdater,
 };
 use crate::sdn::fabric::section_config::{FabricOrNode, Section};
@@ -214,6 +216,90 @@ impl_entry!(Openfabric, OpenfabricProperties, OpenfabricNodeProperties);
 impl_entry!(Ospf, OspfProperties, OspfNodeProperties);
 impl_entry!(WireGuard, WireGuardProperties, WireGuardNode);
 impl_entry!(Bgp, BgpProperties, BgpNode);
+
+/// A configured peer of a WireGuard interface, resolved to the node it refers to.
+pub enum WireGuardInterfacePeer<'a> {
+    /// A peer that refers to an interface of an internal node.
+    Internal {
+        node_id: &'a NodeId,
+        node: &'a InternalWireGuardNode,
+        interface: &'a WireGuardInterfaceProperties,
+    },
+    /// A peer that refers to an external node.
+    External {
+        node_id: &'a NodeId,
+        node: &'a ExternalWireGuardNode,
+    },
+}
+
+impl WireGuardInterfacePeer<'_> {
+    /// Returns the public key of the peer.
+    pub fn public_key(&self) -> &PublicKey {
+        match self {
+            Self::Internal { interface, .. } => interface.public_key(),
+            Self::External { node, .. } => &node.public_key,
+        }
+    }
+}
+
+impl Entry<WireGuardProperties, WireGuardNode> {
+    /// Resolve the configured peers of an interface on a node to the nodes they refer to.
+    ///
+    /// These are the same peers with the same public keys as in the generated WireGuard
+    /// configuration of the interface.
+    pub fn interface_peers(
+        &self,
+        local_node_id: &NodeId,
+        interface: &str,
+    ) -> Result<Vec<WireGuardInterfacePeer<'_>>, Error> {
+        let Node::WireGuard(wireguard_node) = self.get_node(local_node_id)? else {
+            anyhow::bail!("no wireguard node with id {local_node_id} found");
+        };
+
+        let WireGuardNode::Internal(internal_node) = wireguard_node.properties() else {
+            anyhow::bail!("wireguard node with id {local_node_id} is not an internal node");
+        };
+
+        let mut peers = Vec::new();
+
+        for peer in internal_node
+            .peers()
+            .filter(|peer| peer.iface().as_ref() == interface)
+        {
+            let referenced_wireguard_node = self.node_section(peer.node())?;
+
+            match (referenced_wireguard_node.properties(), peer) {
+                (
+                    WireGuardNode::Internal(referenced_internal_node),
+                    WireGuardNodePeer::Internal(internal_peer),
+                ) => {
+                    let referenced_interface = referenced_internal_node
+                        .interfaces()
+                        .find(|interface| interface.name() == &internal_peer.node_iface)
+                        .ok_or_else(|| anyhow::anyhow!("referenced interface does not exist"))?;
+
+                    peers.push(WireGuardInterfacePeer::Internal {
+                        node_id: peer.node(),
+                        node: referenced_internal_node,
+                        interface: referenced_interface,
+                    });
+                }
+                (
+                    WireGuardNode::External(referenced_external_node),
+                    WireGuardNodePeer::External(_),
+                ) => {
+                    peers.push(WireGuardInterfacePeer::External {
+                        node_id: peer.node(),
+                        node: referenced_external_node,
+                    });
+                }
+                _ => anyhow::bail!("invalid combination of peer / node types"),
+            }
+        }
+
+        Ok(peers)
+    }
+}
 
 /// All possible entries in a [`FabricConfig`].
 ///
