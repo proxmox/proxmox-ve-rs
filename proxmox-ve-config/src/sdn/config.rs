@@ -17,7 +17,7 @@ use crate::{
         Ipset,
         ipset::{IpsetEntry, IpsetName, IpsetScope},
     },
-    sdn::{SdnNameError, SubnetName, VnetName, ZoneName},
+    sdn::{SdnNameError, SubnetName, VnetName, ZoneName, conntrack::VrfCtZone},
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -142,6 +142,12 @@ pub struct ZoneRunningConfig {
     #[serde(rename = "type")]
     ty: ZoneType,
     dhcp: Option<DhcpType>,
+    #[serde(
+        default,
+        rename = "ct-zone",
+        deserialize_with = "proxmox_serde::perl::deserialize_u16"
+    )]
+    ct_zone: Option<u16>,
 }
 
 /// Struct for deserializing the zones of the SDN running config
@@ -391,6 +397,8 @@ pub struct ZoneConfig {
     name: ZoneName,
     ty: ZoneType,
     vnets: BTreeMap<VnetName, VnetConfig>,
+    #[serde(default)]
+    ct_zone: Option<VrfCtZone>,
 }
 
 impl ZoneConfig {
@@ -399,6 +407,7 @@ impl ZoneConfig {
             name,
             ty,
             vnets: BTreeMap::default(),
+            ct_zone: None,
         }
     }
 
@@ -444,6 +453,15 @@ impl ZoneConfig {
 
     pub fn ty(&self) -> &ZoneType {
         &self.ty
+    }
+
+    /// The conntrack zone of a zone with a dedicated VRF.
+    pub fn ct_zone(&self) -> Option<VrfCtZone> {
+        self.ct_zone
+    }
+
+    pub fn set_ct_zone(&mut self, ct_zone: Option<VrfCtZone>) {
+        self.ct_zone = ct_zone;
     }
 }
 
@@ -649,12 +667,18 @@ impl TryFrom<RunningConfig> for SdnConfig {
         let mut config = SdnConfig::default();
 
         if let Some(running_zones) = value.zones.take() {
-            config.add_zones(
-                running_zones
-                    .ids
-                    .into_iter()
-                    .map(|(name, running_config)| ZoneConfig::new(name, running_config.ty)),
-            )?;
+            config.add_zones(running_zones.ids.into_iter().map(|(name, running_config)| {
+                // an invalid conntrack zone must not prevent reading the rest of the configuration
+                let ct_zone = running_config.ct_zone.and_then(|ct_zone| {
+                    VrfCtZone::try_from(ct_zone)
+                        .inspect_err(|err| log::warn!("zone {name}: ignoring ct-zone - {err}"))
+                        .ok()
+                });
+
+                let mut zone = ZoneConfig::new(name, running_config.ty);
+                zone.set_ct_zone(ct_zone);
+                zone
+            }))?;
         }
 
         if let Some(running_vnets) = value.vnets.take() {

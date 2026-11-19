@@ -11,6 +11,7 @@ use proxmox_ve_config::sdn::{
     config::{
         RunningConfig, SdnConfig, SdnConfigError, SubnetConfig, VnetConfig, ZoneConfig, ZoneType,
     },
+    conntrack::VrfCtZone,
     ipam::{Ipam, IpamDataVm, IpamEntry, IpamJson},
 };
 
@@ -135,6 +136,39 @@ fn parse_running_config_from_newer_pve_network() {
         .subnet(&Cidr::from_str("fd00::/32").unwrap())
         .expect("IPv6 subnet exists");
     assert_eq!(subnet_v6.gateway(), None);
+}
+
+#[test]
+fn parse_running_config_ct_zone() {
+    // perl may store the conntrack zone as string, one out of range is ignored
+    let running_config: RunningConfig = serde_json::from_value(serde_json::json!({
+        "zones": {
+            "ids": {
+                "zone0": { "type": "simple", "dedicated-vrf": 1, "ct-zone": 16384 },
+                "zone1": { "type": "simple", "dedicated-vrf": 1, "ct-zone": "17407" },
+                "zone2": { "type": "simple", "dedicated-vrf": 1, "ct-zone": 17408 },
+                "zone3": { "type": "simple", "dedicated-vrf": 1, "ct-zone": 5 },
+                "zone4": { "type": "simple" },
+            },
+        },
+    }))
+    .expect("valid running config");
+
+    let sdn_config = SdnConfig::try_from(running_config).expect("valid SDN config");
+
+    let ct_zone = |zone: &str| {
+        sdn_config
+            .zone(&ZoneName::from_str(zone).unwrap())
+            .expect("zone exists")
+            .ct_zone()
+            .map(VrfCtZone::id)
+    };
+
+    assert_eq!(ct_zone("zone0"), Some(16384));
+    assert_eq!(ct_zone("zone1"), Some(17407));
+    assert_eq!(ct_zone("zone2"), None);
+    assert_eq!(ct_zone("zone3"), None);
+    assert_eq!(ct_zone("zone4"), None);
 }
 
 #[test]
