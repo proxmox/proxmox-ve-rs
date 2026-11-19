@@ -8,6 +8,7 @@ use proxmox_schema::{
 };
 
 use crate::common::valid::Validatable;
+use crate::sdn::ZoneName;
 use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::protocol::bgp::{
     BgpDeletableProperties, BgpProperties, BgpPropertiesUpdater,
@@ -203,6 +204,15 @@ impl Fabric {
         }
     }
 
+    /// Get the SDN zone whose VRF contains this fabric.
+    pub fn zone(&self) -> Option<&ZoneName> {
+        match self {
+            Fabric::Ospf(fabric_section) => fabric_section.properties().zone(),
+            Fabric::Bgp(fabric_section) => fabric_section.properties().zone(),
+            Fabric::Openfabric(_) | Fabric::WireGuard(_) => None,
+        }
+    }
+
     /// Get the ip-prefix (IPv4 CIDR) of the [`Fabric`].
     ///
     /// This is a common property for all protocols.
@@ -260,7 +270,7 @@ impl Validatable for Fabric {
         match self {
             Fabric::Openfabric(fabric_section) => fabric_section.validate(),
             Fabric::Ospf(fabric_section) => fabric_section.validate(),
-            Fabric::WireGuard(_fabric_section) => Ok(()),
+            Fabric::WireGuard(_) => Ok(()),
             Fabric::Bgp(fabric_section) => fabric_section.validate(),
         }
     }

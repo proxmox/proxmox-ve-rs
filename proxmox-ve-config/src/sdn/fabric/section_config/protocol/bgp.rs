@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
 
 use crate::common::valid::Validatable;
+use crate::sdn::ZoneName;
 use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
@@ -94,6 +95,11 @@ impl ASN {
 #[derive(Debug, Clone, Serialize, Deserialize, Updater, Hash)]
 /// Properties for a BGP fabric.
 pub struct BgpProperties {
+    /// SDN zone whose VRF contains this fabric.
+    #[updater(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) zone: Option<ZoneName>,
+
     /// enable BFD for this fabric
     #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     pub(crate) bfd: bool,
@@ -119,6 +125,10 @@ pub struct BgpProperties {
 }
 
 impl BgpProperties {
+    pub fn zone(&self) -> Option<&ZoneName> {
+        self.zone.as_ref()
+    }
+
     pub fn bfd(&self) -> bool {
         self.bfd
     }

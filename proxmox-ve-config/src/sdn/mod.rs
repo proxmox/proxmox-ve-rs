@@ -8,6 +8,7 @@ pub mod wireguard;
 use std::{error::Error, fmt::Display, str::FromStr};
 
 use proxmox_network_types::ip_address::Cidr;
+use proxmox_schema::{ApiStringFormat, ApiType, Schema, StringSchema};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SdnNameError {
@@ -57,7 +58,17 @@ fn validate_sdn_name(name: &str) -> Result<(), SdnNameError> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ZoneName(String);
 
+proxmox_serde::forward_serialize_to_display!(ZoneName);
 proxmox_serde::forward_deserialize_to_from_str!(ZoneName);
+
+const ZONE_NAME_FORMAT: ApiStringFormat =
+    ApiStringFormat::VerifyFn(|name| Ok(validate_sdn_name(name)?));
+
+impl ApiType for ZoneName {
+    const API_SCHEMA: Schema = StringSchema::new("Name of an SDN zone.")
+        .format(&ZONE_NAME_FORMAT)
+        .schema();
+}
 
 impl ZoneName {
     /// construct a new zone name

@@ -859,8 +859,8 @@ impl Validatable for FabricConfig {
     /// Ensures that:
     /// - (node, interface) combinations exist only once across all fabrics
     /// - every entry (fabric) validates
-    /// - all the ospf fabrics have different areas
-    /// - IP prefixes of fabrics do not overlap
+    /// - OSPF areas are unique within each VRF
+    /// - IP prefixes do not overlap within the same VRF
     fn validate(&self) -> Result<(), FabricConfigError> {
         let mut wireguard_interfaces = HashSet::new();
         let mut wireguard_listen_ports = HashSet::new();
@@ -875,6 +875,11 @@ impl Validatable for FabricConfig {
             .flat_map(|(i, f1)| fabrics.iter().skip(i + 1).map(move |f2| (f1, f2)));
 
         for (fabric1, fabric2) in cartesian_product {
+            // Separate VRFs have independent routing tables and may use overlapping address space.
+            if fabric1.zone() != fabric2.zone() {
+                continue;
+            }
+
             if let (Some(prefix1), Some(prefix2)) = (fabric1.ip_prefix(), fabric2.ip_prefix()) {
                 if prefix1.overlaps(&prefix2) {
                     return Err(FabricConfigError::OverlappingIp4Prefix(
@@ -901,13 +906,14 @@ impl Validatable for FabricConfig {
         // additionally, for wireguard check the listen ports of the interfaces as well
         for entry in self.fabrics.values() {
             if let FabricEntry::Ospf(entry) = entry {
-                if !ospf_area.insert(
+                if !ospf_area.insert((
+                    entry.fabric_section().properties().zone().cloned(),
                     entry
                         .fabric_section()
                         .properties()
                         .area()
                         .get_ipv4_representation(),
-                ) {
+                )) {
                     return Err(FabricConfigError::DuplicateOspfArea);
                 }
             }

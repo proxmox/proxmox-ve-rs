@@ -166,6 +166,34 @@ fn openfabric_ipv6_only() {
 }
 
 #[test]
+fn vrf_prefix_overlap_is_scoped_by_zone() {
+    let raw = r#"
+ospf_fabric: first
+        area 0
+        ip_prefix 10.0.0.0/24
+        zone zoneone
+
+ospf_fabric: second
+        area 1
+        ip_prefix 10.0.0.0/24
+        zone zonetwo
+
+ospf_node: first_pve
+        interfaces name=eth0
+        ip 10.0.0.1
+
+ospf_node: second_pve
+        interfaces name=eth1
+        ip 10.0.0.1
+"#;
+
+    assert!(FabricConfig::parse_section_config(raw).is_ok());
+    assert!(
+        FabricConfig::parse_section_config(&raw.replace("zone zonetwo", "zone zoneone")).is_err()
+    );
+}
+
+#[test]
 fn bgp_default() {
     let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
     let mut frr_config = FrrConfig::default();

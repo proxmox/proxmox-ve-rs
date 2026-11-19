@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use proxmox_schema::{ApiStringFormat, Updater, api, property_string::PropertyString};
 
 use crate::common::valid::Validatable;
+use crate::sdn::ZoneName;
 use crate::sdn::fabric::FabricConfigError;
 use crate::sdn::fabric::section_config::fabric::FabricSection;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
@@ -99,6 +100,11 @@ mod frr {
 #[derive(Debug, Clone, Serialize, Deserialize, Updater, Hash)]
 /// Properties for an Ospf fabric.
 pub struct OspfProperties {
+    /// SDN zone whose VRF contains this fabric.
+    #[updater(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) zone: Option<ZoneName>,
+
     /// OSPF area
     pub(crate) area: Area,
 
@@ -115,6 +121,10 @@ pub struct OspfProperties {
 }
 
 impl OspfProperties {
+    pub fn zone(&self) -> Option<&ZoneName> {
+        self.zone.as_ref()
+    }
+
     pub fn set_area(&mut self, value: Area) {
         self.area = value;
     }
