@@ -1,0 +1,102 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+---
+!
+router bgp 65002 vrf vrf_blue
+ bgp router-id 10.1.0.1
+ no bgp default ipv4-unicast
+ neighbor bgpblue peer-group
+ neighbor bgpblue remote-as external
+ neighbor ens19 interface peer-group bgpblue
+ !
+ address-family ipv4 unicast
+  network 10.1.0.1/32
+  neighbor bgpblue activate
+  neighbor bgpblue soft-reconfiguration inbound
+  neighbor bgpblue route-map pve_bgp_bgpblue_in in
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  network fd00:20::1/128
+  neighbor bgpblue activate
+  neighbor bgpblue soft-reconfiguration inbound
+  neighbor bgpblue route-map pve_bgp6_bgpblue_in in
+ exit-address-family
+exit
+!
+router bgp 65001 vrf vrf_red
+ bgp router-id 5.76.46.251
+ no bgp default ipv4-unicast
+ neighbor bgpred peer-group
+ neighbor bgpred remote-as external
+ neighbor ens18 interface peer-group bgpred
+ !
+ address-family ipv6 unicast
+  network fd00:10::1/128
+  neighbor bgpred activate
+  neighbor bgpred soft-reconfiguration inbound
+  neighbor bgpred route-map pve_bgp6_bgpred_in in
+  neighbor bgpred route-map red-out out
+ exit-address-family
+exit
+!
+ipv6 access-list pve_bgp_bgpblue_ip6s permit fd00:20::/64
+!
+access-list pve_bgp_bgpblue_ips permit 10.1.0.0/24
+!
+ipv6 access-list pve_bgp_bgpred_ip6s permit fd00:10::/64
+!
+route-map pve_bgp6_bgpblue_in permit 10
+ match ipv6 address pve_bgp_bgpblue_ip6s
+exit
+!
+route-map pve_bgp6_bgpred_in permit 10
+ match ipv6 address pve_bgp_bgpred_ip6s
+ call red-in
+exit
+!
+route-map pve_bgp6_vrf_blue permit 110
+ match ipv6 address pve_bgp_bgpblue_ip6s
+ set src fd00:20::1
+exit
+!
+route-map pve_bgp6_vrf_blue permit 65535
+exit
+!
+route-map pve_bgp6_vrf_red permit 120
+ match ipv6 address pve_bgp_bgpred_ip6s
+ set src fd00:10::1
+exit
+!
+route-map pve_bgp6_vrf_red permit 65535
+exit
+!
+route-map pve_bgp_bgpblue_in permit 10
+ match ip address pve_bgp_bgpblue_ips
+exit
+!
+route-map pve_bgp_vrf_blue permit 100
+ match ip address pve_bgp_bgpblue_ips
+ set src 10.1.0.1
+exit
+!
+route-map pve_bgp_vrf_blue permit 65535
+exit
+!
+route-map red-in permit 10
+ set local-preference 100
+exit
+!
+route-map red-out permit 10
+ set metric 10
+exit
+!
+vrf vrf_blue
+ ip protocol bgp route-map pve_bgp_vrf_blue
+ ipv6 protocol bgp route-map pve_bgp6_vrf_blue
+exit-vrf
+!
+vrf vrf_red
+ ipv6 protocol bgp route-map pve_bgp6_vrf_red
+exit-vrf

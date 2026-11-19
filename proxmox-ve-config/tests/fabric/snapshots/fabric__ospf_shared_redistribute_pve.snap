@@ -1,0 +1,91 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+---
+!
+router ospf
+ ospf router-id 10.0.0.1
+ redistribute connected
+ redistribute static metric 50
+ redistribute kernel
+exit
+!
+router ospf vrf vrf_red
+ ospf router-id 10.0.2.1
+ redistribute static metric 70
+ redistribute connected
+exit
+!
+interface dummy_ospfa
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface dummy_ospfb
+ ip ospf area 1
+ ip ospf passive
+exit
+!
+interface dummy_ospfc vrf vrf_red
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface dummy_ospfd vrf vrf_red
+ ip ospf area 1
+ ip ospf passive
+exit
+!
+interface ens18
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+interface ens19
+ ip ospf area 1
+ ip ospf network point-to-point
+exit
+!
+interface ens20 vrf vrf_red
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+interface ens21 vrf vrf_red
+ ip ospf area 1
+ ip ospf network point-to-point
+exit
+!
+access-list pve_ospf_ospfa_ips permit 10.0.0.0/24
+!
+access-list pve_ospf_ospfb_ips permit 10.0.1.0/24
+!
+access-list pve_ospf_ospfc_ips permit 10.0.2.0/24
+!
+access-list pve_ospf_ospfd_ips permit 10.0.3.0/24
+!
+route-map pve_ospf permit 100
+ match ip address pve_ospf_ospfa_ips
+ set src 10.0.0.1
+exit
+!
+route-map pve_ospf permit 110
+ match ip address pve_ospf_ospfb_ips
+ set src 10.0.1.1
+exit
+!
+route-map pve_ospf_vrf_red permit 120
+ match ip address pve_ospf_ospfc_ips
+ set src 10.0.2.1
+exit
+!
+route-map pve_ospf_vrf_red permit 130
+ match ip address pve_ospf_ospfd_ips
+ set src 10.0.3.1
+exit
+!
+ip protocol ospf route-map pve_ospf
+!
+vrf vrf_red
+ ip protocol ospf route-map pve_ospf_vrf_red
+exit-vrf

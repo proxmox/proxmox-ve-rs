@@ -1,0 +1,113 @@
+---
+source: proxmox-ve-config/tests/fabric/main.rs
+expression: output
+---
+!
+router bgp 65001
+ bgp router-id 10.1.0.1
+ no bgp default ipv4-unicast
+ neighbor bgpdef peer-group
+ neighbor bgpdef remote-as external
+ neighbor ens20 interface peer-group bgpdef
+ !
+ address-family ipv4 unicast
+  network 10.1.0.1/32
+  neighbor bgpdef activate
+  neighbor bgpdef soft-reconfiguration inbound
+  neighbor bgpdef route-map pve_bgp_bgpdef_in in
+ exit-address-family
+exit
+!
+router bgp 65002 vrf vrf_red
+ bgp router-id 10.1.0.2
+ no bgp default ipv4-unicast
+ neighbor bgpred peer-group
+ neighbor bgpred remote-as external
+ neighbor ens21 interface peer-group bgpred
+ !
+ address-family ipv4 unicast
+  network 10.1.0.2/32
+  neighbor bgpred activate
+  neighbor bgpred soft-reconfiguration inbound
+  neighbor bgpred route-map pve_bgp_bgpred_in in
+ exit-address-family
+exit
+!
+router ospf
+ ospf router-id 10.0.0.1
+exit
+!
+router ospf vrf vrf_red
+ ospf router-id 10.0.0.2
+exit
+!
+interface dummy_ospfred vrf vrf_red
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface dummy_underlay
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface ens18
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+interface ens19 vrf vrf_red
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+access-list pve_bgp_bgpdef_ips permit 10.1.0.0/24
+!
+access-list pve_bgp_bgpred_ips permit 10.1.0.0/24
+!
+access-list pve_ospf_ospfred_ips permit 10.0.0.0/24
+!
+access-list pve_ospf_underlay_ips permit 10.0.0.0/24
+!
+route-map pve_bgp permit 100
+ match ip address pve_bgp_bgpdef_ips
+ set src 10.1.0.1
+exit
+!
+route-map pve_bgp permit 65535
+exit
+!
+route-map pve_bgp_bgpdef_in permit 10
+ match ip address pve_bgp_bgpdef_ips
+exit
+!
+route-map pve_bgp_bgpred_in permit 10
+ match ip address pve_bgp_bgpred_ips
+exit
+!
+route-map pve_bgp_vrf_red permit 110
+ match ip address pve_bgp_bgpred_ips
+ set src 10.1.0.2
+exit
+!
+route-map pve_bgp_vrf_red permit 65535
+exit
+!
+route-map pve_ospf permit 130
+ match ip address pve_ospf_underlay_ips
+ set src 10.0.0.1
+exit
+!
+route-map pve_ospf_vrf_red permit 120
+ match ip address pve_ospf_ospfred_ips
+ set src 10.0.0.2
+exit
+!
+ip protocol bgp route-map pve_bgp
+!
+ip protocol ospf route-map pve_ospf
+!
+vrf vrf_red
+ ip protocol bgp route-map pve_bgp_vrf_red
+ ip protocol ospf route-map pve_ospf_vrf_red
+exit-vrf

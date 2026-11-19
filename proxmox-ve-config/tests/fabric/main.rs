@@ -3,10 +3,15 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 
 use proxmox_frr::ser::bgp::{AddressFamilies, BgpRouter, CommonAddressFamilyOptions, L2vpnEvpnAF};
-use proxmox_frr::ser::route_map::RouteMapName;
-use proxmox_frr::ser::{FrrConfig, FrrProtocol, FrrWord, VrfName, serializer::dump};
-use proxmox_ve_config::sdn::fabric::{
-    FabricConfig, frr::build_fabric, section_config::node::NodeId,
+use proxmox_frr::ser::route_map::{AccessAction, RouteMapEntry, RouteMapName};
+use proxmox_frr::ser::{
+    FrrConfig, FrrProtocol, FrrWord, IpProtocolRouteMap, VrfName, serializer::dump,
+};
+use proxmox_section_config::typed::ApiSectionDataEntry;
+use proxmox_ve_config::sdn::{
+    fabric::{FabricConfig, frr::build_fabric, section_config::node::NodeId},
+    prefix_list::{PrefixList, frr::build_frr_prefix_lists},
+    route_map::{RouteMap, frr::build_frr_route_maps},
 };
 
 mod helper;
@@ -219,8 +224,30 @@ bgp_node: bgp_pve
 "#;
     let config = FabricConfig::parse_section_config(raw).unwrap();
     let mut frr_config = FrrConfig::default();
+    let correct_src = RouteMapName::new("correct_src").unwrap();
+    let correct_src_entry = RouteMapEntry {
+        seq: 1,
+        action: AccessAction::Permit,
+        matches: Vec::new(),
+        sets: Vec::new(),
+        custom_frr_config: Vec::new(),
+        call: None,
+        exit_action: None,
+    };
+    frr_config
+        .routemaps
+        .insert(correct_src.clone(), vec![correct_src_entry.clone()]);
+    frr_config.protocol_routemaps.insert(
+        FrrProtocol::Bgp,
+        IpProtocolRouteMap {
+            v4: Some(correct_src.clone()),
+            v6: None,
+        },
+    );
 
     build_fabric(NodeId::from_str("pve").unwrap(), config, &mut frr_config).unwrap();
+
+    assert_eq!(frr_config.routemaps[&correct_src], vec![correct_src_entry]);
 
     let ospf_routemap = &frr_config.vrf_protocol_routemaps
         [&VrfName::Custom(FrrWord::new("vrf_zoneone").unwrap())][&FrrProtocol::Ospf];
@@ -239,12 +266,189 @@ bgp_node: bgp_pve
             .protocol_routemaps
             .contains_key(&FrrProtocol::Ospf)
     );
-    assert!(
-        frr_config
-            .protocol_routemaps
-            .get(&FrrProtocol::Bgp)
-            .is_none()
+    assert_eq!(
+        frr_config.protocol_routemaps[&FrrProtocol::Bgp].v4,
+        Some(correct_src)
     );
+}
+
+#[test]
+fn ospf_router_id_is_selected_per_vrf() {
+    let raw = r#"
+ospf_fabric: red
+        area 0
+        ip_prefix 10.0.0.0/24
+        zone red
+
+ospf_node: red_pve
+        interfaces name=eth0
+        ip 10.0.0.1
+
+ospf_fabric: blue
+        area 0
+        ip_prefix 10.0.0.0/24
+        zone blue
+
+ospf_node: blue_pve
+        interfaces name=eth1
+        ip 10.0.0.2
+
+ospf_node: blue_pve2
+        interfaces name=eth1
+        ip 10.0.0.1
+"#;
+    let config = FabricConfig::parse_section_config(raw).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_fabric(NodeId::from_str("pve").unwrap(), config, &mut frr_config).unwrap();
+
+    let router_id = |vrf: &str| {
+        frr_config.ospf.vrf_router[&VrfName::Custom(FrrWord::new(vrf).unwrap())].router_id
+    };
+    assert_eq!(router_id("vrf_red"), Ipv4Addr::new(10, 0, 0, 1));
+    assert_eq!(router_id("vrf_blue"), Ipv4Addr::new(10, 0, 0, 2));
+}
+
+#[test]
+fn vrf() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let route_maps =
+        RouteMap::parse_section_config("route-maps.cfg", helper::get_route_maps_config!()).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_frr_route_maps(
+        route_maps
+            .into_iter()
+            .map(|(_, route_map_entry)| route_map_entry),
+        &mut frr_config,
+    )
+    .unwrap();
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
+}
+
+/// Fabrics in the default VRF and in a zone VRF on the same node.
+#[test]
+fn vrf_default() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
+}
+
+/// OSPF fabrics sharing the router of the default VRF and of a zone VRF, with redistributions of
+/// the same source.
+#[test]
+fn ospf_shared_redistribute() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
+}
+
+/// Redistributions of OSPF and BGP fabrics in zone VRFs.
+#[test]
+fn vrf_redistribute() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let route_maps =
+        RouteMap::parse_section_config("route-maps.cfg", helper::get_route_maps_config!()).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_frr_route_maps(
+        route_maps
+            .into_iter()
+            .map(|(_, route_map_entry)| route_map_entry),
+        &mut frr_config,
+    )
+    .unwrap();
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
+}
+
+/// Route filters of OSPF and BGP fabrics in zone VRFs.
+#[test]
+fn vrf_route_filter() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let prefix_lists =
+        PrefixList::parse_section_config("prefix-lists.cfg", helper::get_prefix_lists_config!())
+            .unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_frr_prefix_lists(
+        prefix_lists.into_iter().map(|(_, prefix_list)| prefix_list),
+        &mut frr_config,
+    )
+    .unwrap();
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
+}
+
+/// IPv6-only and dual-stack BGP fabrics in zone VRFs.
+#[test]
+fn vrf_ipv6() {
+    let config = FabricConfig::parse_section_config(helper::get_fabrics_config!()).unwrap();
+    let route_maps =
+        RouteMap::parse_section_config("route-maps.cfg", helper::get_route_maps_config!()).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_frr_route_maps(
+        route_maps
+            .into_iter()
+            .map(|(_, route_map_entry)| route_map_entry),
+        &mut frr_config,
+    )
+    .unwrap();
+    build_fabric(
+        NodeId::from_str("pve").expect("invalid nodeid"),
+        config,
+        &mut frr_config,
+    )
+    .unwrap();
+
+    let output = dump(&frr_config).expect("error dumping stuff");
+
+    insta::assert_snapshot!(helper::reference_name!("pve"), output);
 }
 
 #[test]
