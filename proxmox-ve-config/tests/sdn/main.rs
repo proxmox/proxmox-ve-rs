@@ -11,7 +11,7 @@ use proxmox_ve_config::sdn::{
     config::{
         RunningConfig, SdnConfig, SdnConfigError, SubnetConfig, VnetConfig, ZoneConfig, ZoneType,
     },
-    conntrack::VrfCtZone,
+    conntrack::{VrfCtZone, VrfCtZones},
     ipam::{Ipam, IpamDataVm, IpamEntry, IpamJson},
 };
 
@@ -169,6 +169,19 @@ fn parse_running_config_ct_zone() {
     assert_eq!(ct_zone("zone2"), None);
     assert_eq!(ct_zone("zone3"), None);
     assert_eq!(ct_zone("zone4"), None);
+
+    let vrfs: Vec<_> = VrfCtZones::from(&sdn_config)
+        .iter()
+        .map(|(vrf, entry)| (vrf.to_string(), entry.ct_zone().id()))
+        .collect();
+
+    assert_eq!(
+        vrfs,
+        [
+            ("vrf_zone0".to_string(), 16384),
+            ("vrf_zone1".to_string(), 17407)
+        ]
+    );
 }
 
 #[test]
