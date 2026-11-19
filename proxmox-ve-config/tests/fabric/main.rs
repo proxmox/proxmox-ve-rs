@@ -3,7 +3,8 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 
 use proxmox_frr::ser::bgp::{AddressFamilies, BgpRouter, CommonAddressFamilyOptions, L2vpnEvpnAF};
-use proxmox_frr::ser::{FrrConfig, VrfName, serializer::dump};
+use proxmox_frr::ser::route_map::RouteMapName;
+use proxmox_frr::ser::{FrrConfig, FrrProtocol, FrrWord, VrfName, serializer::dump};
 use proxmox_ve_config::sdn::fabric::{
     FabricConfig, frr::build_fabric, section_config::node::NodeId,
 };
@@ -190,6 +191,59 @@ ospf_node: second_pve
     assert!(FabricConfig::parse_section_config(raw).is_ok());
     assert!(
         FabricConfig::parse_section_config(&raw.replace("zone zonetwo", "zone zoneone")).is_err()
+    );
+}
+
+#[test]
+fn protocol_routemaps_are_scoped_by_vrf() {
+    let raw = r#"
+ospf_fabric: ospf
+        area 0
+        ip_prefix 10.0.0.0/24
+        zone zoneone
+
+ospf_node: ospf_pve
+        interfaces name=eth0
+        ip 10.0.0.1
+
+bgp_fabric: bgp
+        bfd 0
+        ip_prefix 10.0.1.0/24
+        zone zonetwo
+
+bgp_node: bgp_pve
+        asn 65001
+        interfaces name=eth1
+        ip 10.0.1.1
+        role internal
+"#;
+    let config = FabricConfig::parse_section_config(raw).unwrap();
+    let mut frr_config = FrrConfig::default();
+
+    build_fabric(NodeId::from_str("pve").unwrap(), config, &mut frr_config).unwrap();
+
+    let ospf_routemap = &frr_config.vrf_protocol_routemaps
+        [&VrfName::Custom(FrrWord::new("vrf_zoneone").unwrap())][&FrrProtocol::Ospf];
+    assert_eq!(
+        ospf_routemap.v4.as_ref().unwrap(),
+        &RouteMapName::new("pve_ospf_vrf_zoneone").unwrap()
+    );
+    let bgp_routemap = &frr_config.vrf_protocol_routemaps
+        [&VrfName::Custom(FrrWord::new("vrf_zonetwo").unwrap())][&FrrProtocol::Bgp];
+    assert_eq!(
+        bgp_routemap.v4.as_ref().unwrap(),
+        &RouteMapName::new("pve_bgp_vrf_zonetwo").unwrap()
+    );
+    assert!(
+        !frr_config
+            .protocol_routemaps
+            .contains_key(&FrrProtocol::Ospf)
+    );
+    assert!(
+        frr_config
+            .protocol_routemaps
+            .get(&FrrProtocol::Bgp)
+            .is_none()
     );
 }
 

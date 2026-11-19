@@ -8,3 +8,16 @@ ip protocol {{ protocol_name }} route-map {{ protocol_routemap.v4 }}
 ipv6 protocol {{ protocol_name }} route-map {{ protocol_routemap.v6 }}
 {% endif %}
 {% endfor %}
+{% for vrf_name, protocol_routemaps in vrf_protocol_routemaps | items %}
+!
+vrf {{ vrf_name }}
+{% for protocol_name, protocol_routemap in protocol_routemaps | items %}
+{% if protocol_routemap.v4 %}
+ ip protocol {{ protocol_name }} route-map {{ protocol_routemap.v4 }}
+{% endif %}
+{% if protocol_routemap.v6 %}
+ ipv6 protocol {{ protocol_name }} route-map {{ protocol_routemap.v6 }}
+{% endif %}
+{% endfor %}
+exit-vrf
+{% endfor %}

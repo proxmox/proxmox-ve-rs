@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, btree_map};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use tracing;
@@ -39,6 +39,7 @@ pub fn build_fabric(
     frr_config: &mut FrrConfig,
 ) -> Result<(), anyhow::Error> {
     let mut routemap_seq = 100;
+    let mut fabric_bgp_routemaps = BTreeSet::new();
     // OSPF router IDs only need to be unique within a VRF, and node addresses are only unique
     // within a VRF, so pick the router ID per VRF.
     let mut ospf_router_ids: BTreeMap<VrfName, Ipv4Addr> = BTreeMap::new();
@@ -283,7 +284,7 @@ pub fn build_fabric(
                     }
                 }
 
-                let routemap_name = ser::route_map::RouteMapName::new("pve_ospf")?;
+                let routemap_name = protocol_routemap_name("pve_ospf", &vrf_name)?;
                 let routemap = frr_config
                     .routemaps
                     .entry(routemap_name.clone())
@@ -320,10 +321,7 @@ pub fn build_fabric(
 
                 routemap.push(routemap_entry);
 
-                let protocol_routemap = frr_config
-                    .protocol_routemaps
-                    .entry(FrrProtocol::Ospf)
-                    .or_default();
+                let protocol_routemap = protocol_routemap(frr_config, &vrf_name, FrrProtocol::Ospf);
 
                 protocol_routemap.v4 = Some(routemap_name);
             }
@@ -466,7 +464,7 @@ pub fn build_fabric(
                         networks: vec![Ipv4Cidr::from(ip)],
                     });
 
-                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp")?;
+                    let routemap_name = protocol_routemap_name("pve_bgp", &vrf_name)?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -478,11 +476,10 @@ pub fn build_fabric(
 
                     routemap.push(routemap_entry);
 
-                    let protocol_routemap = frr_config
-                        .protocol_routemaps
-                        .entry(FrrProtocol::Bgp)
-                        .or_default();
+                    let protocol_routemap =
+                        protocol_routemap(frr_config, &vrf_name, FrrProtocol::Bgp);
 
+                    fabric_bgp_routemaps.insert(routemap_name.clone());
                     protocol_routemap.v4 = Some(routemap_name);
                 }
 
@@ -551,7 +548,7 @@ pub fn build_fabric(
                         redistribute,
                     });
 
-                    let routemap_name = ser::route_map::RouteMapName::new("pve_bgp6")?;
+                    let routemap_name = protocol_routemap_name("pve_bgp6", &vrf_name)?;
                     let routemap = frr_config
                         .routemaps
                         .entry(routemap_name.clone())
@@ -563,11 +560,10 @@ pub fn build_fabric(
 
                     routemap.push(routemap_entry);
 
-                    let protocol_routemap = frr_config
-                        .protocol_routemaps
-                        .entry(FrrProtocol::Bgp)
-                        .or_default();
+                    let protocol_routemap =
+                        protocol_routemap(frr_config, &vrf_name, FrrProtocol::Bgp);
 
+                    fabric_bgp_routemaps.insert(routemap_name.clone());
                     protocol_routemap.v6 = Some(routemap_name);
                 };
 
@@ -601,10 +597,7 @@ pub fn build_fabric(
     // routes (e.g. EVPN-imported VRF routes) reach the kernel unchanged.
     // Without this, the implicit deny at the end of the route-map would drop
     // them.
-    for routemap_name in [
-        ser::route_map::RouteMapName::new("pve_bgp")?,
-        ser::route_map::RouteMapName::new("pve_bgp6")?,
-    ] {
+    for routemap_name in fabric_bgp_routemaps {
         if let Some(routemap) = frr_config.routemaps.get_mut(&routemap_name) {
             routemap.push(RouteMapEntry {
                 seq: 65535,
@@ -626,6 +619,32 @@ fn fabric_vrf_name(zone: Option<&ZoneName>) -> Result<VrfName, ser::FrrWordError
         Some(zone) => VrfName::Custom(FrrWord::new(format!("vrf_{zone}"))?),
         None => VrfName::Default,
     })
+}
+
+fn protocol_routemap_name(
+    prefix: &str,
+    vrf_name: &VrfName,
+) -> Result<RouteMapName, ser::FrrWordError> {
+    match vrf_name {
+        VrfName::Default => RouteMapName::new(prefix),
+        VrfName::Custom(vrf_name) => RouteMapName::new(format!("{prefix}_{vrf_name}")),
+    }
+}
+
+fn protocol_routemap<'a>(
+    frr_config: &'a mut FrrConfig,
+    vrf_name: &VrfName,
+    protocol: FrrProtocol,
+) -> &'a mut ser::IpProtocolRouteMap {
+    match vrf_name {
+        VrfName::Default => frr_config.protocol_routemaps.entry(protocol).or_default(),
+        custom => frr_config
+            .vrf_protocol_routemaps
+            .entry(custom.clone())
+            .or_default()
+            .entry(protocol)
+            .or_default(),
+    }
 }
 
 /// Helper that builds a OSPF router with a the router_id.

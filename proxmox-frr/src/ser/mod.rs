@@ -217,6 +217,8 @@ pub struct FrrConfig {
     #[serde(default)]
     pub protocol_routemaps: BTreeMap<FrrProtocol, IpProtocolRouteMap>,
     #[serde(default)]
+    pub vrf_protocol_routemaps: BTreeMap<VrfName, BTreeMap<FrrProtocol, IpProtocolRouteMap>>,
+    #[serde(default)]
     pub routemaps: BTreeMap<RouteMapName, Vec<RouteMapEntry>>,
     #[serde(default)]
     pub access_lists: BTreeMap<AccessListName, Vec<AccessListRule>>,
