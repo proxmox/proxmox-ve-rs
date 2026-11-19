@@ -1,3 +1,4 @@
+{% from "ip_routes.jinja" import ip_routes as render_ip_routes %}
 {% include "bgpd.jinja" %}
 {% include "isisd.jinja" %}
 {% include "prefix_lists.jinja" %}
@@ -8,5 +9,5 @@
 {% include "ospfd.jinja" %}
 {% include "access_lists.jinja" %}
 {% include "route_maps.jinja" %}
-{% include "ip_routes.jinja" %}
+{{ render_ip_routes(ip_routes) -}}
 {% include "protocol_routemaps.jinja" %}

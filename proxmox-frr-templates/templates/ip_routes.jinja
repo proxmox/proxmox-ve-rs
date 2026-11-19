@@ -1,8 +1,9 @@
-{% for ip_route in ip_routes %}
+{% macro static_route(route) -%}
+{{ "ipv6" if route.is_ipv6 else "ip" }} route {{ route.prefix }}{% if route.via %} {{ route.via }}{% endif %}{% if route.vrf %} {{ route.vrf }}{% endif %}{% if route.distance and route.distance != 1 %} {{ route.distance }}{% endif %}{% if route.destination_vrf %} vrf {{ route.destination_vrf }}{% endif %}
+{%- endmacro %}
+{% macro ip_routes(routes) -%}
+{% for ip_route in routes %}
 !
-{% if ip_route.vrf %}
-{{ "ipv6" if ip_route.is_ipv6 else "ip" }} route {{ ip_route.prefix }} {{ ip_route.via }} {{ ip_route.vrf }}
-{% else %}
-{{ "ipv6" if ip_route.is_ipv6 else "ip" }} route {{ ip_route.prefix }} {{ ip_route.via }}
-{% endif %}
+{{ static_route(ip_route) }}
 {% endfor %}
+{%- endmacro %}

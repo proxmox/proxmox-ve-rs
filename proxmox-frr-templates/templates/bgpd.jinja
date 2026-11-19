@@ -1,4 +1,5 @@
 {% from "bgp_router.jinja" import bgp_router %}
+{% from "ip_routes.jinja" import static_route %}
 {% for vrf_name, vrf in bgp.vrfs|items %}
 !
 vrf {{ vrf_name }}
@@ -6,11 +7,7 @@ vrf {{ vrf_name }}
  vni {{ vrf.vni }}
 {% endif %}
 {% for ip_route in vrf.ip_routes %}
-{% if ip_route.vrf %}
- {{ "ipv6" if ip_route.is_ipv6 else "ip" }} route {{ ip_route.prefix }} {{ ip_route.via }} {{ ip_route.vrf }}
-{% else %}
- {{ "ipv6" if ip_route.is_ipv6 else "ip" }} route {{ ip_route.prefix }} {{ ip_route.via }}
-{% endif %}
+ {{ static_route(ip_route) }}
 {% endfor %}
 {% for line in vrf.custom_frr_config %}
 {{ line }}

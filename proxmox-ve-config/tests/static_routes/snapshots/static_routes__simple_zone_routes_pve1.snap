@@ -1,0 +1,20 @@
+---
+source: proxmox-ve-config/tests/static_routes/main.rs
+expression: output
+---
+!
+ip route 0.0.0.0/0 192.0.2.1 vrf vrf_isolated
+!
+ip route 0.0.0.0/0 192.0.2.2 vrf vrf_isolated
+!
+ip route 0.0.0.0/0 192.0.2.3 200 vrf vrf_isolated
+!
+ipv6 route ::/0 fe80::1 uplink0 vrf vrf_isolated
+!
+ipv6 route 2001:db8:20::/64 uplink1 10 vrf vrf_isolated
+!
+ip route 0.0.0.0/0 198.51.100.1 eth0 5 vrf vrf_shared
+!
+ipv6 route ::/0 2001:db8::1 vrf vrf_shared
+!
+ip route 203.0.113.0/24 ppp0 vrf vrf_shared

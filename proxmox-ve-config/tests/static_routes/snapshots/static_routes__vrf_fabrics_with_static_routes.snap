@@ -1,0 +1,70 @@
+---
+source: proxmox-ve-config/tests/static_routes/main.rs
+expression: output
+---
+!
+router bgp 65001 vrf vrf_red
+ bgp router-id 10.0.0.1
+ no bgp default ipv4-unicast
+ neighbor red peer-group
+ neighbor red remote-as external
+ neighbor ens19 interface peer-group red
+ !
+ address-family ipv4 unicast
+  network 10.0.0.1/32
+  neighbor red activate
+  neighbor red soft-reconfiguration inbound
+  neighbor red route-map pve_bgp_red_in in
+ exit-address-family
+exit
+!
+router ospf vrf vrf_blue
+ ospf router-id 10.0.0.1
+exit
+!
+interface dummy_blue vrf vrf_blue
+ ip ospf area 0
+ ip ospf passive
+exit
+!
+interface ens18 vrf vrf_blue
+ ip ospf area 0
+ ip ospf network point-to-point
+exit
+!
+access-list pve_bgp_red_ips permit 10.0.0.0/24
+!
+access-list pve_ospf_blue_ips permit 10.0.0.0/24
+!
+route-map pve_bgp_red_in permit 10
+ match ip address pve_bgp_red_ips
+exit
+!
+route-map pve_bgp_vrf_red permit 110
+ match ip address pve_bgp_red_ips
+ set src 10.0.0.1
+exit
+!
+route-map pve_bgp_vrf_red permit 65535
+exit
+!
+route-map pve_ospf_vrf_blue permit 100
+ match ip address pve_ospf_blue_ips
+ set src 10.0.0.1
+exit
+!
+ip route 203.0.113.0/24 10.0.0.2 vrf vrf_blue
+!
+ipv6 route 2001:db8:42::/64 fe80::2 ens19 vrf vrf_blue
+!
+ip route 203.0.113.0/24 10.0.0.3 ens19 20 vrf vrf_red
+!
+ipv6 route 2001:db8:42::/64 ens19 30 vrf vrf_red
+!
+vrf vrf_blue
+ ip protocol ospf route-map pve_ospf_vrf_blue
+exit-vrf
+!
+vrf vrf_red
+ ip protocol bgp route-map pve_bgp_vrf_red
+exit-vrf

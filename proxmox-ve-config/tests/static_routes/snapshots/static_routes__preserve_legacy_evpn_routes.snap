@@ -1,0 +1,12 @@
+---
+source: proxmox-ve-config/tests/static_routes/main.rs
+expression: output
+---
+!
+vrf vrf_zone1
+ ip route 203.0.113.0/24 null0
+exit-vrf
+!
+ip route 203.0.113.0/24 10.255.255.2 xvrf_zone1
+!
+ipv6 route 2001:db8::/64 fe80::2 xvrf_zone1

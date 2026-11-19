@@ -171,8 +171,28 @@ pub struct IpRoute {
     #[serde(default, deserialize_with = "proxmox_serde::perl::deserialize_bool")]
     is_ipv6: bool,
     prefix: Cidr,
-    via: IpOrInterface,
-    vrf: Option<InterfaceName>,
+    pub via: Option<IpOrInterface>,
+    /// Outgoing interface (e.g. EVPN's xvrf_<zone> veth). Keep the "vrf" perl
+    /// key for backwards compat.
+    #[serde(rename = "vrf")]
+    pub iface: Option<InterfaceName>,
+    pub distance: Option<u8>,
+    /// VRF in which to install the route. `None` adds no `vrf` selector, so the route is installed
+    /// in the enclosing context: the default VRF at top level, or the surrounding `vrf` block.
+    pub destination_vrf: Option<InterfaceName>,
+}
+
+impl IpRoute {
+    pub fn new(prefix: Cidr, via: Option<IpOrInterface>) -> Self {
+        Self {
+            is_ipv6: prefix.is_ipv6(),
+            prefix,
+            via,
+            iface: None,
+            distance: None,
+            destination_vrf: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
