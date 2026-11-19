@@ -627,6 +627,17 @@ impl FabricEntry {
             FabricEntry::Bgp(entry) => &mut entry.fabric,
         }
     }
+
+    /// Name of the VRF interface (`vrf_<zone>`) this fabric runs in, `None` for the default VRF.
+    pub fn fabric_vrf_name(&self) -> Option<String> {
+        let zone = match self {
+            FabricEntry::Ospf(entry) => entry.fabric_section().properties().zone(),
+            FabricEntry::Bgp(entry) => entry.fabric_section().properties().zone(),
+            FabricEntry::Openfabric(_) | FabricEntry::WireGuard(_) => None,
+        };
+
+        zone.map(|zone| format!("vrf_{zone}"))
+    }
 }
 
 impl From<Fabric> for FabricEntry {

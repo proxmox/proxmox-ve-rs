@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, btree_map};
 use std::net::{IpAddr, Ipv4Addr};
 
 use tracing;
@@ -18,6 +19,7 @@ use proxmox_sdn_types::net::Net;
 
 use crate::common::valid::Valid;
 
+use crate::sdn::ZoneName;
 use crate::sdn::fabric::section_config::protocol::bgp::{BgpNode, bgp_router_id};
 use crate::sdn::fabric::section_config::protocol::{
     bgp::BgpRedistributionSource,
@@ -27,7 +29,7 @@ use crate::sdn::fabric::section_config::protocol::{
 use crate::sdn::fabric::section_config::{fabric::FabricId, node::NodeId};
 use crate::sdn::fabric::{FabricConfig, FabricEntry};
 
-/// Constructs the FRR config from the the passed [`Valid<FabricConfig>`].
+/// Constructs the FRR config from the passed [`Valid<FabricConfig>`].
 ///
 /// Iterates over the [`FabricConfig`] and constructs all the FRR routers, interfaces, route-maps,
 /// etc.
@@ -37,7 +39,9 @@ pub fn build_fabric(
     frr_config: &mut FrrConfig,
 ) -> Result<(), anyhow::Error> {
     let mut routemap_seq = 100;
-    let mut current_router_id: Option<Ipv4Addr> = None;
+    // OSPF router IDs only need to be unique within a VRF, and node addresses are only unique
+    // within a VRF, so pick the router ID per VRF.
+    let mut ospf_router_ids: BTreeMap<VrfName, Ipv4Addr> = BTreeMap::new();
     let mut current_net: Option<Net> = None;
 
     for (fabric_id, entry) in config.into_inner().iter() {
@@ -199,34 +203,60 @@ pub fn build_fabric(
                     continue;
                 };
 
-                let router_id = current_router_id
-                    .get_or_insert(node.ip().expect("node must have an ipv4 address"));
-
                 let fabric = ospf_entry.fabric_section();
+                let vrf_name = fabric_vrf_name(fabric.properties().zone())?;
+
+                let router_id = ospf_router_ids
+                    .entry(vrf_name.clone())
+                    .or_insert(node.ip().expect("node must have an ipv4 address"));
 
                 let frr_word_area = ser::FrrWord::new(fabric.properties().area.to_string())?;
                 let frr_area = ser::ospf::Area::new(frr_word_area)?;
 
-                if !frr_config.ospf.vrf_router.contains_key(&VrfName::Default) {
-                    let mut ospf_router = build_ospf_router(*router_id)?;
-
-                    ospf_router.redistribute = fabric
-                        .properties()
-                        .redistributions()
-                        .into_iter()
-                        .cloned()
-                        .map(OspfRedistribution::from)
-                        .collect();
-
-                    frr_config
-                        .ospf
-                        .vrf_router
-                        .insert(VrfName::Default, ospf_router);
+                // FRR keeps one redistribution per source, a later one for the same source replaces
+                // the earlier one, so use the last one of the fabric for each source
+                let mut redistributions: Vec<OspfRedistribution> = Vec::new();
+                for redistribution in fabric
+                    .properties()
+                    .redistributions()
+                    .into_iter()
+                    .cloned()
+                    .map(OspfRedistribution::from)
+                {
+                    match redistributions
+                        .iter_mut()
+                        .find(|existing| existing.source == redistribution.source)
+                    {
+                        Some(existing) => *existing = redistribution,
+                        None => redistributions.push(redistribution),
+                    }
                 }
+
+                let ospf_router = match frr_config.ospf.vrf_router.entry(vrf_name.clone()) {
+                    btree_map::Entry::Occupied(entry) => entry.into_mut(),
+                    btree_map::Entry::Vacant(entry) => entry.insert(build_ospf_router(*router_id)?),
+                };
+                // The fabrics of a VRF share its OSPF router. The first fabric in ID order that
+                // redistributes a source sets its metric and route map, later fabrics only add
+                // other sources, so the result does not depend on the order FRR applies them in.
+                for redistribution in redistributions {
+                    if !ospf_router
+                        .redistribute
+                        .iter()
+                        .any(|existing| existing.source == redistribution.source)
+                    {
+                        ospf_router.redistribute.push(redistribution);
+                    }
+                }
+
+                let interface_vrf = match &vrf_name {
+                    VrfName::Default => None,
+                    custom => Some(custom.clone()),
+                };
 
                 // Add dummy interface
                 let (interface, interface_name) =
-                    build_ospf_dummy_interface(fabric_id, frr_area.clone())?;
+                    build_ospf_dummy_interface(fabric_id, frr_area.clone(), interface_vrf.clone())?;
 
                 if frr_config
                     .ospf
@@ -241,7 +271,7 @@ pub fn build_fabric(
 
                 for interface in node.properties().interfaces.iter() {
                     let (interface, interface_name) =
-                        build_ospf_interface(frr_area.clone(), interface)?;
+                        build_ospf_interface(frr_area.clone(), interface, interface_vrf.clone())?;
 
                     if frr_config
                         .ospf
@@ -308,6 +338,7 @@ pub fn build_fabric(
                 };
 
                 let fabric = bgp_entry.fabric_section();
+                let vrf_name = fabric_vrf_name(fabric.properties().zone())?;
 
                 let local_asn = properties.asn().as_u32();
 
@@ -322,7 +353,7 @@ pub fn build_fabric(
                 let local_as = frr_config
                     .bgp
                     .vrf_router
-                    .get(&VrfName::Default)
+                    .get(&vrf_name)
                     .filter(|existing| existing.asn != local_asn)
                     .map(|_| LocalAsSettings {
                         asn: local_asn,
@@ -557,10 +588,10 @@ pub fn build_fabric(
                     custom_frr_config: Default::default(),
                 };
 
-                if let Some(existing) = frr_config.bgp.vrf_router.get_mut(&VrfName::Default) {
+                if let Some(existing) = frr_config.bgp.vrf_router.get_mut(&vrf_name) {
                     existing.merge_fabric(router);
                 } else {
-                    frr_config.bgp.vrf_router.insert(VrfName::Default, router);
+                    frr_config.bgp.vrf_router.insert(vrf_name, router);
                 }
             }
         }
@@ -590,6 +621,13 @@ pub fn build_fabric(
     Ok(())
 }
 
+fn fabric_vrf_name(zone: Option<&ZoneName>) -> Result<VrfName, ser::FrrWordError> {
+    Ok(match zone {
+        Some(zone) => VrfName::Custom(FrrWord::new(format!("vrf_{zone}"))?),
+        None => VrfName::Default,
+    })
+}
+
 /// Helper that builds a OSPF router with a the router_id.
 fn build_ospf_router(router_id: Ipv4Addr) -> Result<OspfRouter, anyhow::Error> {
     Ok(OspfRouter::new(router_id))
@@ -610,6 +648,7 @@ fn build_openfabric_router(
 fn build_ospf_interface(
     area: ser::ospf::Area,
     interface: &OspfInterfaceProperties,
+    vrf: Option<VrfName>,
 ) -> Result<(Interface<OspfInterface>, InterfaceName), anyhow::Error> {
     let frr_interface = ser::ospf::OspfInterface {
         area,
@@ -625,7 +664,7 @@ fn build_ospf_interface(
             }
             Some(network_type) => Some(network_type),
         },
-        vrf: None,
+        vrf,
     };
 
     let interface_name = interface.name.as_ref().try_into()?;
@@ -636,12 +675,13 @@ fn build_ospf_interface(
 fn build_ospf_dummy_interface(
     fabric_id: &FabricId,
     area: ospf::Area,
+    vrf: Option<VrfName>,
 ) -> Result<(Interface<OspfInterface>, InterfaceName), anyhow::Error> {
     let frr_interface = ser::ospf::OspfInterface {
         area,
         passive: Some(true),
         network_type: None,
-        vrf: None,
+        vrf,
     };
     let interface_name = format!("dummy_{}", fabric_id).try_into()?;
     Ok((frr_interface.into(), interface_name))
