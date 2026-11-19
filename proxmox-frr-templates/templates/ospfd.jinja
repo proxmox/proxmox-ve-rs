@@ -1,16 +1,20 @@
 {% from "interface.jinja" import interface %}
-{% if ospf.router %}
+{% for vrf_name, router in ospf.vrf_router|items %}
 !
+{% if vrf_name == "default" %}
 router ospf
- ospf router-id {{ ospf.router.router_id }}
-{% for redistribution in ospf.router.redistribute %}
+{% else %}
+router ospf vrf {{ vrf_name }}
+{% endif %}
+ ospf router-id {{ router.router_id }}
+{% for redistribution in router.redistribute %}
  redistribute {{ redistribution.source }}{% if redistribution.metric is defined %} metric {{ redistribution.metric }}{% endif %}{% if redistribution.route_map is defined %} route-map {{ redistribution.route_map }}{% endif %}
 
 {% endfor %}
 exit
-{% endif %}
+{% endfor %}
 {% for interface_name, interface_config in ospf.interfaces|items %}
-{% call interface(interface_name, interface_config.addresses_v4, interface_config.addresses_v6) %}
+{% call interface(interface_name, interface_config.addresses_v4, interface_config.addresses_v6, interface_config.vrf) %}
  ip ospf area {{ interface_config.area }}
 {% if interface_config.passive %}
  ip ospf passive

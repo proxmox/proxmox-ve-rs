@@ -246,7 +246,7 @@ pub struct IsisFrrConfig {
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct OspfFrrConfig {
     #[serde(default)]
-    pub router: Option<ospf::OspfRouter>,
+    pub vrf_router: BTreeMap<VrfName, ospf::OspfRouter>,
     #[serde(default)]
     pub interfaces: BTreeMap<InterfaceName, Interface<ospf::OspfInterface>>,
 }

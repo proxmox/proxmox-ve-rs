@@ -1,6 +1,10 @@
-{% macro interface(name, addresses_v4, addresses_v6) %}
+{% macro interface(name, addresses_v4, addresses_v6, vrf=none) %}
 !
+{% if vrf %}
+interface {{ name }} vrf {{ vrf }}
+{% else %}
 interface {{ name }}
+{% endif %}
 {% for address in addresses_v6 %}
  ipv6 address {{address}}
 {% endfor %}

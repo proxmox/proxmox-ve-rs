@@ -207,7 +207,7 @@ pub fn build_fabric(
                 let frr_word_area = ser::FrrWord::new(fabric.properties().area.to_string())?;
                 let frr_area = ser::ospf::Area::new(frr_word_area)?;
 
-                if frr_config.ospf.router.is_none() {
+                if !frr_config.ospf.vrf_router.contains_key(&VrfName::Default) {
                     let mut ospf_router = build_ospf_router(*router_id)?;
 
                     ospf_router.redistribute = fabric
@@ -218,7 +218,10 @@ pub fn build_fabric(
                         .map(OspfRedistribution::from)
                         .collect();
 
-                    frr_config.ospf.router = Some(ospf_router);
+                    frr_config
+                        .ospf
+                        .vrf_router
+                        .insert(VrfName::Default, ospf_router);
                 }
 
                 // Add dummy interface
@@ -622,6 +625,7 @@ fn build_ospf_interface(
             }
             Some(network_type) => Some(network_type),
         },
+        vrf: None,
     };
 
     let interface_name = interface.name.as_ref().try_into()?;
@@ -637,6 +641,7 @@ fn build_ospf_dummy_interface(
         area,
         passive: Some(true),
         network_type: None,
+        vrf: None,
     };
     let interface_name = format!("dummy_{}", fabric_id).try_into()?;
     Ok((frr_interface.into(), interface_name))

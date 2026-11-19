@@ -5,7 +5,7 @@ use proxmox_sdn_types::ospf::NetworkType;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::ser::{FrrWord, FrrWordError, route_map::RouteMapName};
+use crate::ser::{FrrWord, FrrWordError, VrfName, route_map::RouteMapName};
 
 #[derive(Error, Debug)]
 pub enum AreaParsingError {
@@ -120,4 +120,7 @@ pub struct OspfInterface {
     pub passive: Option<bool>,
     #[serde(default)]
     pub network_type: Option<NetworkType>,
+    /// VRF of the interface, `None` for the default VRF.
+    #[serde(default)]
+    pub vrf: Option<VrfName>,
 }
