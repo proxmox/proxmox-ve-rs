@@ -185,6 +185,36 @@ fn parse_running_config_ct_zone() {
 }
 
 #[test]
+fn parse_running_config_nodes() {
+    let running_config: RunningConfig = serde_json::from_value(serde_json::json!({
+        "zones": {
+            "ids": {
+                "zone0": { "type": "simple" },
+                "zone1": { "type": "simple", "nodes": { "pve1": 1, "pve2": "1", "pve3": 0 } },
+                "zone2": { "type": "simple", "nodes": {} },
+            },
+        },
+    }))
+    .expect("valid running config");
+
+    let sdn_config = SdnConfig::try_from(running_config).expect("valid SDN config");
+
+    let is_on_node = |zone: &str, node: &str| {
+        sdn_config
+            .zone(&ZoneName::from_str(zone).unwrap())
+            .expect("zone exists")
+            .is_on_node(node)
+    };
+
+    assert!(is_on_node("zone0", "pve1"));
+    assert!(is_on_node("zone1", "pve1"));
+    assert!(is_on_node("zone1", "pve2"));
+    assert!(!is_on_node("zone1", "pve3"));
+    assert!(!is_on_node("zone1", "pve4"));
+    assert!(!is_on_node("zone2", "pve1"));
+}
+
+#[test]
 fn sdn_config() {
     let mut sdn_config = SdnConfig::new();
 
