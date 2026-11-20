@@ -511,7 +511,7 @@ pub enum WireGuardNodeDeletableProperties {
 /// Properties of a WireGuard interface.
 #[api(
     properties: {
-        mtu: { type: Integer, optional: true, minimum: 576, maximum: 65535 },
+        mtu: { type: Integer, optional: true, minimum: 1280, maximum: 65535 },
     },
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
@@ -594,7 +594,7 @@ fn persistent_keepalive_is_off(value: &Option<PersistentKeepalive>) -> bool {
 /// generated automatically when creating the interface.
 #[api(
     properties: {
-        mtu: { type: Integer, optional: true, minimum: 576, maximum: 65535 },
+        mtu: { type: Integer, optional: true, minimum: 1280, maximum: 65535 },
     },
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
@@ -882,7 +882,7 @@ mod tests {
             "public_key=Kay64UG8yvCyLhqU000LxzYeUm0L/hLIl5S8kyKWbdc=",
         );
 
-        for (mtu, valid) in [("", true), (",mtu=576", true), (",mtu=575", false)] {
+        for (mtu, valid) in [("", true), (",mtu=1280", true), (",mtu=1279", false)] {
             let property_string = format!("{interface}{mtu}");
 
             assert_eq!(
