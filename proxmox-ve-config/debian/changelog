@@ -1,3 +1,29 @@
+rust-proxmox-ve-config (0.13.0) trixie; urgency=medium
+
+  * sdn: fabrics: wireguard: add an MTU option for interfaces. The minimum is
+    1280, as the kernel disables IPv6 on interfaces with a smaller MTU.
+
+  * sdn: fabrics: wireguard: add getters for the listen port and public key of
+    interfaces, and a helper to resolve the peers of an interface.
+
+  * sdn: fabrics: allow OSPF and BGP fabrics to use a simple zone with a
+    dedicated VRF and generate their FRR configuration in that VRF.
+
+  * sdn: fabrics: OSPF fabrics in the same VRF share one OSPF router. For each
+    redistribution source, the first fabric in ID order that redistributes it
+    sets its metric and route map. In the default VRF, the redistributions of
+    all OSPF fabrics apply now, instead of only those of the first one.
+
+  * sdn: fabrics: scope protocol route-maps by VRF.
+
+  * sdn: add static routes for simple zones with a dedicated VRF, installed in
+    the zone VRF.
+
+  * sdn: read the conntrack zone of zones with a dedicated VRF and map the
+    interfaces of these VRFs to it, for proxmox-firewall.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 20 Nov 2026 05:45:01 +0100
+
 rust-proxmox-ve-config (0.12.0) trixie; urgency=medium
 
   * guest: parse the network devices of a guest config like qemu-server and
