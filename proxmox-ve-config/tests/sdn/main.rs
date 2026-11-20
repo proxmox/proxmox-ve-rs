@@ -170,7 +170,7 @@ fn parse_running_config_ct_zone() {
     assert_eq!(ct_zone("zone3"), None);
     assert_eq!(ct_zone("zone4"), None);
 
-    let vrfs: Vec<_> = VrfCtZones::from(&sdn_config)
+    let vrfs: Vec<_> = VrfCtZones::for_node(&sdn_config, "pve1")
         .iter()
         .map(|(vrf, entry)| (vrf.to_string(), entry.ct_zone().id()))
         .collect();
@@ -212,6 +212,37 @@ fn parse_running_config_nodes() {
     assert!(!is_on_node("zone1", "pve3"));
     assert!(!is_on_node("zone1", "pve4"));
     assert!(!is_on_node("zone2", "pve1"));
+}
+
+#[test]
+fn vrf_ct_zones_for_node() {
+    let running_config: RunningConfig = serde_json::from_value(serde_json::json!({
+        "zones": {
+            "ids": {
+                "zone0": { "type": "simple", "dedicated-vrf": 1, "ct-zone": 16384 },
+                "zone1": {
+                    "type": "simple",
+                    "dedicated-vrf": 1,
+                    "ct-zone": 16385,
+                    "nodes": { "pve1": 1 },
+                },
+                "zone2": { "type": "simple", "dedicated-vrf": 1, "ct-zone": 16386, "nodes": {} },
+            },
+        },
+    }))
+    .expect("valid running config");
+
+    let sdn_config = SdnConfig::try_from(running_config).expect("valid SDN config");
+
+    let vrfs = |node: &str| -> Vec<String> {
+        VrfCtZones::for_node(&sdn_config, node)
+            .iter()
+            .map(|(vrf, _)| vrf.to_string())
+            .collect()
+    };
+
+    assert_eq!(vrfs("pve1"), ["vrf_zone0", "vrf_zone1"]);
+    assert_eq!(vrfs("pve2"), ["vrf_zone0"]);
 }
 
 #[test]

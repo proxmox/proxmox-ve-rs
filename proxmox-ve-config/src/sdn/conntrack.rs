@@ -86,6 +86,20 @@ impl VrfCtZones {
         format!("vrf_{}", zone.name())
     }
 
+    /// The VRFs of the zones with a conntrack zone that exist on `node`.
+    ///
+    /// The VRF device of a zone is only created on the nodes of the zone, so an interface with the
+    /// same name on another node is not the VRF of the zone and must not get its conntrack zone.
+    pub fn for_node(config: &SdnConfig, node: &str) -> Self {
+        let mut ct_zones = Self::default();
+
+        for zone in config.zones().filter(|zone| zone.is_on_node(node)) {
+            ct_zones.add_zone(zone);
+        }
+
+        ct_zones
+    }
+
     /// Adds the VRF of a zone, if the zone has a conntrack zone.
     pub fn add_zone(&mut self, zone: &ZoneConfig) {
         if let Some(ct_zone) = zone.ct_zone() {
@@ -132,18 +146,6 @@ impl VrfCtZones {
                 .chain(entry.interfaces())
                 .map(|interface| (interface, entry.ct_zone()))
         })
-    }
-}
-
-impl From<&SdnConfig> for VrfCtZones {
-    fn from(config: &SdnConfig) -> Self {
-        let mut ct_zones = Self::default();
-
-        for zone in config.zones() {
-            ct_zones.add_zone(zone);
-        }
-
-        ct_zones
     }
 }
 
