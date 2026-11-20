@@ -1,3 +1,17 @@
+rust-proxmox-frr (0.7.0-1) trixie; urgency=medium
+
+  * ospf: support one router per VRF, with its interfaces in that VRF,
+    instead of a single router in the default VRF.
+
+  * support protocol route-maps per VRF.
+
+  * add static routes with a gateway, an outgoing interface or both, an
+    optional distance, and optionally installed in a VRF.
+
+  * depend on proxmox-frr-templates 0.1.3, which renders these.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 20 Nov 2026 05:45:01 +0100
+
 rust-proxmox-frr (0.6.0-1) trixie; urgency=medium
 
   * fix #8008: evpn: treat the nexthop hostname of EVPN routes as

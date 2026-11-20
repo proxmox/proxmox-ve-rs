@@ -8,4 +8,4 @@ vcs_browser = "https://git.proxmox.com/?p=proxmox-ve-rs.git"
 
 [packages.lib]
 # compiled in via `include_str!`
-depends = ["proxmox-frr-templates"]
+depends = ["proxmox-frr-templates (>= 0.1.3)"]
