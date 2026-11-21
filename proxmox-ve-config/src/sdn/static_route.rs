@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::valid::Validatable;
 use crate::sdn::ZoneName;
+use crate::sdn::config::ZoneNodes;
 use crate::sdn::fabric::section_config::interface::InterfaceName;
 
 #[api(
@@ -97,7 +98,7 @@ pub struct ZoneRoutes {
         deserialize_with = "proxmox_serde::perl::deserialize_bool"
     )]
     pub dedicated_vrf: bool,
-    pub nodes: Option<BTreeMap<String, serde_json::Value>>,
+    pub nodes: Option<ZoneNodes>,
     #[serde(default, deserialize_with = "deserialize_routes_lossy")]
     pub route: Vec<PropertyString<StaticRoute>>,
 }
@@ -146,7 +147,7 @@ impl ZoneRoutesConfig {
             if config
                 .nodes
                 .as_ref()
-                .is_some_and(|nodes| !nodes.contains_key(node))
+                .is_some_and(|nodes| !nodes.contains(node))
             {
                 continue;
             }

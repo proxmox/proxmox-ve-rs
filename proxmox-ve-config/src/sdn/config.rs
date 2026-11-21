@@ -148,14 +148,26 @@ pub struct ZoneRunningConfig {
         deserialize_with = "proxmox_serde::perl::deserialize_u16"
     )]
     ct_zone: Option<u16>,
-    /// pve-network stores the nodes of a zone as an object keyed by the node names
     #[serde(default)]
-    nodes: Option<BTreeMap<String, PerlBool>>,
+    nodes: Option<ZoneNodes>,
 }
 
 /// A boolean as stored by perl, which can also be a number or a string.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct PerlBool(#[serde(deserialize_with = "proxmox_serde::perl::deserialize_bool")] bool);
+
+/// The nodes a zone is restricted to, which pve-network stores as an object keyed by the node
+/// names.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[serde(transparent)]
+pub struct ZoneNodes(BTreeMap<String, PerlBool>);
+
+impl ZoneNodes {
+    /// Whether `node` is one of the nodes.
+    pub fn contains(&self, node: &str) -> bool {
+        self.0.get(node).is_some_and(|enabled| enabled.0)
+    }
+}
 
 /// Struct for deserializing the zones of the SDN running config
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Default)]
@@ -407,7 +419,7 @@ pub struct ZoneConfig {
     #[serde(default)]
     ct_zone: Option<VrfCtZone>,
     #[serde(default)]
-    nodes: Option<BTreeMap<String, PerlBool>>,
+    nodes: Option<ZoneNodes>,
 }
 
 impl ZoneConfig {
@@ -477,9 +489,7 @@ impl ZoneConfig {
     /// Whether the zone exists on `node`. A zone without a `nodes` property exists on all nodes,
     /// one with an empty `nodes` property on none.
     pub fn is_on_node(&self, node: &str) -> bool {
-        self.nodes
-            .as_ref()
-            .is_none_or(|nodes| nodes.get(node).is_some_and(|enabled| enabled.0))
+        self.nodes.as_ref().is_none_or(|nodes| nodes.contains(node))
     }
 }
 
