@@ -1,3 +1,13 @@
+rust-proxmox-ve-config (0.14.0) trixie; urgency=medium
+
+  * sdn: conntrack: only map the VRFs of zones that exist on the node to
+    their conntrack zone. The VRF of a zone is only created on the nodes of
+    the zone, so a same-named interface on another node must not get its
+    conntrack zone. For this, read the nodes of zones from the running config.
+    The conversion from the SDN config is replaced by VrfCtZones::for_node.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 21 Nov 2026 18:50:38 +0100
+
 rust-proxmox-ve-config (0.13.0) trixie; urgency=medium
 
   * sdn: fabrics: wireguard: add an MTU option for interfaces. The minimum is
